@@ -80,14 +80,11 @@ if (runRow?.id) {
   }));
 
   console.log("Attempting signals insert rows:", rows.length);
-  if (sigErr) {
-  console.error("Supabase signals insert error:", JSON.stringify(sigErr, null, 2));
-}
-
+  
   const { error: sigErr } = await supabase.from("signals").insert(rows);
 
   if (sigErr) {
-    console.error("Supabase signals insert error:", sigErr);
+  console.error("Supabase signals insert error:", JSON.stringify(sigErr, null, 2));
   } else {
     console.log("Supabase signals insert success:", rows.length);
   }
