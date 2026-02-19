@@ -54,6 +54,9 @@ OUTPUT RULES (STRICT):
 - Do not ask questions.
 - Do not include explanations outside the schema.
 - Maintain the original order and label each result as "1)" through "N)".
+- Any tightening in construction & land development standards ⇒ Action must be Act, unless explicitly trivial.
+- if no actionable signal, output exactly: "No actionable signal." (no extra words, no schema fields).
+-Do not treat one-off deal terms as a signal unless the input explicitly indicates a meaningful change vs prior baseline (≥50 bps spread change or ≥5% LTV change or materially different DSCR/covenants).
 
 Schema:
 Signal Type: (Pricing / Credit Availability / Credit Risk / Liquidity / Supply-Demand / Policy / Deal-Specific)
