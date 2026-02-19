@@ -44,7 +44,7 @@ Only treat it as a signal if the input includes ANY of:
 - measurable term changes (spreads, coupons, LTV/DSCR, amort, covenants)
 - explicit policy shifts (tightening/loosening, sector exclusions)
 - documented execution change (more quotes, faster closings, higher proceeds)
-Otherwise output exactly: No actionable signal.
+-Otherwise output exactly: No actionable signal.
 
 OUTPUT RULES (STRICT):
 - For each input, output EITHER:
@@ -58,6 +58,14 @@ OUTPUT RULES (STRICT):
 - if no actionable signal, output exactly: "No actionable signal." (no extra words, no schema fields).
 -Do not treat one-off deal terms as a signal unless the input explicitly indicates a meaningful change vs prior baseline (≥50 bps spread change or ≥5% LTV change or materially different DSCR/covenants).
 -Large supply additions (e.g., pipeline ≥10% of existing inventory over ~3 years) are actionable: at least Monitor.
+-Forward-looking supply shocks are actionable.
+
+If new supply equals or exceeds 10% of existing inventory within approximately 3 years,
+this is a material forward risk to rents, vacancy, and exit pricing.
+
+You MUST output at least:
+Action: Monitor
+Confidence: Medium
 -Material operating expense shocks (e.g., insurance +10% YoY or more) are actionable: Act.
 
 Schema:
