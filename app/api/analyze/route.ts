@@ -62,6 +62,9 @@ if (runInsertError) {
 
 if (runRow?.id) {
   const parsed = parseSignals(output);
+  console.log("OUTPUT preview:", output.slice(0, 180));
+  console.log("Parsed signals count:", parsed.length);
+  if (parsed.length) console.log("First parsed row:", parsed[0]);
 
   const rows = parsed.map((s) => ({
     run_id: runRow.id,
@@ -75,6 +78,11 @@ if (runRow?.id) {
     confidence: s.confidence,
     raw_text: s.raw_text,
   }));
+
+  console.log("Attempting signals insert rows:", rows.length);
+  if (sigErr) {
+  console.error("Supabase signals insert error:", JSON.stringify(sigErr, null, 2));
+}
 
   const { error: sigErr } = await supabase.from("signals").insert(rows);
 
