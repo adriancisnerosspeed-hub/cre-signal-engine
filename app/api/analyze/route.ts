@@ -1,37 +1,32 @@
 import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
 import { CRE_SIGNAL_PROMPT } from "@/lib/prompts/creSignalPrompt";
-import { supabase } from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";
 
-function looksValid(output: string, expectedCount: number) {
-  for (let i = 1; i <= expectedCount; i++) {
-    if (!output.includes(`${i})`)) return false;
-  }
-  return true;
-}
-
-function estimateExpectedCount(inputs: string) {
-  // Prefer numbered blocks: 1) ... 2) ... etc.
-  const numbered = inputs.match(/(^|\n)\s*\d+\)\s*/g)?.length ?? 0;
-  if (numbered > 0) return numbered;
-
-  // Fallback: split by blank lines (double newline)
-  const blocks = inputs.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
-  return Math.max(1, blocks.length);
-}
-
 export async function POST(req: Request) {
   try {
+    console.log("ENV OPENAI_API_KEY:", !!process.env.OPENAI_API_KEY);
+    console.log("ENV SUPABASE_URL:", !!process.env.SUPABASE_URL);
+    console.log("ENV SUPABASE_SERVICE_ROLE_KEY:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!apiKey || !supabaseUrl || !supabaseKey) {
       return Response.json(
-        { error: "Missing OPENAI_API_KEY. Check .env.local and restart dev server." },
+        { error: "Missing environment variables." },
         { status: 500 }
       );
     }
 
+    const client = new OpenAI({ apiKey });
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const { inputs } = await req.json();
+
     if (!inputs || typeof inputs !== "string") {
       return Response.json(
         { error: "Expected JSON body: { inputs: string }" },
@@ -39,10 +34,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const client = new OpenAI({ apiKey });
-
-    const expectedCount = estimateExpectedCount(inputs);
-
+    // 🔹 OpenAI call
     const completion = await client.chat.completions.create({
       model: "gpt-4.1-mini",
       temperature: 0.1,
@@ -52,38 +44,26 @@ export async function POST(req: Request) {
       ],
     });
 
-    let output = completion.choices?.[0]?.message?.content ?? "";
+    const output = completion.choices?.[0]?.message?.content ?? "";
 
-    // Retry once if formatting is broken
-    if (!looksValid(output, expectedCount)) {
-      const retry = await client.chat.completions.create({
-        model: "gpt-4.1-mini",
-        temperature: 0.1,
-        messages: [
-          { role: "system", content: CRE_SIGNAL_PROMPT },
-          {
-            role: "user",
-            content:
-              "FORMAT FIX: Output exactly one result per input labeled 1) through N). " +
-              "Each result must be either exactly 'No actionable signal.' or the full schema.\n\n" +
-              inputs,
-          },
-        ],
-      });
+    // 🔹 Insert into Supabase
+    const { error: insertError } = await supabase
+      .from("runs")
+      .insert([{ inputs, output }]);
 
-      output = retry.choices?.[0]?.message?.content ?? output;
+    if (insertError) {
+      console.error("Supabase insert error:", insertError);
+    } else {
+      console.log("Supabase insert success");
     }
-await supabase.from("runs").insert([
-  {
-    inputs,
-    output,
-  },
-]);
 
     return Response.json({ output });
+
   } catch (e: any) {
-    const status = e?.status ?? 500;
-    const detail = e?.error?.message ?? e?.message ?? String(e);
-    return Response.json({ error: "Server error", detail }, { status });
+    console.error("SERVER ERROR:", e);
+    return Response.json(
+      { error: "Server error", detail: e?.message ?? String(e) },
+      { status: 500 }
+    );
   }
 }
