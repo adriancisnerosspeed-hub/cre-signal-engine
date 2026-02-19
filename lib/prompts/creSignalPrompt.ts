@@ -14,6 +14,7 @@ to change at least one of the following:
 - lender selection or financing strategy
 - deal timing (accelerate, delay, abandon)
 
+In Deal-Specific ‘What Changed’, include the numeric deltas if present (e.g., +9% rent, -5% vacancy).
 For Deal-Specific inputs (e.g., offering memorandums or underwriting assumptions),
 a material change also includes situations where projected returns rely on
 optimistic or stacked assumptions relative to in-place performance,
