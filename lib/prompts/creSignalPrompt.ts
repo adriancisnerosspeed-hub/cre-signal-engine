@@ -57,6 +57,8 @@ OUTPUT RULES (STRICT):
 - Any tightening in construction & land development standards ⇒ Action must be Act, unless explicitly trivial.
 - if no actionable signal, output exactly: "No actionable signal." (no extra words, no schema fields).
 -Do not treat one-off deal terms as a signal unless the input explicitly indicates a meaningful change vs prior baseline (≥50 bps spread change or ≥5% LTV change or materially different DSCR/covenants).
+-Large supply additions (e.g., pipeline ≥10% of existing inventory over ~3 years) are actionable: at least Monitor.
+-Material operating expense shocks (e.g., insurance +10% YoY or more) are actionable: Act.
 
 Schema:
 Signal Type: (Pricing / Credit Availability / Credit Risk / Liquidity / Supply-Demand / Policy / Deal-Specific)
