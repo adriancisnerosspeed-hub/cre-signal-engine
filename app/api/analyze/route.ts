@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { CRE_SIGNAL_PROMPT } from "@/lib/prompts/creSignalPrompt";
+import { supabase } from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";
 
@@ -72,6 +73,12 @@ export async function POST(req: Request) {
 
       output = retry.choices?.[0]?.message?.content ?? output;
     }
+await supabase.from("runs").insert([
+  {
+    inputs,
+    output,
+  },
+]);
 
     return Response.json({ output });
   } catch (e: any) {
