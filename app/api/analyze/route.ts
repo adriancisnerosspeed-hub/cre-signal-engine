@@ -18,6 +18,8 @@ export async function POST(req: Request) {
   const started = Date.now();
   const url = new URL(req.url);
   const debug = url.searchParams.get("debug") === "1";
+  console.log(`[${requestId}] REQ`, { method: req.method, url: req.url });
+
 
   try {
     console.log(`[${requestId}] HIT /api/analyze`, {
