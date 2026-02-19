@@ -5,37 +5,74 @@ import { parseSignals } from "@/lib/parseSignals";
 
 export const runtime = "nodejs";
 
+function safePreview(s: string, n = 220) {
+  return (s ?? "").slice(0, n).replace(/\s+/g, " ").trim();
+}
+
 export async function POST(req: Request) {
+  const requestId =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+  const started = Date.now();
+  const url = new URL(req.url);
+  const debug = url.searchParams.get("debug") === "1";
+
   try {
-    console.log("ENV OPENAI_API_KEY:", !!process.env.OPENAI_API_KEY);
-    console.log("ENV SUPABASE_URL:", !!process.env.SUPABASE_URL);
-    console.log("ENV SUPABASE_SERVICE_ROLE_KEY:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+    console.log(`[${requestId}] HIT /api/analyze`, {
+      debug,
+      nodeEnv: process.env.NODE_ENV,
+      hasOpenAI: !!process.env.OPENAI_API_KEY,
+      hasSupabaseUrl: !!process.env.SUPABASE_URL,
+      hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
 
     const apiKey = process.env.OPENAI_API_KEY;
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!apiKey || !supabaseUrl || !supabaseKey) {
+      console.error(`[${requestId}] MISSING_ENV`);
       return Response.json(
-        { error: "Missing environment variables." },
+        {
+          error: "Missing environment variables on server.",
+          meta: debug
+            ? {
+                requestId,
+                hasOpenAI: !!apiKey,
+                hasSupabaseUrl: !!supabaseUrl,
+                hasServiceRole: !!supabaseKey,
+              }
+            : undefined,
+        },
         { status: 500 }
       );
     }
 
-    const client = new OpenAI({ apiKey });
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false },
+    });
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { inputs } = await req.json();
+    const body = await req.json().catch(() => null);
+    const inputs = body?.inputs;
 
     if (!inputs || typeof inputs !== "string") {
+      console.warn(`[${requestId}] BAD_INPUT`, { bodyType: typeof body });
       return Response.json(
-        { error: "Expected JSON body: { inputs: string }" },
+        { error: "Expected JSON body: { inputs: string }", meta: debug ? { requestId } : undefined },
         { status: 400 }
       );
     }
 
-    // 🔹 OpenAI call
+    console.log(`[${requestId}] INPUT`, {
+      len: inputs.length,
+      preview: safePreview(inputs),
+    });
+
+    const client = new OpenAI({ apiKey });
+
+    // --- OpenAI ---
     const completion = await client.chat.completions.create({
       model: "gpt-4.1-mini",
       temperature: 0.1,
@@ -47,55 +84,84 @@ export async function POST(req: Request) {
 
     const output = completion.choices?.[0]?.message?.content ?? "";
 
-    // 🔹 Insert into Supabase
-    const { data: runRow, error: runInsertError } = await supabase
-  .from("runs")
-  .insert([{ inputs, output }])
-  .select("id")
-  .single();
+    console.log(`[${requestId}] MODEL_OUTPUT`, {
+      len: output.length,
+      preview: safePreview(output),
+    });
 
-if (runInsertError) {
-  console.error("Supabase runs insert error:", runInsertError);
-} else {
-  console.log("Supabase runs insert success:", runRow?.id);
-}
+    // --- Insert run ---
+    const { data: runRow, error: runErr } = await supabase
+      .from("runs")
+      .insert([{ inputs, output }])
+      .select("id")
+      .single();
 
-if (runRow?.id) {
-  const parsed = parseSignals(output);
-  console.log("OUTPUT preview:", output.slice(0, 180));
-  console.log("Parsed signals count:", parsed.length);
-  if (parsed.length) console.log("First parsed row:", parsed[0]);
+    if (runErr) {
+      console.error(`[${requestId}] RUN_INSERT_FAIL`, runErr);
+      return Response.json(
+        { error: "Supabase runs insert failed.", detail: runErr, meta: debug ? { requestId } : undefined },
+        { status: 500 }
+      );
+    }
 
-  const rows = parsed.map((s) => ({
-    run_id: runRow.id,
-    idx: s.idx,
-    is_actionable: s.is_actionable,
-    signal_type: s.signal_type,
-    what_changed: s.what_changed,
-    why_it_matters: s.why_it_matters,
-    who_this_affects: s.who_this_affects,
-    action: s.action,
-    confidence: s.confidence,
-    raw_text: s.raw_text,
-  }));
+    console.log(`[${requestId}] RUN_INSERT_OK`, { runId: runRow.id });
 
-  console.log("Attempting signals insert rows:", rows.length);
-  
-  const { error: sigErr } = await supabase.from("signals").insert(rows);
+    // --- Parse + insert signals ---
+    const parsed = parseSignals(output);
 
-  if (sigErr) {
-  console.error("Supabase signals insert error:", JSON.stringify(sigErr, null, 2));
-  } else {
-    console.log("Supabase signals insert success:", rows.length);
-  }
-}
+    console.log(`[${requestId}] PARSE`, {
+      count: parsed.length,
+      first: parsed[0]
+        ? {
+            idx: parsed[0].idx,
+            is_actionable: parsed[0].is_actionable,
+            signal_type: parsed[0].signal_type,
+            action: parsed[0].action,
+            confidence: parsed[0].confidence,
+            raw_preview: safePreview(parsed[0].raw_text ?? ""),
+          }
+        : null,
+    });
 
-    return Response.json({ output });
+    let signalsInserted = 0;
 
+    if (parsed.length > 0) {
+      const rows = parsed.map((s) => ({
+        run_id: runRow.id,
+        idx: s.idx,
+        is_actionable: s.is_actionable,
+        signal_type: s.signal_type,
+        what_changed: s.what_changed,
+        why_it_matters: s.why_it_matters,
+        who_this_affects: s.who_this_affects,
+        action: s.action,
+        confidence: s.confidence,
+        raw_text: s.raw_text,
+      }));
+
+      const { error: sigErr } = await supabase.from("signals").insert(rows);
+
+      if (sigErr) {
+        console.error(`[${requestId}] SIGNALS_INSERT_FAIL`, JSON.stringify(sigErr, null, 2));
+      } else {
+        signalsInserted = rows.length;
+        console.log(`[${requestId}] SIGNALS_INSERT_OK`, { count: signalsInserted });
+      }
+    } else {
+      console.warn(`[${requestId}] NO_SIGNALS_PARSED — skipping signals insert`);
+    }
+
+    const ms = Date.now() - started;
+    console.log(`[${requestId}] DONE`, { ms, runId: runRow.id, signalsInserted });
+
+    return Response.json({
+      output,
+      meta: debug ? { requestId, runId: runRow.id, signalsInserted, ms } : undefined,
+    });
   } catch (e: any) {
-    console.error("SERVER ERROR:", e);
+    console.error(`[${requestId}] SERVER_ERROR`, e?.message ?? e, e?.stack);
     return Response.json(
-      { error: "Server error", detail: e?.message ?? String(e) },
+      { error: "Server error", detail: e?.message ?? String(e), meta: debug ? { requestId } : undefined },
       { status: 500 }
     );
   }
