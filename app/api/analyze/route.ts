@@ -120,81 +120,45 @@ export async function POST(req: Request) {
     // --- Parse + insert signals ---
     const parsed = parseSignals(output);
 
-    console.log(`[${requestId}] PARSE`, {
-      count: parsed.length,
-      first: parsed[0]
-        ? {
-            idx: parsed[0].idx,
-            is_actionable: parsed[0].is_actionable,
-            signal_type: parsed[0].signal_type,
-            action: parsed[0].action,
-            confidence: parsed[0].confidence,
-            raw_preview: safePreview(parsed[0].raw_text ?? ""),
-          }
-        : null,
-    });
+    // Only store actionable signals (avoid NOT NULL violations on signal_type)
+const actionable = parsed.filter(
+  (s) => s.is_actionable && (s.signal_type ?? "").trim().length > 0
+);
 
-    // ✅ FIX: only insert actionable signals (prevents NOT NULL constraint errors)
-    const actionable = parsed.filter(
-      (s) =>
-        s.is_actionable === true &&
-        !!s.signal_type &&
-        !!s.what_changed &&
-        !!s.why_it_matters &&
-        !!s.who_this_affects &&
-        !!s.action &&
-        !!s.confidence
-    );
+console.log(`[${requestId}] PARSE_FILTER`, {
+  parsed: parsed.length,
+  actionable: actionable.length,
+});
 
-    console.log(`[${requestId}] ACTIONABLE_FILTER`, {
-      actionableCount: actionable.length,
-      skippedCount: parsed.length - actionable.length,
-    });
+let signalsInserted = 0;
 
-    let signalsInserted = 0;
+if (actionable.length > 0) {
+  const rows = actionable.map((s) => ({
+    run_id: runRow.id,
+    idx: s.idx,
+    is_actionable: true,
+    signal_type: s.signal_type,
+    what_changed: s.what_changed ?? "",
+    why_it_matters: s.why_it_matters ?? "",
+    who_this_affects: s.who_this_affects ?? "",
+    action: s.action ?? "",
+    confidence: s.confidence ?? "",
+    raw_text: s.raw_text ?? "",
+  }));
 
-    if (actionable.length > 0) {
-      const rows = actionable.map((s) => ({
-        run_id: runRow.id,
-        idx: s.idx,
-        is_actionable: s.is_actionable,
-        signal_type: s.signal_type,
-        what_changed: s.what_changed,
-        why_it_matters: s.why_it_matters,
-        who_this_affects: s.who_this_affects,
-        action: s.action,
-        confidence: s.confidence,
-        raw_text: s.raw_text,
-      }));
+  console.log(`[${requestId}] SIGNALS_INSERT_ATTEMPT`, { rows: rows.length });
 
-      console.log(`[${requestId}] SIGNALS_INSERT_ATTEMPT`, {
-        rows: rows.length,
-        sample: rows[0]
-          ? {
-              idx: rows[0].idx,
-              signal_type: rows[0].signal_type,
-              action: rows[0].action,
-              confidence: rows[0].confidence,
-            }
-          : null,
-      });
+  const { error: sigErr } = await supabase.from("signals").insert(rows);
 
-      const tSig = Date.now();
-      const { error: sigErr } = await supabase.from("signals").insert(rows);
-      console.log(`[${requestId}] SIGNALS_INSERT_DONE`, { ms: Date.now() - tSig });
-
-      if (sigErr) {
-        console.error(
-          `[${requestId}] SIGNALS_INSERT_FAIL`,
-          JSON.stringify(sigErr, null, 2)
-        );
-      } else {
-        signalsInserted = rows.length;
-        console.log(`[${requestId}] SIGNALS_INSERT_OK`, { count: signalsInserted });
-      }
-    } else {
-      console.log(`[${requestId}] NO_ACTIONABLE_SIGNALS — skipping signals insert`);
-    }
+  if (sigErr) {
+    console.error(`[${requestId}] SIGNALS_INSERT_FAIL`, JSON.stringify(sigErr, null, 2));
+  } else {
+    signalsInserted = rows.length;
+    console.log(`[${requestId}] SIGNALS_INSERT_OK`, { signalsInserted });
+  }
+} else {
+  console.log(`[${requestId}] SIGNALS_INSERT_SKIP (no actionable signals)`);
+}
 
     const ms = Date.now() - started;
     console.log(`[${requestId}] DONE`, { ms, runId: runRow.id, signalsInserted });
