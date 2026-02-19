@@ -60,7 +60,10 @@ export async function POST(req: Request) {
     if (!inputs || typeof inputs !== "string") {
       console.warn(`[${requestId}] BAD_INPUT`, { bodyType: typeof body });
       return Response.json(
-        { error: "Expected JSON body: { inputs: string }", meta: debug ? { requestId } : undefined },
+        {
+          error: "Expected JSON body: { inputs: string }",
+          meta: debug ? { requestId } : undefined,
+        },
         { status: 400 }
       );
     }
@@ -73,6 +76,7 @@ export async function POST(req: Request) {
     const client = new OpenAI({ apiKey });
 
     // --- OpenAI ---
+    const tOpenAI = Date.now();
     const completion = await client.chat.completions.create({
       model: "gpt-4.1-mini",
       temperature: 0.1,
@@ -81,6 +85,7 @@ export async function POST(req: Request) {
         { role: "user", content: inputs },
       ],
     });
+    console.log(`[${requestId}] OPENAI_OK`, { ms: Date.now() - tOpenAI });
 
     const output = completion.choices?.[0]?.message?.content ?? "";
 
@@ -90,16 +95,22 @@ export async function POST(req: Request) {
     });
 
     // --- Insert run ---
+    const tRun = Date.now();
     const { data: runRow, error: runErr } = await supabase
       .from("runs")
       .insert([{ inputs, output }])
       .select("id")
       .single();
+    console.log(`[${requestId}] RUN_INSERT_DONE`, { ms: Date.now() - tRun });
 
     if (runErr) {
       console.error(`[${requestId}] RUN_INSERT_FAIL`, runErr);
       return Response.json(
-        { error: "Supabase runs insert failed.", detail: runErr, meta: debug ? { requestId } : undefined },
+        {
+          error: "Supabase runs insert failed.",
+          detail: runErr,
+          meta: debug ? { requestId } : undefined,
+        },
         { status: 500 }
       );
     }
@@ -123,10 +134,27 @@ export async function POST(req: Request) {
         : null,
     });
 
+    // ✅ FIX: only insert actionable signals (prevents NOT NULL constraint errors)
+    const actionable = parsed.filter(
+      (s) =>
+        s.is_actionable === true &&
+        !!s.signal_type &&
+        !!s.what_changed &&
+        !!s.why_it_matters &&
+        !!s.who_this_affects &&
+        !!s.action &&
+        !!s.confidence
+    );
+
+    console.log(`[${requestId}] ACTIONABLE_FILTER`, {
+      actionableCount: actionable.length,
+      skippedCount: parsed.length - actionable.length,
+    });
+
     let signalsInserted = 0;
 
-    if (parsed.length > 0) {
-      const rows = parsed.map((s) => ({
+    if (actionable.length > 0) {
+      const rows = actionable.map((s) => ({
         run_id: runRow.id,
         idx: s.idx,
         is_actionable: s.is_actionable,
@@ -139,16 +167,33 @@ export async function POST(req: Request) {
         raw_text: s.raw_text,
       }));
 
+      console.log(`[${requestId}] SIGNALS_INSERT_ATTEMPT`, {
+        rows: rows.length,
+        sample: rows[0]
+          ? {
+              idx: rows[0].idx,
+              signal_type: rows[0].signal_type,
+              action: rows[0].action,
+              confidence: rows[0].confidence,
+            }
+          : null,
+      });
+
+      const tSig = Date.now();
       const { error: sigErr } = await supabase.from("signals").insert(rows);
+      console.log(`[${requestId}] SIGNALS_INSERT_DONE`, { ms: Date.now() - tSig });
 
       if (sigErr) {
-        console.error(`[${requestId}] SIGNALS_INSERT_FAIL`, JSON.stringify(sigErr, null, 2));
+        console.error(
+          `[${requestId}] SIGNALS_INSERT_FAIL`,
+          JSON.stringify(sigErr, null, 2)
+        );
       } else {
         signalsInserted = rows.length;
         console.log(`[${requestId}] SIGNALS_INSERT_OK`, { count: signalsInserted });
       }
     } else {
-      console.warn(`[${requestId}] NO_SIGNALS_PARSED — skipping signals insert`);
+      console.log(`[${requestId}] NO_ACTIONABLE_SIGNALS — skipping signals insert`);
     }
 
     const ms = Date.now() - started;
@@ -161,7 +206,11 @@ export async function POST(req: Request) {
   } catch (e: any) {
     console.error(`[${requestId}] SERVER_ERROR`, e?.message ?? e, e?.stack);
     return Response.json(
-      { error: "Server error", detail: e?.message ?? String(e), meta: debug ? { requestId } : undefined },
+      {
+        error: "Server error",
+        detail: e?.message ?? String(e),
+        meta: debug ? { requestId } : undefined,
+      },
       { status: 500 }
     );
   }
