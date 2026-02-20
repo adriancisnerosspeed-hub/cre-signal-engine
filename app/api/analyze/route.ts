@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { CRE_SIGNAL_PROMPT } from "@/lib/prompts/creSignalPrompt";
 import { parseSignals } from "@/lib/parseSignals";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -99,6 +100,27 @@ export async function POST(req: Request) {
       hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     });
 
+    // --- Auth check ---
+    const supabaseAuth = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser();
+
+    if (authError || !user) {
+      console.warn(`[${requestId}] UNAUTHORIZED`, { authError: authError?.message });
+      return Response.json(
+        {
+          error: "Unauthorized",
+          message: "Authentication required",
+          meta: debug ? { requestId } : undefined,
+        },
+        { status: 401 }
+      );
+    }
+
+    console.log(`[${requestId}] AUTH_OK`, { userId: user.id, email: user.email });
+
     const apiKey = process.env.OPENAI_API_KEY;
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -121,6 +143,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // Use service role client for inserts (RLS will still enforce user_id matching)
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { persistSession: false },
     });
@@ -182,7 +205,7 @@ export async function POST(req: Request) {
     const tRun = Date.now();
     const { data: runRow, error: runErr } = await supabase
       .from("runs")
-      .insert([{ inputs, output: normalizedOutput }])
+      .insert([{ inputs, output: normalizedOutput, user_id: user.id }])
       .select("id")
       .single();
     console.log(`[${requestId}] RUN_INSERT_DONE`, { ms: Date.now() - tRun });
@@ -217,6 +240,7 @@ export async function POST(req: Request) {
     const rows = actionable
       .map((s) => ({
         run_id: runRow.id,
+        user_id: user.id,
         idx: s.idx,
         is_actionable: true,
         signal_type: (s.signal_type ?? "").trim(),
