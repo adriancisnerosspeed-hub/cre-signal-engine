@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -25,12 +25,9 @@ export default function LoginPage() {
     if (callbackError) setMessage({ type: "error", text: callbackError });
   }, [callbackError]);
 
-  // Redirect if already logged in
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        router.push("/app");
-      }
+      if (user) router.push("/app");
     });
   }, [router, supabase]);
 
@@ -38,35 +35,25 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
-
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
-
     if (error) {
       setMessage({ type: "error", text: error.message });
-      setLoading(false);
     } else {
       setMessage({
         type: "success",
         text: "Check your email for the magic link! After clicking it, you'll be redirected to the app.",
       });
-      setLoading(false);
     }
+    setLoading(false);
   }
 
   return (
     <main style={{ maxWidth: 400, margin: "100px auto", padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 24 }}>
-        CRE Signal Engine
-      </h1>
-      <p style={{ marginBottom: 24, color: "#666" }}>
-        Sign in with your email to get started.
-      </p>
-
+      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 24 }}>CRE Signal Engine</h1>
+      <p style={{ marginBottom: 24, color: "#666" }}>Sign in with your email to get started.</p>
       <form onSubmit={handleSubmit}>
         <input
           type="email"
@@ -102,7 +89,6 @@ export default function LoginPage() {
           {loading ? "Sending..." : "Send Magic Link"}
         </button>
       </form>
-
       {message && (
         <div
           style={{
@@ -116,19 +102,19 @@ export default function LoginPage() {
           {message.text}
         </div>
       )}
-
       <div style={{ marginTop: 24, textAlign: "center" }}>
-        <Link
-          href="/"
-          style={{
-            fontSize: 14,
-            color: "#666",
-            textDecoration: "underline",
-          }}
-        >
+        <Link href="/" style={{ fontSize: 14, color: "#666", textDecoration: "underline" }}>
           Back to home
         </Link>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ maxWidth: 400, margin: "100px auto", padding: 24, textAlign: "center" }}>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
