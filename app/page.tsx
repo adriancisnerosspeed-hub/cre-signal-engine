@@ -6,7 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 function friendlyMessage(res: Response, body: { error?: string; message?: string }): string {
   if (res.status === 401) return "Please sign in to analyze.";
   if (res.status === 429) return "Rate limit reached. Try again later.";
-  if (res.status >= 500) return "Something went wrong on our side. Please try again.";
+  if (res.status >= 500) {
+    if (body?.message && typeof body.message === "string") return body.message;
+    return "Something went wrong on our side. Please try again.";
+  }
   if (body?.message && typeof body.message === "string") return body.message;
   if (body?.error && typeof body.error === "string") return body.error;
   return "Something went wrong. Please try again.";

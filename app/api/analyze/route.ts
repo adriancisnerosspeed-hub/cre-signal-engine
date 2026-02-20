@@ -126,7 +126,12 @@ export async function POST(req: Request) {
       );
     }
 
-    await ensureProfile(supabaseAuth, user);
+    try {
+      await ensureProfile(supabaseAuth, user);
+    } catch (profileErr) {
+      console.warn(`[${requestId}] ENSURE_PROFILE_SKIP`, profileErr);
+      // Continue; profile may already exist or be created on next request
+    }
     const role = await getCurrentUserRole();
     console.log(`[${requestId}] AUTH_OK`, { userId: user.id, email: user.email, role });
 
@@ -158,23 +163,28 @@ export async function POST(req: Request) {
     });
 
     if (!canBypassRateLimit(role)) {
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-      const { count, error: countErr } = await supabase
-        .from("runs")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .gte("created_at", oneHourAgo);
+      try {
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        const { count, error: countErr } = await supabase
+          .from("runs")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .gte("created_at", oneHourAgo);
 
-      if (!countErr && (count ?? 0) >= ANALYZE_RATE_LIMIT_PER_HOUR) {
-        console.warn(`[${requestId}] RATE_LIMIT`, { userId: user.id, count });
-        return Response.json(
-          {
-            error: "Too Many Requests",
-            message: `Rate limit: ${ANALYZE_RATE_LIMIT_PER_HOUR} analyzes per hour. Upgrade for higher limits.`,
-            meta: debug ? { requestId } : undefined,
-          },
-          { status: 429 }
-        );
+        if (!countErr && (count ?? 0) >= ANALYZE_RATE_LIMIT_PER_HOUR) {
+          console.warn(`[${requestId}] RATE_LIMIT`, { userId: user.id, count });
+          return Response.json(
+            {
+              error: "Too Many Requests",
+              message: `Rate limit: ${ANALYZE_RATE_LIMIT_PER_HOUR} analyzes per hour. Upgrade for higher limits.`,
+              meta: debug ? { requestId } : undefined,
+            },
+            { status: 429 }
+          );
+        }
+      } catch (rateLimitErr) {
+        console.warn(`[${requestId}] RATE_LIMIT_CHECK_SKIP`, rateLimitErr);
+        // Proceed without rate limit (e.g. created_at column missing)
       }
     }
 
@@ -245,9 +255,17 @@ export async function POST(req: Request) {
       return Response.json(
         {
           error: "Supabase runs insert failed.",
-          detail: runErr,
+          message: runErr?.message ?? "Database error.",
           meta: debug ? { requestId } : undefined,
         },
+        { status: 500 }
+      );
+    }
+
+    if (!runRow?.id) {
+      console.error(`[${requestId}] RUN_INSERT_NO_DATA`);
+      return Response.json(
+        { error: "Server error", message: "Run was not created.", meta: debug ? { requestId } : undefined },
         { status: 500 }
       );
     }
@@ -342,15 +360,12 @@ export async function POST(req: Request) {
     });
   } catch (e: unknown) {
     const err = e instanceof Error ? e : null;
-    console.error(
-      `[${requestId}] SERVER_ERROR`,
-      err?.message ?? e,
-      err?.stack
-    );
+    const message = err?.message ?? (typeof e === "string" ? e : "Server error");
+    console.error(`[${requestId}] SERVER_ERROR`, message, err?.stack);
     return Response.json(
       {
         error: "Server error",
-        detail: err?.message ?? String(e),
+        message: process.env.NODE_ENV === "development" ? message : "Something went wrong. Please try again.",
         meta: debug ? { requestId } : undefined,
       },
       { status: 500 }
