@@ -55,10 +55,16 @@ OUTPUT RULES (STRICT):
 - Do not include explanations outside the schema.
 - Maintain the original order and label each result as "1)" through "N)".
 - Any tightening in construction & land development standards ⇒ Action must be Act, unless explicitly trivial.
+- If the change is explicitly forward-looking (e.g., "expected to tighten in 2026"), it is still actionable if it changes financing strategy now (Act or Monitor).
 - if no actionable signal, output exactly: "No actionable signal." (no extra words, no schema fields).
 -Do not treat one-off deal terms as a signal unless the input explicitly indicates a meaningful change vs prior baseline (≥50 bps spread change or ≥5% LTV change or materially different DSCR/covenants).
 -Large supply additions (e.g., pipeline ≥10% of existing inventory over ~3 years) are actionable: at least Monitor.
 -Forward-looking supply shocks are actionable.
+- NEVER write "Action: No actionable signal." If there is no signal, output ONLY:
+  No actionable signal.
+- Signal Type must be EXACTLY ONE of the allowed values. Do not output multiple types separated by "/" or commas.
+- Do not invent new Signal Types. If you think it is "Operating Expense", map it to:
+  Pricing (if it impacts valuation/NOI) OR Deal-Specific (if it’s underwriting-specific).
 
 If new supply equals or exceeds 10% of existing inventory within approximately 3 years,
 this is a material forward risk to rents, vacancy, and exit pricing.
@@ -67,6 +73,10 @@ You MUST output at least:
 Action: Monitor
 Confidence: Medium
 -Material operating expense shocks (e.g., insurance +10% YoY or more) are actionable: Act.
+
+Signal Type mapping rule:
+- If the change is an operating expense shock (insurance/taxes/repairs), use Signal Type: Pricing (default).
+- Only use Deal-Specific if the expense issue is tied to a specific underwriting case.
 
 Schema:
 Signal Type: (Pricing / Credit Availability / Credit Risk / Liquidity / Supply-Demand / Policy / Deal-Specific)

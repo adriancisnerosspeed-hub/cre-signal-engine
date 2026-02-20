@@ -9,6 +9,59 @@ function safePreview(s: string, n = 220) {
   return (s ?? "").slice(0, n).replace(/\s+/g, " ").trim();
 }
 
+function normalizeModelOutputToContract(raw: string): string {
+  const allowedTypes = new Set([
+    "Pricing",
+    "Credit Availability",
+    "Credit Risk",
+    "Liquidity",
+    "Supply-Demand",
+    "Policy",
+    "Deal-Specific",
+  ]);
+
+  const blocks = raw.split(/\n(?=\d+\))/g);
+
+  const fixedBlocks = blocks.map((block) => {
+    const trimmed = block.trim();
+    if (!trimmed) return trimmed;
+
+    // If the block contains "Action: No actionable signal." treat as non-actionable.
+    if (/Action:\s*No actionable signal\./i.test(trimmed)) {
+      const m = trimmed.match(/^(\d+\))/);
+      return m ? `${m[1]}\nNo actionable signal.` : `No actionable signal.`;
+    }
+
+    // If it already is "No actionable signal." keep it.
+    if (/^(\d+\)\s*)?No actionable signal\.\s*$/i.test(trimmed)) {
+      const m = trimmed.match(/^(\d+\))/);
+      return m ? `${m[1]}\nNo actionable signal.` : `No actionable signal.`;
+    }
+
+    // Normalize Signal Type line
+    const typeMatch = trimmed.match(/Signal Type:\s*(.+)/i);
+    if (typeMatch) {
+      const rawType = typeMatch[1].trim();
+
+      // pick first valid type if multiple separated by /
+      const candidates = rawType.split("/").map((s) => s.trim());
+      let chosen = candidates.find((t) => allowedTypes.has(t));
+
+      // Map common non-allowed to allowed
+      if (!chosen) {
+        if (/operating expense|insurance/i.test(rawType)) chosen = "Pricing";
+        else chosen = "Deal-Specific";
+      }
+
+      return trimmed.replace(/Signal Type:\s*(.+)/i, `Signal Type: ${chosen}`);
+    }
+
+    return trimmed;
+  });
+
+  return fixedBlocks.join("\n\n").trim();
+}
+
 export async function POST(req: Request) {
   const requestId =
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -90,7 +143,13 @@ export async function POST(req: Request) {
     console.log(`[${requestId}] OPENAI_OK`, { ms: Date.now() - tOpenAI });
 
     const output = completion.choices?.[0]?.message?.content ?? "";
+    const normalizedOutput = normalizeModelOutputToContract(output);
 
+    console.log(`[${requestId}] MODEL_OUTPUT_NORMALIZED`, {
+      len: normalizedOutput.length,
+      preview: safePreview(normalizedOutput),
+    });
+    
     console.log(`[${requestId}] MODEL_OUTPUT`, {
       len: output.length,
       preview: safePreview(output),
@@ -99,10 +158,10 @@ export async function POST(req: Request) {
     // --- Insert run ---
     const tRun = Date.now();
     const { data: runRow, error: runErr } = await supabase
-      .from("runs")
-      .insert([{ inputs, output }])
-      .select("id")
-      .single();
+    .from("runs")
+    .insert([{ inputs, output: normalizedOutput }])
+    .select("id")
+    .single();
     console.log(`[${requestId}] RUN_INSERT_DONE`, { ms: Date.now() - tRun });
 
     if (runErr) {
@@ -120,7 +179,7 @@ export async function POST(req: Request) {
     console.log(`[${requestId}] RUN_INSERT_OK`, { runId: runRow.id });
 
     // --- Parse + insert signals ---
-    const parsed = parseSignals(output);
+    const parsed = parseSignals(normalizedOutput);
 
     // Only store actionable signals (avoid NOT NULL violations on signal_type)
 const actionable = parsed.filter(
@@ -166,7 +225,7 @@ if (actionable.length > 0) {
     console.log(`[${requestId}] DONE`, { ms, runId: runRow.id, signalsInserted });
 
     return Response.json({
-      output,
+      output: normalizedOutput,
       meta: debug ? { requestId, runId: runRow.id, signalsInserted, ms } : undefined,
     });
   } catch (e: any) {
