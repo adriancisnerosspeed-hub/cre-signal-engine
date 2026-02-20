@@ -36,9 +36,8 @@ export async function GET(request: Request) {
   const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    const isExpired = error.message?.toLowerCase().includes("expired") ?? false;
-    const param = isExpired ? "expired" : "invalid";
-    return NextResponse.redirect(`${loginUrl}?error=${param}`);
+    const errorMessage = encodeURIComponent(error.message || "Sign-in failed.");
+    return NextResponse.redirect(`${origin}/auth/error?message=${errorMessage}`);
   }
 
   if (session?.user) {

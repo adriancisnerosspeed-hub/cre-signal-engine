@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import SignOutButton from "./SignOutButton";
+import Link from "next/link";
 
 type Signal = {
   id: number;
@@ -40,22 +40,28 @@ export default async function AppPage() {
 
   return (
     <main style={{ maxWidth: 1000, margin: "0 auto", padding: 24 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 32,
-        }}
-      >
+      <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700 }}>Dashboard</h1>
-        <SignOutButton />
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <p style={{ color: "#666" }}>
+        <p style={{ color: "var(--foreground)", opacity: 0.8, marginTop: 4 }}>
           Signed in as <strong>{user.email}</strong>
         </p>
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <Link
+          href="/"
+          style={{
+            display: "inline-block",
+            padding: "12px 24px",
+            backgroundColor: "var(--foreground)",
+            color: "var(--background)",
+            textDecoration: "none",
+            borderRadius: 6,
+            fontWeight: 600,
+          }}
+        >
+          Go to Analyze
+        </Link>
       </div>
 
       <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>

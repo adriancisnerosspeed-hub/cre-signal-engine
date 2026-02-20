@@ -134,28 +134,38 @@ function LoginForm() {
     setLoading(false);
   }
 
-  const containerStyle = { maxWidth: 400, margin: "60px auto", padding: 24 };
+  const fg = "var(--foreground)";
+  const muted = "rgba(255,255,255,0.6)";
+  const border = "rgba(255,255,255,0.15)";
+  const inputBg = "rgba(255,255,255,0.06)";
+  const tabInactiveBg = "rgba(255,255,255,0.08)";
+  const tabActiveBg = "rgba(255,255,255,0.18)";
+  const linkColor = "#7dd3fc";
+
+  const containerStyle = { maxWidth: 400, margin: "40px auto", padding: 24 };
   const inputStyle = {
     width: "100%",
     padding: "12px",
     fontSize: 16,
-    border: "1px solid #ddd",
-    borderRadius: 4,
+    border: `1px solid ${border}`,
+    borderRadius: 6,
     marginBottom: 12,
+    backgroundColor: inputBg,
+    color: fg,
   };
   const buttonStyle = {
     width: "100%",
     padding: "12px",
     fontSize: 16,
     border: "none",
-    borderRadius: 4,
+    borderRadius: 6,
     cursor: "pointer" as const,
   };
 
   return (
     <main style={containerStyle}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>CRE Signal Engine</h1>
-      <p style={{ marginBottom: 24, color: "#666" }}>Sign in or create an account.</p>
+      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8, color: fg }}>CRE Signal Engine</h1>
+      <p style={{ marginBottom: 24, color: muted }}>Sign in or create an account.</p>
 
       <button
         type="button"
@@ -163,14 +173,15 @@ function LoginForm() {
         disabled={loading}
         style={{
           ...buttonStyle,
-          backgroundColor: "#fff",
-          color: "#333",
-          border: "1px solid #ddd",
+          backgroundColor: "rgba(255,255,255,0.12)",
+          color: fg,
+          border: `1px solid ${border}`,
           marginBottom: 20,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           gap: 8,
+          opacity: loading ? 0.6 : 1,
         }}
       >
         <svg width="20" height="20" viewBox="0 0 24 24">
@@ -182,32 +193,38 @@ function LoginForm() {
         Continue with Google
       </button>
 
-      <div style={{ marginBottom: 16, borderTop: "1px solid #eee", paddingTop: 20 }}>
+      <div style={{ marginBottom: 16, borderTop: `1px solid ${border}`, paddingTop: 20 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <button
             type="button"
             onClick={() => { setMode("password"); setMessage(null); }}
+            disabled={false}
             style={{
-              padding: "8px 16px",
+              padding: "10px 16px",
               fontSize: 14,
-              border: "1px solid #ddd",
-              borderRadius: 4,
-              background: mode === "password" ? "#f0f0f0" : "#fff",
+              border: `1px solid ${border}`,
+              borderRadius: 6,
+              background: mode === "password" ? tabActiveBg : tabInactiveBg,
+              color: fg,
               cursor: "pointer",
+              fontWeight: mode === "password" ? 600 : 400,
             }}
           >
-            Password login
+            Sign in with password
           </button>
           <button
             type="button"
             onClick={() => { setMode("signup"); setMessage(null); }}
+            disabled={false}
             style={{
-              padding: "8px 16px",
+              padding: "10px 16px",
               fontSize: 14,
-              border: "1px solid #ddd",
-              borderRadius: 4,
-              background: mode === "signup" ? "#f0f0f0" : "#fff",
+              border: `1px solid ${border}`,
+              borderRadius: 6,
+              background: mode === "signup" ? tabActiveBg : tabInactiveBg,
+              color: fg,
               cursor: "pointer",
+              fontWeight: mode === "signup" ? 600 : 400,
             }}
           >
             Create account
@@ -236,7 +253,12 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            style={{ ...buttonStyle, backgroundColor: "#000", color: "#fff", opacity: loading ? 0.7 : 1 }}
+            style={{
+              ...buttonStyle,
+              backgroundColor: "var(--foreground)",
+              color: "var(--background)",
+              opacity: loading ? 0.7 : 1,
+            }}
           >
             {loading ? "Please wait..." : mode === "signup" ? "Create account" : "Sign in"}
           </button>
@@ -252,9 +274,10 @@ function LoginForm() {
             border: "none",
             padding: 0,
             fontSize: 14,
-            color: "#666",
+            color: linkColor,
             cursor: "pointer",
             textDecoration: "underline",
+            fontWeight: 500,
           }}
         >
           {showOtherOptions ? "Hide other options" : "Other options"}
@@ -274,9 +297,9 @@ function LoginForm() {
               disabled={loading || !magicEmail.trim()}
               style={{
                 ...buttonStyle,
-                backgroundColor: "#f0f0f0",
-                color: "#333",
-                border: "1px solid #ddd",
+                backgroundColor: tabInactiveBg,
+                color: fg,
+                border: `1px solid ${border}`,
                 opacity: loading || !magicEmail.trim() ? 0.6 : 1,
               }}
             >
@@ -291,9 +314,9 @@ function LoginForm() {
           style={{
             marginTop: 16,
             padding: 12,
-            borderRadius: 4,
-            backgroundColor: message.type === "error" ? "#fee" : "#efe",
-            color: message.type === "error" ? "#c33" : "#3c3",
+            borderRadius: 6,
+            backgroundColor: message.type === "error" ? "rgba(248,113,113,0.2)" : "rgba(74,222,128,0.2)",
+            color: message.type === "error" ? "#fca5a5" : "#86efac",
           }}
         >
           {message.text}
@@ -301,7 +324,7 @@ function LoginForm() {
       )}
 
       <div style={{ marginTop: 24, textAlign: "center" }}>
-        <Link href="/" style={{ fontSize: 14, color: "#666", textDecoration: "underline" }}>
+        <Link href="/" style={{ fontSize: 14, color: linkColor, textDecoration: "underline" }}>
           Back to home
         </Link>
       </div>
@@ -311,7 +334,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div style={{ maxWidth: 400, margin: "100px auto", padding: 24, textAlign: "center" }}>Loading...</div>}>
+    <Suspense fallback={<div style={{ maxWidth: 400, margin: "100px auto", padding: 24, textAlign: "center", color: "var(--foreground)" }}>Loading...</div>}>
       <LoginForm />
     </Suspense>
   );
