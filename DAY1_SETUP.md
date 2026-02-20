@@ -38,19 +38,25 @@ OWNER_EMAIL=owner@example.com
 
 ## Supabase Dashboard Setup Steps
 
-### 1. Enable Email Auth Provider
-1. Go to Supabase Dashboard → Authentication → Providers
-2. Enable **Email** provider
-3. Configure email templates if needed (defaults work)
+### 1. Enable Auth Providers
+1. Go to **Authentication → Providers**.
+2. **Email**
+   - Enable **Email**.
+   - For **Password login** and **Create account**: enable “Confirm email” only if you want users to verify before first sign-in (optional). If disabled, sign-up creates a session immediately.
+   - Email templates (e.g. magic link, confirm) can be customized under Authentication → Email Templates.
+3. **Google**
+   - Enable **Google**.
+   - Add your OAuth Client ID and Client Secret from [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (create OAuth 2.0 Client ID for “Web application”, add authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`).
+   - Save.
 
-### 2. Configure Site URL and Redirect URLs (fixes magic link / otp_expired)
+### 2. Configure Site URL and Redirect URLs (required for magic link + OAuth)
 1. Go to **Authentication → URL Configuration**.
 2. **Site URL:** Set to your **production** app URL (e.g. `https://your-app.vercel.app`). This is the default base used in emails; the app overrides with the current origin when requesting the magic link.
 3. **Redirect URLs:** Add **both**:
    - `http://localhost:3000/auth/callback` (local dev)
    - `https://your-app.vercel.app/auth/callback` (production; use your real Vercel domain)
    - Any other origins where you host the app (e.g. preview deployments).
-   Supabase will only redirect to URLs in this list. Magic links use the origin where the user clicked "Send Magic Link" (dynamic), so local and prod must both be allowed.
+   Supabase will only redirect to URLs in this list. The same `/auth/callback` route is used for **magic link** and **Google OAuth**; both use the current origin, so local and prod must be allowed.
 
 ### 3. Run SQL Migrations
 1. Go to Supabase Dashboard → SQL Editor

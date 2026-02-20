@@ -1,6 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 import { ensureProfile } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { parse as parseCookieHeader } from "cookie";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -13,7 +14,25 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${loginUrl}?error=missing`);
   }
 
-  const supabase = await createClient();
+  const cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[] = [];
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const parsed = parseCookieHeader(cookieHeader);
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return Object.entries(parsed).map(([name, value]) => ({ name, value: value ?? "" }));
+        },
+        setAll(cookies) {
+          cookies.forEach((c) => cookiesToSet.push({ name: c.name, value: c.value, options: c.options }));
+        },
+      },
+    }
+  );
+
   const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
@@ -27,5 +46,14 @@ export async function GET(request: Request) {
   }
 
   const redirectTo = next.startsWith("/") ? next : "/app";
-  return NextResponse.redirect(`${origin}${redirectTo}`);
+  const response = NextResponse.redirect(`${origin}${redirectTo}`);
+
+  cookiesToSet.forEach(({ name, value, options }) => {
+    response.cookies.set(name, value, {
+      path: "/",
+      ...(options as Record<string, unknown>),
+    });
+  });
+
+  return response;
 }

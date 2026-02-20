@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { ensureProfile } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import SignOutButton from "./SignOutButton";
 
@@ -23,6 +24,8 @@ export default async function AppPage() {
   if (!user) {
     redirect("/login");
   }
+
+  await ensureProfile(supabase, user);
 
   const { data: signals, error } = await supabase
     .from("signals")
