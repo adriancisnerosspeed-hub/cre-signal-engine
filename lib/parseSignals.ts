@@ -61,8 +61,14 @@ export function parseSignals(output: string): ParsedSignal[] {
     const action = grabField(blockBody, "Action");
     const confidence = grabField(blockBody, "Confidence");
 
-    const is_actionable =
-      action ? /^(Act|Monitor|Ignore)$/i.test(action.trim()) : false;
+    const actionNorm = action ? action.trim() : null;
+    const signalTypeNorm = signal_type ? signal_type.trim() : null;
+    const is_actionable = !!(
+      actionNorm &&
+      /^(Act|Monitor|Ignore)$/i.test(actionNorm) &&
+      signalTypeNorm &&
+      signalTypeNorm.length > 0
+    );
 
     results.push({
       idx,
@@ -71,7 +77,7 @@ export function parseSignals(output: string): ParsedSignal[] {
       what_changed: what_changed || null,
       why_it_matters: why_it_matters || null,
       who_this_affects: who_this_affects || null,
-      action: action ? action.trim() : null,
+      action: actionNorm,
       confidence: confidence ? confidence.trim() : null,
       raw_text,
     });

@@ -9,6 +9,22 @@ function safePreview(s: string, n = 220) {
   return (s ?? "").slice(0, n).replace(/\s+/g, " ").trim();
 }
 
+function pickSupabaseErrorFields(err: unknown): {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+} {
+  if (!err || typeof err !== "object") return {};
+  const e = err as Record<string, unknown>;
+  return {
+    message: typeof e.message === "string" ? e.message : undefined,
+    code: typeof e.code === "string" ? e.code : undefined,
+    details: typeof e.details === "string" ? e.details : undefined,
+    hint: typeof e.hint === "string" ? e.hint : undefined,
+  };
+}
+
 function normalizeModelOutputToContract(raw: string): string {
   const allowedTypes = new Set([
     "Pricing",
@@ -145,23 +161,30 @@ export async function POST(req: Request) {
     const output = completion.choices?.[0]?.message?.content ?? "";
     const normalizedOutput = normalizeModelOutputToContract(output);
 
-    console.log(`[${requestId}] MODEL_OUTPUT_NORMALIZED`, {
-      len: normalizedOutput.length,
-      preview: safePreview(normalizedOutput),
-    });
-    
-    console.log(`[${requestId}] MODEL_OUTPUT`, {
-      len: output.length,
-      preview: safePreview(output),
-    });
+    if (debug) {
+      console.log(`[${requestId}] MODEL_OUTPUT_RAW`, {
+        len: output.length,
+        preview: safePreview(output),
+      });
+      console.log(`[${requestId}] MODEL_OUTPUT_NORMALIZED`, {
+        len: normalizedOutput.length,
+        preview: safePreview(normalizedOutput),
+        changed: output.trim() !== normalizedOutput.trim(),
+      });
+    } else {
+      console.log(`[${requestId}] MODEL_OUTPUT_NORMALIZED`, {
+        len: normalizedOutput.length,
+        preview: safePreview(normalizedOutput),
+      });
+    }
 
     // --- Insert run ---
     const tRun = Date.now();
     const { data: runRow, error: runErr } = await supabase
-    .from("runs")
-    .insert([{ inputs, output: normalizedOutput }])
-    .select("id")
-    .single();
+      .from("runs")
+      .insert([{ inputs, output: normalizedOutput }])
+      .select("id")
+      .single();
     console.log(`[${requestId}] RUN_INSERT_DONE`, { ms: Date.now() - tRun });
 
     if (runErr) {
@@ -181,59 +204,99 @@ export async function POST(req: Request) {
     // --- Parse + insert signals ---
     const parsed = parseSignals(normalizedOutput);
 
-    // Only store actionable signals (avoid NOT NULL violations on signal_type)
-const actionable = parsed.filter(
-  (s) => s.is_actionable && (s.signal_type ?? "").trim().length > 0
-);
+    const parseStats = {
+      parsed: parsed.length,
+      actionable: parsed.filter((s) => s.is_actionable).length,
+      nonActionable: parsed.filter((s) => !s.is_actionable).length,
+    };
+    console.log(`[${requestId}] PARSE_COUNTS`, parseStats);
 
-console.log(`[${requestId}] PARSE_FILTER`, {
-  parsed: parsed.length,
-  actionable: actionable.length,
-});
+    // Only store actionable signals with required fields present
+    const actionable = parsed.filter((s) => s.is_actionable);
+    const validAction = new Set(["Act", "Monitor", "Ignore"]);
+    const rows = actionable
+      .map((s) => ({
+        run_id: runRow.id,
+        idx: s.idx,
+        is_actionable: true,
+        signal_type: (s.signal_type ?? "").trim(),
+        what_changed: s.what_changed ?? "",
+        why_it_matters: s.why_it_matters ?? "",
+        who_this_affects: s.who_this_affects ?? "",
+        action: (s.action ?? "").trim(),
+        confidence: (s.confidence ?? "").trim(),
+        raw_text: s.raw_text ?? "",
+      }))
+      .filter((r) => {
+        if (!Number.isFinite(r.idx) || r.idx <= 0) return false;
+        if (!r.signal_type) return false;
+        if (!r.action || !validAction.has(r.action)) return false;
+        return true;
+      });
 
-let signalsInserted = 0;
+    const droppedForMissingRequired = actionable.length - rows.length;
+    if (debug) {
+      console.log(`[${requestId}] SIGNAL_ROWS_PREPARED`, {
+        actionable: actionable.length,
+        insertable: rows.length,
+        droppedForMissingRequired,
+      });
+    }
 
-if (actionable.length > 0) {
-  const rows = actionable.map((s) => ({
-    run_id: runRow.id,
-    idx: s.idx,
-    is_actionable: true,
-    signal_type: s.signal_type,
-    what_changed: s.what_changed ?? "",
-    why_it_matters: s.why_it_matters ?? "",
-    who_this_affects: s.who_this_affects ?? "",
-    action: s.action ?? "",
-    confidence: s.confidence ?? "",
-    raw_text: s.raw_text ?? "",
-  }));
+    let signalsInserted = 0;
+    let signalsInsertError:
+      | { message?: string; code?: string; details?: string; hint?: string }
+      | null = null;
 
-  console.log(`[${requestId}] SIGNALS_INSERT_ATTEMPT`, { rows: rows.length });
+    if (rows.length > 0) {
+      console.log(`[${requestId}] SIGNALS_INSERT_ATTEMPT`, { rows: rows.length });
+      const { error: sigErr } = await supabase.from("signals").insert(rows);
 
-  const { error: sigErr } = await supabase.from("signals").insert(rows);
-
-  if (sigErr) {
-    console.error(`[${requestId}] SIGNALS_INSERT_FAIL`, JSON.stringify(sigErr, null, 2));
-  } else {
-    signalsInserted = rows.length;
-    console.log(`[${requestId}] SIGNALS_INSERT_OK`, { signalsInserted });
-  }
-} else {
-  console.log(`[${requestId}] SIGNALS_INSERT_SKIP (no actionable signals)`);
-}
+      if (sigErr) {
+        signalsInsertError = pickSupabaseErrorFields(sigErr);
+        console.error(
+          `[${requestId}] SIGNALS_INSERT_FAIL`,
+          JSON.stringify(signalsInsertError, null, 2)
+        );
+      } else {
+        signalsInserted = rows.length;
+        console.log(`[${requestId}] SIGNALS_INSERT_OK`, { signalsInserted });
+      }
+    } else {
+      console.log(`[${requestId}] SIGNALS_INSERT_SKIP`, {
+        reason: actionable.length === 0 ? "no actionable signals" : "no valid rows",
+        actionable: actionable.length,
+        droppedForMissingRequired,
+      });
+    }
 
     const ms = Date.now() - started;
     console.log(`[${requestId}] DONE`, { ms, runId: runRow.id, signalsInserted });
 
     return Response.json({
       output: normalizedOutput,
-      meta: debug ? { requestId, runId: runRow.id, signalsInserted, ms } : undefined,
+      meta: debug
+        ? {
+            requestId,
+            runId: runRow.id,
+            signalsInserted,
+            ms,
+            parse: parseStats,
+            ...(signalsInsertError ? { signalsInsertError } : {}),
+          }
+        : undefined,
     });
-  } catch (e: any) {
-    console.error(`[${requestId}] SERVER_ERROR`, e?.message ?? e, e?.stack);
+  } catch (e: unknown) {
+    const err = e instanceof Error ? e : null;
+    console.error(
+      `[${requestId}] SERVER_ERROR`,
+      err?.message ?? e,
+      err?.stack
+    );
     return Response.json(
       {
         error: "Server error",
-        detail: e?.message ?? String(e),
+        detail: err?.message ?? String(e),
         meta: debug ? { requestId } : undefined,
       },
       { status: 500 }
