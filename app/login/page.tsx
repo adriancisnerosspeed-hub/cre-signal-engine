@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -10,7 +10,20 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+
+  const callbackError = useMemo(() => {
+    const error = searchParams.get("error");
+    if (error === "expired") return "That link expired or is invalid. Please request a new link.";
+    if (error === "invalid") return "That link is invalid. Please request a new link.";
+    if (error === "missing") return "No sign-in code was received. Please request a new link.";
+    return null;
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (callbackError) setMessage({ type: "error", text: callbackError });
+  }, [callbackError]);
 
   // Redirect if already logged in
   useEffect(() => {

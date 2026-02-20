@@ -3,8 +3,15 @@ import { createClient } from "@supabase/supabase-js";
 import { CRE_SIGNAL_PROMPT } from "@/lib/prompts/creSignalPrompt";
 import { parseSignals } from "@/lib/parseSignals";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserRole,
+  canBypassRateLimit,
+  ensureProfile,
+} from "@/lib/auth";
 
 export const runtime = "nodejs";
+
+const ANALYZE_RATE_LIMIT_PER_HOUR = 10;
 
 function safePreview(s: string, n = 220) {
   return (s ?? "").slice(0, n).replace(/\s+/g, " ").trim();
@@ -119,7 +126,9 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log(`[${requestId}] AUTH_OK`, { userId: user.id, email: user.email });
+    await ensureProfile(supabaseAuth, user);
+    const role = await getCurrentUserRole();
+    console.log(`[${requestId}] AUTH_OK`, { userId: user.id, email: user.email, role });
 
     const apiKey = process.env.OPENAI_API_KEY;
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -143,10 +152,31 @@ export async function POST(req: Request) {
       );
     }
 
-    // Use service role client for inserts (RLS will still enforce user_id matching)
+    // Use service role client for inserts and rate-limit check
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { persistSession: false },
     });
+
+    if (!canBypassRateLimit(role)) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count, error: countErr } = await supabase
+        .from("runs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("created_at", oneHourAgo);
+
+      if (!countErr && (count ?? 0) >= ANALYZE_RATE_LIMIT_PER_HOUR) {
+        console.warn(`[${requestId}] RATE_LIMIT`, { userId: user.id, count });
+        return Response.json(
+          {
+            error: "Too Many Requests",
+            message: `Rate limit: ${ANALYZE_RATE_LIMIT_PER_HOUR} analyzes per hour. Upgrade for higher limits.`,
+            meta: debug ? { requestId } : undefined,
+          },
+          { status: 429 }
+        );
+      }
+    }
 
     const body = await req.json().catch(() => null);
     const inputs = body?.inputs;

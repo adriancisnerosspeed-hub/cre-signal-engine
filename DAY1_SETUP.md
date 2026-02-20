@@ -29,9 +29,12 @@ SUPABASE_SERVICE_ROLE_KEY=...
 # New - Required for Auth
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# RBAC: user with this email gets role 'owner' (bypasses rate limits, Pro access)
+OWNER_EMAIL=owner@example.com
 ```
 
-**Note:** Get `NEXT_PUBLIC_SUPABASE_ANON_KEY` from your Supabase dashboard → Settings → API → Project API keys → `anon` `public` key.
+**Note:** Get `NEXT_PUBLIC_SUPABASE_ANON_KEY` from your Supabase dashboard → Settings → API → Project API keys → `anon` `public` key. Set `OWNER_EMAIL` to the exact login email for the owner account (case-insensitive match).
 
 ## Supabase Dashboard Setup Steps
 
@@ -40,21 +43,22 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 2. Enable **Email** provider
 3. Configure email templates if needed (defaults work)
 
-### 2. Configure Redirect URLs
-1. Go to Authentication → URL Configuration
-2. Add to **Redirect URLs**:
+### 2. Configure Site URL and Redirect URLs (fixes magic link / otp_expired)
+1. Go to **Authentication → URL Configuration**.
+2. **Site URL:** Set to your **production** app URL (e.g. `https://your-app.vercel.app`). This is the default base used in emails; the app overrides with the current origin when requesting the magic link.
+3. **Redirect URLs:** Add **both**:
    - `http://localhost:3000/auth/callback` (local dev)
-   - `https://your-app.vercel.app/auth/callback` (production)
+   - `https://your-app.vercel.app/auth/callback` (production; use your real Vercel domain)
+   - Any other origins where you host the app (e.g. preview deployments).
+   Supabase will only redirect to URLs in this list. Magic links use the origin where the user clicked "Send Magic Link" (dynamic), so local and prod must both be allowed.
 
-### 3. Run SQL Migration
+### 3. Run SQL Migrations
 1. Go to Supabase Dashboard → SQL Editor
-2. Copy and paste the contents of `supabase/migrations/001_add_user_ownership_and_rls.sql`
-3. Run the migration
+2. Run `supabase/migrations/001_add_user_ownership_and_rls.sql`
+3. Run `supabase/migrations/002_profiles_rls.sql` (profiles table + RLS, optional `runs.created_at`)
 4. Verify:
-   - `runs.user_id` column exists
-   - `signals.user_id` column exists
-   - RLS is enabled on both tables
-   - Policies are created
+   - `runs.user_id`, `signals.user_id` exist; RLS enabled
+   - `profiles` table exists with `id`, `role`, `created_at`; RLS allows select/insert/update own row
 
 ### 4. Backfill Existing Data (if any)
 If you have existing rows in `runs` or `signals` without `user_id`:
