@@ -1,13 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const router = useRouter();
   const supabase = createClient();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        router.push("/app");
+      }
+    });
+  }, [router, supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -17,7 +29,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/app`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
@@ -27,7 +39,7 @@ export default function LoginPage() {
     } else {
       setMessage({
         type: "success",
-        text: "Check your email for the magic link!",
+        text: "Check your email for the magic link! After clicking it, you'll be redirected to the app.",
       });
       setLoading(false);
     }
@@ -91,6 +103,19 @@ export default function LoginPage() {
           {message.text}
         </div>
       )}
+
+      <div style={{ marginTop: 24, textAlign: "center" }}>
+        <Link
+          href="/"
+          style={{
+            fontSize: 14,
+            color: "#666",
+            textDecoration: "underline",
+          }}
+        >
+          Back to home
+        </Link>
+      </div>
     </main>
   );
 }
