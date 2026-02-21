@@ -22,3 +22,5 @@ Optional:
 1. Add env vars in Vercel: **RESEND_API_KEY**, **CRON_SECRET**, **SUPABASE_SERVICE_ROLE_KEY**, and **SUPABASE_URL** (if not already set).
 2. Deploy. The `vercel.json` cron runs **every 5 minutes** and calls `GET /api/cron/digest`. Vercel sends `Authorization: Bearer <CRON_SECRET>` when the env var is set.
 3. For manual testing: `GET /api/cron/digest?secret=YOUR_CRON_SECRET`.
+
+**Cron frequency and plan:** On Vercel **Hobby**, Cron Jobs are limited to **once per day**. On **Pro**, frequent schedules (e.g. every 5 minutes) are supported. This app’s `vercel.json` is set to every 5 minutes; if you’re on Hobby, the cron will only run once per day and timezone-aware digest windows may be missed. Upgrade to Pro for true 5-minute scheduling, or change the schedule to a daily expression (e.g. `0 7 * * *` for 07:00 UTC daily) on Hobby.
