@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { getDigestSignals, getDefaultPreferences } from "@/lib/digest";
+import { getDigestSignals, getDefaultPreferences, prepareDigestSignals } from "@/lib/digest";
 import {
   buildDigestSubject,
   buildDigestHtmlBody,
+  buildNoSignalsSubject,
+  buildNoSignalsHtmlBody,
   sendDigestEmail,
 } from "@/lib/email";
 
@@ -36,9 +38,9 @@ export async function POST() {
   const periodEnd = new Date();
   const periodStart = new Date(periodEnd.getTime() - WINDOW_HOURS * 60 * 60 * 1000);
 
-  let signals;
+  let rawSignals;
   try {
-    signals = await getDigestSignals(supabase, {
+    rawSignals = await getDigestSignals(supabase, {
       userId: user.id,
       windowHours: WINDOW_HOURS,
       prefs,
@@ -48,33 +50,43 @@ export async function POST() {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
+  const { signals, additionalCount } = prepareDigestSignals(rawSignals);
   const localDateStr = periodEnd.toISOString().slice(0, 10);
   const scheduledForDate = localDateStr;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
 
   if (signals.length === 0) {
+    const subject = buildNoSignalsSubject(localDateStr);
+    const html = buildNoSignalsHtmlBody(periodStart, periodEnd, baseUrl);
+    const sendResult = await sendDigestEmail({ to: user.email, subject, html });
     const { error: insertErr } = await supabase.from("digest_sends").insert({
       user_id: user.id,
       period_start: periodStart.toISOString(),
       period_end: periodEnd.toISOString(),
       scheduled_for_date: scheduledForDate,
-      sent_at: null,
+      sent_at: sendResult.success ? new Date().toISOString() : null,
       num_signals: 0,
-      status: "skipped",
-      error_message: null,
+      status: sendResult.success ? "sent" : "error",
+      error_message: sendResult.error ?? null,
     });
     if (insertErr) {
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
+    if (!sendResult.success) {
+      return NextResponse.json(
+        { error: "No-signal email failed: " + (sendResult.error ?? "unknown") },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({
       ok: true,
-      message: "No actionable signals in last 24 hours",
+      message: "No new actionable signals in the past 24 hours. Digest email sent.",
       num_signals: 0,
     });
   }
 
   const subject = buildDigestSubject(localDateStr, signals.length);
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
-  const html = buildDigestHtmlBody(signals, periodStart, periodEnd, baseUrl);
+  const html = buildDigestHtmlBody(signals, periodStart, periodEnd, baseUrl, additionalCount);
   const sendResult = await sendDigestEmail({ to: user.email, subject, html });
 
   const { error: insertErr } = await supabase.from("digest_sends").insert({
@@ -103,5 +115,6 @@ export async function POST() {
     ok: true,
     message: `Digest sent to ${user.email}`,
     num_signals: signals.length,
+    additional_count: additionalCount,
   });
 }

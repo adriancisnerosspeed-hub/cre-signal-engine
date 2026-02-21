@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { getDigestSignals, getDefaultPreferences } from "@/lib/digest";
+import { getDigestSignals, getDefaultPreferences, prepareDigestSignals } from "@/lib/digest";
 import {
   buildDigestSubject,
   buildDigestHtmlBody,
+  buildNoSignalsSubject,
+  buildNoSignalsHtmlBody,
   sendDigestEmail,
 } from "@/lib/email";
 
@@ -103,25 +105,24 @@ export async function GET(request: Request) {
 
           const periodEnd = new Date();
           const periodStart = new Date(periodEnd.getTime() - WINDOW_HOURS * 60 * 60 * 1000);
-          const signals = await getDigestSignals(supabase, {
+          const rawSignals = await getDigestSignals(supabase, {
             userId,
             windowHours: WINDOW_HOURS,
             prefs,
           });
 
-          if (signals.length === 0) {
-            await supabase.from("digest_sends").insert({
+          const { signals, additionalCount, beforeDedupe, afterDedupe } = prepareDigestSignals(rawSignals);
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+
+          if (process.env.NODE_ENV !== "test") {
+            console.log(JSON.stringify({
+              digest_cron: true,
               user_id: userId,
-              period_start: periodStart.toISOString(),
-              period_end: periodEnd.toISOString(),
-              scheduled_for_date: scheduledForDate,
-              sent_at: null,
-              num_signals: 0,
-              status: "skipped",
-              error_message: null,
-            });
-            skipped++;
-            return;
+              signals_before_dedupe: beforeDedupe,
+              signals_after_dedupe: afterDedupe,
+              signals_sent: signals.length,
+              capped_count: additionalCount,
+            }));
           }
 
           const { data: authUser, error: authErr } = await supabase.auth.admin.getUserById(userId);
@@ -140,9 +141,31 @@ export async function GET(request: Request) {
             return;
           }
 
+          if (signals.length === 0) {
+            const subject = buildNoSignalsSubject(scheduledForDate);
+            const html = buildNoSignalsHtmlBody(periodStart, periodEnd, baseUrl);
+            const sendResult = await sendDigestEmail({
+              to: authUser.user.email,
+              subject,
+              html,
+            });
+            await supabase.from("digest_sends").insert({
+              user_id: userId,
+              period_start: periodStart.toISOString(),
+              period_end: periodEnd.toISOString(),
+              scheduled_for_date: scheduledForDate,
+              sent_at: sendResult.success ? new Date().toISOString() : null,
+              num_signals: 0,
+              status: sendResult.success ? "sent" : "error",
+              error_message: sendResult.error ?? null,
+            });
+            if (sendResult.success) sent++;
+            else errors++;
+            return;
+          }
+
           const subject = buildDigestSubject(scheduledForDate, signals.length);
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
-          const html = buildDigestHtmlBody(signals, periodStart, periodEnd, baseUrl);
+          const html = buildDigestHtmlBody(signals, periodStart, periodEnd, baseUrl, additionalCount);
           const sendResult = await sendDigestEmail({
             to: authUser.user.email,
             subject,

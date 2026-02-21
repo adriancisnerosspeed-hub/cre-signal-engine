@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { getDigestSignals, getDefaultPreferences, groupSignalsForDigest } from "@/lib/digest";
+import { getDigestSignals, getDefaultPreferences, prepareDigestSignals, groupSignalsForDigest } from "@/lib/digest";
 import Link from "next/link";
 import DigestPreviewClient from "./DigestPreviewClient";
 
@@ -34,9 +34,9 @@ export default async function DigestPreviewPage() {
   const periodEnd = new Date();
   const periodStart = new Date(periodEnd.getTime() - WINDOW_HOURS * 60 * 60 * 1000);
 
-  let signals: Awaited<ReturnType<typeof getDigestSignals>> = [];
+  let rawSignals: Awaited<ReturnType<typeof getDigestSignals>> = [];
   try {
-    signals = await getDigestSignals(supabase, {
+    rawSignals = await getDigestSignals(supabase, {
       userId: user.id,
       windowHours: WINDOW_HOURS,
       prefs,
@@ -45,6 +45,7 @@ export default async function DigestPreviewPage() {
     // render empty
   }
 
+  const { signals, additionalCount } = prepareDigestSignals(rawSignals);
   const grouped = groupSignalsForDigest(signals);
   const rangeStr = `${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`;
 
@@ -86,6 +87,11 @@ export default async function DigestPreviewPage() {
         <div style={blockStyle}>
           <p style={{ color: "#e4e4e7", marginBottom: 16, fontSize: 14 }}>
             {signals.length} signal{signals.length !== 1 ? "s" : ""} (same structure as the email)
+            {additionalCount > 0 && (
+              <span style={{ color: "#a1a1aa", fontWeight: 400 }}>
+                {" "}+{additionalCount} more in dashboard
+              </span>
+            )}
           </p>
           {Array.from(grouped.entries()).map(([signalType, byAction]) => (
             <div key={signalType} style={{ marginBottom: 20 }}>

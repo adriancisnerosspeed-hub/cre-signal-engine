@@ -14,11 +14,35 @@ export function buildDigestSubject(localDateStr: string, count: number): string 
   return `CRE Signals Digest — ${localDateStr} — ${count} actionable signal${count !== 1 ? "s" : ""}`;
 }
 
+export function buildNoSignalsSubject(localDateStr: string): string {
+  return `CRE Signals Digest — ${localDateStr} — No new signals`;
+}
+
+export function buildNoSignalsHtmlBody(periodStart: Date, periodEnd: Date, baseUrl: string): string {
+  const rangeStr = `${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`;
+  const appUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/app` : "/app";
+  const previewUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/digest/preview` : "/digest/preview";
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>CRE Signals Digest</title></head>
+<body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #1a1a1a; max-width: 640px; margin: 0 auto; padding: 24px;">
+  <h1 style="font-size: 18px; margin-bottom: 4px;">CRE Signals Digest</h1>
+  <p style="color: #666; font-size: 13px; margin-bottom: 20px;">${rangeStr} (last 24 hours)</p>
+  <p style="font-size: 15px; color: #333;">No new actionable signals in the past 24 hours.</p>
+  <p style="margin-top: 24px; font-size: 12px; color: #666;">
+    <a href="${escapeHtml(appUrl)}" style="color: #2563eb;">Dashboard</a> · <a href="${escapeHtml(previewUrl)}" style="color: #2563eb;">Digest preview</a>
+  </p>
+</body>
+</html>`;
+}
+
 export function buildDigestHtmlBody(
   signals: DigestSignal[],
   periodStart: Date,
   periodEnd: Date,
-  baseUrl: string
+  baseUrl: string,
+  additionalCount = 0
 ): string {
   const grouped = groupSignalsForDigest(signals);
   const rangeStr = `${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`;
@@ -46,6 +70,10 @@ export function buildDigestHtmlBody(
       }
       html += `  </ul>\n`;
     }
+  }
+
+  if (additionalCount > 0) {
+    html += `  <p style="margin-top: 16px; font-size: 13px; color: #555;">+${additionalCount} additional signal${additionalCount !== 1 ? "s" : ""} available in your dashboard.</p>\n`;
   }
 
   const appUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/app` : "/app";
