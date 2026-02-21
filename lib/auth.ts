@@ -14,7 +14,7 @@ function isOwnerEmail(email: string | undefined): boolean {
 /**
  * Server-side: ensure a profile exists for the user (e.g. on first login).
  * If no profile exists, creates one; sets role to 'owner' when user email matches OWNER_EMAIL.
- * Call this after auth (e.g. in auth callback).
+ * If profile exists and user email matches OWNER_EMAIL, updates role to 'owner' (so existing users get owner).
  */
 export async function ensureProfile(
   supabase: SupabaseClient,
@@ -22,13 +22,20 @@ export async function ensureProfile(
 ): Promise<void> {
   const { data: existing } = await supabase
     .from("profiles")
-    .select("id")
+    .select("id, role")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (existing) return;
+  const shouldBeOwner = isOwnerEmail(user.email);
 
-  const role: Role = isOwnerEmail(user.email) ? "owner" : "free";
+  if (existing) {
+    if (shouldBeOwner && existing.role !== "owner") {
+      await supabase.from("profiles").update({ role: "owner" }).eq("id", user.id);
+    }
+    return;
+  }
+
+  const role: Role = shouldBeOwner ? "owner" : "free";
   await supabase.from("profiles").insert({ id: user.id, role });
 }
 
