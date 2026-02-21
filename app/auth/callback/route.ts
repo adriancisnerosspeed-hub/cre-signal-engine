@@ -3,15 +3,23 @@ import { ensureProfile } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { parse as parseCookieHeader } from "cookie";
 
+/** Base URL for redirects. Prefer env so Vercel/proxies don't send user to wrong host. */
+function getRedirectBase(request: Request): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL;
+  if (base && base.startsWith("http")) return base.replace(/\/$/, "");
+  const requestUrl = new URL(request.url);
+  return requestUrl.origin;
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const next = requestUrl.searchParams.get("next") ?? "/app";
-  const origin = requestUrl.origin;
-  const loginUrl = `${origin}/login`;
+  const base = getRedirectBase(request);
+  const loginUrl = `${base}/login`;
 
   if (!code) {
-    return NextResponse.redirect(`${loginUrl}?error=missing`);
+    return NextResponse.redirect(`${loginUrl}?error=missing`, 303);
   }
 
   const cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[] = [];
@@ -37,15 +45,19 @@ export async function GET(request: Request) {
 
   if (error) {
     const errorMessage = encodeURIComponent(error.message || "Sign-in failed.");
-    return NextResponse.redirect(`${origin}/auth/error?message=${errorMessage}`);
+    return NextResponse.redirect(`${base}/auth/error?message=${errorMessage}`, 303);
   }
 
   if (session?.user) {
-    await ensureProfile(supabase, session.user);
+    try {
+      await ensureProfile(supabase, session.user);
+    } catch {
+      // Don't block sign-in if profile upsert fails
+    }
   }
 
   const redirectTo = next.startsWith("/") ? next : "/app";
-  const response = NextResponse.redirect(`${origin}${redirectTo}`);
+  const response = NextResponse.redirect(`${base}${redirectTo}`, 303);
 
   cookiesToSet.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, {
