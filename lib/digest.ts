@@ -98,6 +98,46 @@ export function normalizeForDedupe(text: string | null): string {
   return s;
 }
 
+const STOPWORDS = new Set([
+  "a", "an", "the", "is", "at", "which", "on", "to", "for", "of", "in", "it", "and", "or", "by", "as",
+]);
+
+/** Tokenize canonical string for similarity: split on whitespace, drop stopwords. */
+function tokenizeForSimilarity(canonical: string): string[] {
+  return canonical
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 0 && !STOPWORDS.has(w));
+}
+
+/** Jaccard similarity over token sets: |A ∩ B| / |A ∪ B|. Returns 0 if both empty. */
+function jaccardSimilarity(tokensA: string[], tokensB: string[]): number {
+  if (tokensA.length === 0 && tokensB.length === 0) return 1;
+  const setA = new Set(tokensA);
+  const setB = new Set(tokensB);
+  let intersection = 0;
+  for (const t of setA) {
+    if (setB.has(t)) intersection++;
+  }
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+const NEAR_DUPE_JACCARD_THRESHOLD = 0.75;
+
+/** True if two canonical what_changed strings are near-duplicates (paraphrases). */
+function isNearDuplicateWhatChanged(normA: string, normB: string): boolean {
+  if (normA === normB) return true;
+  if (normA.length >= 15 && normB.length >= 15 && (normA.includes(normB) || normB.includes(normA))) return true;
+  if (normA.startsWith(normB) || normB.startsWith(normA)) return true;
+  const tokensA = tokenizeForSimilarity(normA);
+  const tokensB = tokenizeForSimilarity(normB);
+  if (tokensA.length >= 2 && tokensB.length >= 2 && jaccardSimilarity(tokensA, tokensB) >= NEAR_DUPE_JACCARD_THRESHOLD)) {
+    return true;
+  }
+  return false;
+}
+
 /** Primary dedupe key: signal_type + action + normalized(what_changed) only. */
 export function signalFingerprint(s: DigestSignal): string {
   const typeKey = (s.signal_type ?? "").trim().toLowerCase();
@@ -145,10 +185,7 @@ export function nearDedupeInBuckets(signals: DigestSignal[]): DigestSignal[] {
       }
       const similar = kept.some((k) => {
         const nk = normalizeForDedupe(k.what_changed);
-        if (norm === nk) return true;
-        if (norm.length >= 20 && nk.length >= 20 && (norm.includes(nk) || nk.includes(norm))) return true;
-        if (norm.startsWith(nk) || nk.startsWith(norm)) return true;
-        return false;
+        return isNearDuplicateWhatChanged(norm, nk);
       });
       if (!similar) kept.push(s);
     }
