@@ -41,9 +41,11 @@ export default async function AppPage() {
   return (
     <main style={{ maxWidth: 1000, margin: "0 auto", padding: 24 }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700 }}>Dashboard</h1>
-        <p style={{ color: "var(--foreground)", opacity: 0.8, marginTop: 4 }}>
-          Signed in as <strong>{user.email}</strong>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>
+          Dashboard
+        </h1>
+        <p style={{ color: "#a1a1aa", marginTop: 4 }}>
+          Signed in as <strong style={{ color: "#e4e4e7" }}>{user.email}</strong>
         </p>
       </div>
 
@@ -64,126 +66,202 @@ export default async function AppPage() {
         </Link>
       </div>
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>
+      <h2
+        style={{
+          fontSize: 20,
+          fontWeight: 600,
+          marginBottom: 16,
+          color: "#e4e4e7",
+        }}
+      >
         Recent Signals ({signals?.length || 0})
       </h2>
 
       {!signals || signals.length === 0 ? (
-        <p style={{ color: "#666", padding: 24, textAlign: "center" }}>
+        <p
+          style={{
+            color: "#a1a1aa",
+            padding: 24,
+            textAlign: "center",
+          }}
+        >
           No signals yet. Use the analyze API to create signals.
         </p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {signals.map((signal: Signal) => (
-            <div
-              key={signal.id}
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: 8,
-                padding: 16,
-                backgroundColor: "#fafafa",
-              }}
-            >
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {signals.map((signal: Signal) => {
+            const actionStyles =
+              signal.action === "Act"
+                ? { bg: "#431407", color: "#fcd34d" }
+                : signal.action === "Monitor"
+                  ? { bg: "#27272a", color: "#e4e4e7" }
+                  : { bg: "#14532d", color: "#86efac" };
+            const conf =
+              (signal.confidence || "").toLowerCase();
+            const confidenceStyles =
+              conf === "high"
+                ? { bg: "#14532d", color: "#86efac" }
+                : conf === "medium"
+                  ? { bg: "#431407", color: "#fcd34d" }
+                  : { bg: "#3f3f46", color: "#a1a1aa" };
+            return (
               <div
+                key={signal.id}
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "start",
-                  marginBottom: 12,
+                  backgroundColor: "#18181b",
+                  border: "1px solid #3f3f46",
+                  borderRadius: 10,
+                  padding: 20,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
                 }}
               >
-                <div>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "4px 8px",
-                      borderRadius: 4,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      backgroundColor: "#e0e0e0",
-                      marginRight: 8,
-                    }}
-                  >
-                    {signal.signal_type}
-                  </span>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "4px 8px",
-                      borderRadius: 4,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      backgroundColor:
-                        signal.action === "Act"
-                          ? "#fee"
-                          : signal.action === "Monitor"
-                          ? "#ffe"
-                          : "#efe",
-                      color:
-                        signal.action === "Act"
-                          ? "#c33"
-                          : signal.action === "Monitor"
-                          ? "#cc3"
-                          : "#3c3",
-                      marginRight: 8,
-                    }}
-                  >
-                    {signal.action}
-                  </span>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "4px 8px",
-                      borderRadius: 4,
-                      fontSize: 12,
-                      color: "#666",
-                    }}
-                  >
-                    {signal.confidence}
-                  </span>
-                </div>
-                <time
-                  style={{ fontSize: 12, color: "#999" }}
-                  dateTime={signal.created_at}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    marginBottom: 16,
+                  }}
                 >
-                  {new Date(signal.created_at).toLocaleString()}
-                </time>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "5px 10px",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        backgroundColor: "#3f3f46",
+                        color: "#d4d4d8",
+                      }}
+                    >
+                      {signal.signal_type}
+                    </span>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "5px 10px",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        backgroundColor: actionStyles.bg,
+                        color: actionStyles.color,
+                      }}
+                    >
+                      {signal.action}
+                    </span>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "5px 10px",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        backgroundColor: confidenceStyles.bg,
+                        color: confidenceStyles.color,
+                      }}
+                    >
+                      {signal.confidence}
+                    </span>
+                  </div>
+                  <time
+                    style={{
+                      fontSize: 11,
+                      color: "#71717a",
+                      flexShrink: 0,
+                      whiteSpace: "nowrap",
+                    }}
+                    dateTime={signal.created_at}
+                  >
+                    {new Date(signal.created_at).toLocaleString()}
+                  </time>
+                </div>
+
+                {signal.what_changed && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "#e4e4e7",
+                        marginBottom: 4,
+                      }}
+                    >
+                      What Changed
+                    </div>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 14,
+                        lineHeight: 1.55,
+                        color: "#d4d4d8",
+                      }}
+                    >
+                      {signal.what_changed}
+                    </p>
+                  </div>
+                )}
+
+                {signal.why_it_matters && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "#e4e4e7",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Why It Matters
+                    </div>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 14,
+                        lineHeight: 1.55,
+                        color: "#d4d4d8",
+                      }}
+                    >
+                      {signal.why_it_matters}
+                    </p>
+                  </div>
+                )}
+
+                {signal.who_this_affects && (
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "#e4e4e7",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Who This Affects
+                    </div>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 14,
+                        lineHeight: 1.55,
+                        color: "#d4d4d8",
+                      }}
+                    >
+                      {signal.who_this_affects}
+                    </p>
+                  </div>
+                )}
               </div>
-
-              {signal.what_changed && (
-                <div style={{ marginBottom: 8 }}>
-                  <strong style={{ fontSize: 13, color: "#666" }}>
-                    What Changed:
-                  </strong>
-                  <p style={{ marginTop: 4, fontSize: 14 }}>
-                    {signal.what_changed}
-                  </p>
-                </div>
-              )}
-
-              {signal.why_it_matters && (
-                <div style={{ marginBottom: 8 }}>
-                  <strong style={{ fontSize: 13, color: "#666" }}>
-                    Why It Matters:
-                  </strong>
-                  <p style={{ marginTop: 4, fontSize: 14 }}>
-                    {signal.why_it_matters}
-                  </p>
-                </div>
-              )}
-
-              {signal.who_this_affects && (
-                <div>
-                  <strong style={{ fontSize: 13, color: "#666" }}>
-                    Who This Affects:
-                  </strong>
-                  <p style={{ marginTop: 4, fontSize: 14 }}>
-                    {signal.who_this_affects}
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </main>
