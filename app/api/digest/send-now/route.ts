@@ -50,7 +50,17 @@ export async function POST() {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
-  const { signals, additionalCount } = prepareDigestSignals(rawSignals);
+  const prepared = prepareDigestSignals(rawSignals);
+  const {
+    signals,
+    additionalCount,
+    signals_before_filter,
+    signals_after_primary_dedupe,
+    signals_after_near_dedupe,
+    signals_sent,
+    signals_truncated,
+    dedupeApplied,
+  } = prepared;
   const localDateStr = periodEnd.toISOString().slice(0, 10);
   const scheduledForDate = localDateStr;
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
@@ -82,11 +92,18 @@ export async function POST() {
       ok: true,
       message: "No new actionable signals in the past 24 hours. Digest email sent.",
       num_signals: 0,
+      debug: {
+        signals_before_filter,
+        signals_after_primary_dedupe,
+        signals_after_near_dedupe,
+        signals_sent: 0,
+        signals_truncated: 0,
+      },
     });
   }
 
   const subject = buildDigestSubject(localDateStr, signals.length);
-  const html = buildDigestHtmlBody(signals, periodStart, periodEnd, baseUrl, additionalCount);
+  const html = buildDigestHtmlBody(signals, periodStart, periodEnd, baseUrl, additionalCount, dedupeApplied);
   const sendResult = await sendDigestEmail({ to: user.email, subject, html });
 
   const { error: insertErr } = await supabase.from("digest_sends").insert({
@@ -116,5 +133,12 @@ export async function POST() {
     message: `Digest sent to ${user.email}`,
     num_signals: signals.length,
     additional_count: additionalCount,
+    debug: {
+      signals_before_filter,
+      signals_after_primary_dedupe,
+      signals_after_near_dedupe,
+      signals_sent,
+      signals_truncated,
+    },
   });
 }

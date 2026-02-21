@@ -111,17 +111,28 @@ export async function GET(request: Request) {
             prefs,
           });
 
-          const { signals, additionalCount, beforeDedupe, afterDedupe } = prepareDigestSignals(rawSignals);
+          const prepared = prepareDigestSignals(rawSignals);
+          const {
+            signals,
+            additionalCount,
+            signals_before_filter,
+            signals_after_primary_dedupe,
+            signals_after_near_dedupe,
+            signals_sent,
+            signals_truncated,
+            dedupeApplied,
+          } = prepared;
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
 
           if (process.env.NODE_ENV !== "test") {
             console.log(JSON.stringify({
               digest_cron: true,
               user_id: userId,
-              signals_before_dedupe: beforeDedupe,
-              signals_after_dedupe: afterDedupe,
-              signals_sent: signals.length,
-              capped_count: additionalCount,
+              signals_before_filter,
+              signals_after_primary_dedupe,
+              signals_after_near_dedupe,
+              signals_sent,
+              signals_truncated,
             }));
           }
 
@@ -165,7 +176,7 @@ export async function GET(request: Request) {
           }
 
           const subject = buildDigestSubject(scheduledForDate, signals.length);
-          const html = buildDigestHtmlBody(signals, periodStart, periodEnd, baseUrl, additionalCount);
+          const html = buildDigestHtmlBody(signals, periodStart, periodEnd, baseUrl, additionalCount, dedupeApplied);
           const sendResult = await sendDigestEmail({
             to: authUser.user.email,
             subject,

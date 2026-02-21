@@ -72,21 +72,42 @@ function getActionRank(action: string): number {
   return ACTION_RANK[a] ?? 0;
 }
 
-/** Stable fingerprint for deduplication. */
-export function signalFingerprint(s: DigestSignal): string {
-  const parts = [
-    (s.signal_type ?? "").trim(),
-    (s.action ?? "").trim(),
-    (s.confidence ?? "").trim(),
-    (s.what_changed ?? "").trim().replace(/\s+/g, " "),
-    (s.why_it_matters ?? "").trim().replace(/\s+/g, " "),
-    (s.who_this_affects ?? "").trim().replace(/\s+/g, " "),
-  ];
-  return parts.join("\0");
+/**
+ * Canonical string for dedupe: lowercases, trims, collapses whitespace,
+ * removes punctuation, normalizes unicode quotes, optional numeric spacing.
+ */
+export function normalizeForDedupe(text: string | null): string {
+  if (text == null) return "";
+  let s = text
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+  // Normalize unicode quotes and dashes
+  s = s
+    .replace(/[\u2018\u2019\u201a\u201b]/g, "'")
+    .replace(/[\u201c\u201d\u201e\u201f]/g, '"')
+    .replace(/[\u2010-\u2015\u2212]/g, "-");
+  // Remove punctuation (keep alphanumeric, space, basic symbols used in numbers)
+  s = s.replace(/[^\p{L}\p{N}\s.\-%]/gu, " ");
+  // Collapse spaces again
+  s = s.replace(/\s+/g, " ").trim();
+  // Optional: normalize numeric spacing e.g. "11.5 %" -> "11.5%"
+  s = s.replace(/(\d)\s*%\s/g, "$1% ");
+  s = s.replace(/\s+%\s*(\d)/g, " %$1");
+  return s;
 }
 
-/** Keep only the most recent signal per fingerprint (order by created_at desc first). */
-export function dedupeSignals(signals: DigestSignal[]): DigestSignal[] {
+/** Primary dedupe key: signal_type + action + normalized(what_changed) only. */
+export function signalFingerprint(s: DigestSignal): string {
+  const typeKey = (s.signal_type ?? "").trim().toLowerCase();
+  const actionKey = (s.action ?? "").trim().toLowerCase();
+  const whatKey = normalizeForDedupe(s.what_changed);
+  return `${typeKey}\0${actionKey}\0${whatKey}`;
+}
+
+/** Primary dedupe: keep only the most recent signal per fingerprint. Runs BEFORE grouping and caps. */
+export function primaryDedupeSignals(signals: DigestSignal[]): DigestSignal[] {
   const byFp = new Map<string, DigestSignal>();
   const sorted = [...signals].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -96,6 +117,44 @@ export function dedupeSignals(signals: DigestSignal[]): DigestSignal[] {
     if (!byFp.has(fp)) byFp.set(fp, s);
   }
   return Array.from(byFp.values());
+}
+
+/** Within each (signal_type, action) bucket, drop near-duplicates by similar what_changed; keep best (confidence, recency). */
+export function nearDedupeInBuckets(signals: DigestSignal[]): DigestSignal[] {
+  const bucketKey = (s: DigestSignal) =>
+    `${(s.signal_type ?? "Other").trim()}\0${(s.action ?? "Monitor").trim()}`;
+  const byBucket = new Map<string, DigestSignal[]>();
+  for (const s of signals) {
+    const key = bucketKey(s);
+    if (!byBucket.has(key)) byBucket.set(key, []);
+    byBucket.get(key)!.push(s);
+  }
+  const out: DigestSignal[] = [];
+  for (const [, bucket] of byBucket) {
+    const sorted = [...bucket].sort((a, b) => {
+      const cr = getConfidenceRank(b.confidence) - getConfidenceRank(a.confidence);
+      if (cr !== 0) return cr;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+    const kept: DigestSignal[] = [];
+    for (const s of sorted) {
+      const norm = normalizeForDedupe(s.what_changed);
+      if (!norm) {
+        kept.push(s);
+        continue;
+      }
+      const similar = kept.some((k) => {
+        const nk = normalizeForDedupe(k.what_changed);
+        if (norm === nk) return true;
+        if (norm.length >= 20 && nk.length >= 20 && (norm.includes(nk) || nk.includes(norm))) return true;
+        if (norm.startsWith(nk) || nk.startsWith(norm)) return true;
+        return false;
+      });
+      if (!similar) kept.push(s);
+    }
+    out.push(...kept);
+  }
+  return out;
 }
 
 /** Sort by confidence (High > Medium > Low), then action (Act > Monitor > Ignore), then newest first. */
@@ -112,16 +171,22 @@ export function prioritizeSignals(signals: DigestSignal[]): DigestSignal[] {
 const MAX_PER_TYPE_ACTION = 3;
 const MAX_TOTAL_SIGNALS = 12;
 
-/** Apply caps: max 3 per (signal_type, action), max 12 total. Returns capped list and count of omitted. */
-export function capSignals(signals: DigestSignal[]): { capped: DigestSignal[]; additionalCount: number } {
-  const typeActionCount = new Map<string, number>();
+/** Cap with diversity: max 3 per (signal_type, action), max 12 total; within each bucket only one per unique normalized what_changed. */
+export function capSignalsWithDiversity(signals: DigestSignal[]): { capped: DigestSignal[]; additionalCount: number } {
+  const bucketSeen = new Map<string, Set<string>>();
+  const bucketCount = new Map<string, number>();
   const capped: DigestSignal[] = [];
   for (const s of signals) {
     if (capped.length >= MAX_TOTAL_SIGNALS) break;
     const key = `${(s.signal_type || "Other").trim()}\0${(s.action || "Monitor").trim()}`;
-    const n = typeActionCount.get(key) ?? 0;
+    const n = bucketCount.get(key) ?? 0;
     if (n >= MAX_PER_TYPE_ACTION) continue;
-    typeActionCount.set(key, n + 1);
+    const whatNorm = normalizeForDedupe(s.what_changed);
+    const seen = bucketSeen.get(key);
+    if (seen?.has(whatNorm)) continue;
+    if (!bucketSeen.has(key)) bucketSeen.set(key, new Set());
+    bucketSeen.get(key)!.add(whatNorm);
+    bucketCount.set(key, n + 1);
     capped.push(s);
   }
   const additionalCount = Math.max(0, signals.length - capped.length);
@@ -131,25 +196,40 @@ export function capSignals(signals: DigestSignal[]): { capped: DigestSignal[]; a
 export type PrepareDigestResult = {
   signals: DigestSignal[];
   additionalCount: number;
-  beforeDedupe: number;
-  afterDedupe: number;
+  signals_before_filter: number;
+  signals_after_primary_dedupe: number;
+  signals_after_near_dedupe: number;
+  signals_sent: number;
+  signals_truncated: number;
+  dedupeApplied: boolean;
 };
 
 /**
- * Central pipeline: dedupe → prioritize → cap.
- * Use this for both manual send and cron send.
+ * Central pipeline: primary dedupe → near dedupe → prioritize → cap (with diversity).
+ * Dedupe runs BEFORE grouping and BEFORE caps. Use for both manual send and cron send.
  */
 export function prepareDigestSignals(signals: DigestSignal[]): PrepareDigestResult {
-  const beforeDedupe = signals.length;
-  const deduped = dedupeSignals(signals);
-  const afterDedupe = deduped.length;
-  const prioritized = prioritizeSignals(deduped);
-  const { capped, additionalCount } = capSignals(prioritized);
+  const signals_before_filter = signals.length;
+  const afterPrimary = primaryDedupeSignals(signals);
+  const signals_after_primary_dedupe = afterPrimary.length;
+  const afterNear = nearDedupeInBuckets(afterPrimary);
+  const signals_after_near_dedupe = afterNear.length;
+  const prioritized = prioritizeSignals(afterNear);
+  const { capped, additionalCount } = capSignalsWithDiversity(prioritized);
+  const signals_sent = capped.length;
+  const signals_truncated = additionalCount;
+  const dedupeApplied =
+    signals_after_primary_dedupe < signals_before_filter || signals_after_near_dedupe < signals_after_primary_dedupe;
+
   return {
     signals: capped,
     additionalCount,
-    beforeDedupe,
-    afterDedupe,
+    signals_before_filter,
+    signals_after_primary_dedupe,
+    signals_after_near_dedupe,
+    signals_sent,
+    signals_truncated,
+    dedupeApplied,
   };
 }
 

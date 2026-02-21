@@ -45,7 +45,7 @@ export default async function DigestPreviewPage() {
     // render empty
   }
 
-  const { signals, additionalCount } = prepareDigestSignals(rawSignals);
+  const { signals, additionalCount, dedupeApplied } = prepareDigestSignals(rawSignals);
   const grouped = groupSignalsForDigest(signals);
   const rangeStr = `${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`;
 
@@ -85,6 +85,11 @@ export default async function DigestPreviewPage() {
         </div>
       ) : (
         <div style={blockStyle}>
+          {dedupeApplied && (
+            <p style={{ color: "#71717a", fontSize: 12, marginBottom: 12 }}>
+              Deduped similar signals for readability.
+            </p>
+          )}
           <p style={{ color: "#e4e4e7", marginBottom: 16, fontSize: 14 }}>
             {signals.length} signal{signals.length !== 1 ? "s" : ""} (same structure as the email)
             {additionalCount > 0 && (

@@ -42,7 +42,8 @@ export function buildDigestHtmlBody(
   periodStart: Date,
   periodEnd: Date,
   baseUrl: string,
-  additionalCount = 0
+  additionalCount = 0,
+  dedupeApplied = false
 ): string {
   const grouped = groupSignalsForDigest(signals);
   const rangeStr = `${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`;
@@ -55,6 +56,9 @@ export function buildDigestHtmlBody(
   <h1 style="font-size: 18px; margin-bottom: 4px;">CRE Signals Digest</h1>
   <p style="color: #666; font-size: 13px; margin-bottom: 20px;">${rangeStr} (last 24 hours)</p>
 `;
+  if (dedupeApplied) {
+    html += `  <p style="font-size: 12px; color: #666; margin-bottom: 16px;">Deduped similar signals for readability.</p>\n`;
+  }
 
   for (const [signalType, byAction] of grouped) {
     html += `  <h2 style="font-size: 14px; font-weight: 600; margin-top: 20px; margin-bottom: 8px;">${escapeHtml(signalType)}</h2>\n`;
