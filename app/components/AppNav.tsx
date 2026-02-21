@@ -72,6 +72,7 @@ export default function AppNav() {
       <Link href="/" style={pathname === "/" ? activeLinkStyle : linkStyle}>Analyze</Link>
       {user ? (
         <>
+          <Link href="/pricing" style={pathname === "/pricing" ? activeLinkStyle : linkStyle}>Pricing</Link>
           <Link href="/digest/preview" style={pathname === "/digest/preview" ? activeLinkStyle : linkStyle}>Digest</Link>
           <Link href="/settings" style={pathname === "/settings" ? activeLinkStyle : linkStyle}>Settings</Link>
           <button type="button" onClick={handleSignOut} style={{ ...buttonStyle, marginLeft: "auto" }}>

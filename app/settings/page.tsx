@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getDefaultPreferences } from "@/lib/digest";
+import { getEntitlementsForUser } from "@/lib/entitlements";
+import { getUsageToday } from "@/lib/usage";
 import SettingsForm from "./SettingsForm";
+import BillingCard from "./BillingCard";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -12,6 +15,11 @@ export default async function SettingsPage() {
   if (!user) {
     redirect("/login");
   }
+
+  const [entitlements, usage] = await Promise.all([
+    getEntitlementsForUser(supabase, user.id),
+    getUsageToday(supabase, user.id),
+  ]);
 
   const { data: row } = await supabase
     .from("user_preferences")
@@ -41,6 +49,13 @@ export default async function SettingsPage() {
           Signed in as <strong style={{ color: "#e4e4e7" }}>{user.email}</strong>
         </p>
       </div>
+
+      <BillingCard
+        plan={entitlements.plan}
+        analyzeCallsToday={usage.analyze_calls}
+        analyzeLimit={entitlements.analyze_calls_per_day}
+        digestScheduledEnabled={entitlements.digest_scheduled}
+      />
 
       <SettingsForm initialPreferences={initialPreferences} />
     </main>

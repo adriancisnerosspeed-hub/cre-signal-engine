@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getDigestSignals, getDefaultPreferences, prepareDigestSignals, groupSignalsForDigest } from "@/lib/digest";
+import { getEntitlementsForUser } from "@/lib/entitlements";
 import Link from "next/link";
 import DigestPreviewClient from "./DigestPreviewClient";
 
@@ -45,7 +46,11 @@ export default async function DigestPreviewPage() {
     // render empty
   }
 
-  const { signals, additionalCount, dedupeApplied } = prepareDigestSignals(rawSignals);
+  const entitlements = await getEntitlementsForUser(supabase, user.id);
+  const { signals, additionalCount, dedupeApplied } = prepareDigestSignals(
+    rawSignals,
+    entitlements.email_digest_max_signals
+  );
   const grouped = groupSignalsForDigest(signals);
   const rangeStr = `${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`;
 

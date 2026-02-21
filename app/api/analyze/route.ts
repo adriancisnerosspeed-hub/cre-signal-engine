@@ -5,13 +5,12 @@ import { parseSignals } from "@/lib/parseSignals";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserRole,
-  canBypassRateLimit,
   ensureProfile,
 } from "@/lib/auth";
+import { getEntitlementsForUser } from "@/lib/entitlements";
+import { getUsageToday, incrementAnalyzeUsage } from "@/lib/usage";
 
 export const runtime = "nodejs";
-
-const ANALYZE_RATE_LIMIT_PER_HOUR = 10;
 
 function safePreview(s: string, n = 220) {
   return (s ?? "").slice(0, n).replace(/\s+/g, " ").trim();
@@ -162,30 +161,25 @@ export async function POST(req: Request) {
       auth: { persistSession: false },
     });
 
-    if (!canBypassRateLimit(role)) {
-      try {
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        const { count, error: countErr } = await supabase
-          .from("runs")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .gte("created_at", oneHourAgo);
-
-        if (!countErr && (count ?? 0) >= ANALYZE_RATE_LIMIT_PER_HOUR) {
-          console.warn(`[${requestId}] RATE_LIMIT`, { userId: user.id, count });
-          return Response.json(
-            {
-              error: "Too Many Requests",
-              message: `Rate limit: ${ANALYZE_RATE_LIMIT_PER_HOUR} analyzes per hour. Upgrade for higher limits.`,
-              meta: debug ? { requestId } : undefined,
-            },
-            { status: 429 }
-          );
-        }
-      } catch (rateLimitErr) {
-        console.warn(`[${requestId}] RATE_LIMIT_CHECK_SKIP`, rateLimitErr);
-        // Proceed without rate limit (e.g. created_at column missing)
-      }
+    const entitlements = await getEntitlementsForUser(supabase, user.id);
+    const usage = await getUsageToday(supabase, user.id);
+    if (usage.analyze_calls >= entitlements.analyze_calls_per_day) {
+      console.warn(`[${requestId}] DAILY_LIMIT`, {
+        userId: user.id,
+        used: usage.analyze_calls,
+        limit: entitlements.analyze_calls_per_day,
+      });
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+      const upgradeUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/pricing` : "/pricing";
+      return Response.json(
+        {
+          error: "Daily limit reached",
+          message: `You've used ${usage.analyze_calls} of ${entitlements.analyze_calls_per_day} analyzes today. Upgrade to Pro for more.`,
+          upgrade_url: upgradeUrl,
+          meta: debug ? { requestId } : undefined,
+        },
+        { status: 429 }
+      );
     }
 
     const body = await req.json().catch(() => null);
@@ -222,6 +216,9 @@ export async function POST(req: Request) {
     console.log(`[${requestId}] OPENAI_OK`, { ms: Date.now() - tOpenAI });
 
     const output = completion.choices?.[0]?.message?.content ?? "";
+    const tokensUsed =
+      (completion.usage?.prompt_tokens ?? 0) + (completion.usage?.completion_tokens ?? 0) ||
+      Math.ceil((output.length + (inputs?.length ?? 0)) / 4);
     const normalizedOutput = normalizeModelOutputToContract(output);
 
     if (debug) {
@@ -271,6 +268,12 @@ export async function POST(req: Request) {
     }
 
     console.log(`[${requestId}] RUN_INSERT_OK`, { runId: runRow.id });
+
+    try {
+      await incrementAnalyzeUsage(supabase, user.id, tokensUsed);
+    } catch (usageErr) {
+      console.warn(`[${requestId}] USAGE_INCREMENT_SKIP`, usageErr);
+    }
 
     // --- Parse + insert signals ---
     const parsed = parseSignals(normalizedOutput);

@@ -88,8 +88,8 @@ export function normalizeForDedupe(text: string | null): string {
     .replace(/[\u2018\u2019\u201a\u201b]/g, "'")
     .replace(/[\u201c\u201d\u201e\u201f]/g, '"')
     .replace(/[\u2010-\u2015\u2212]/g, "-");
-  // Remove punctuation (keep alphanumeric, space, basic symbols used in numbers)
-  s = s.replace(/[^\p{L}\p{N}\s.\-%]/gu, " ");
+  // Remove punctuation (keep letters, digits, space, . - %)
+  s = s.replace(/[^\w\s.\-%]/g, " ");
   // Collapse spaces again
   s = s.replace(/\s+/g, " ").trim();
   // Optional: normalize numeric spacing e.g. "11.5 %" -> "11.5%"
@@ -206,15 +206,17 @@ export function prioritizeSignals(signals: DigestSignal[]): DigestSignal[] {
 }
 
 const MAX_PER_TYPE_ACTION = 3;
-const MAX_TOTAL_SIGNALS = 12;
 
-/** Cap with diversity: max 3 per (signal_type, action), max 12 total; within each bucket only one per unique normalized what_changed. */
-export function capSignalsWithDiversity(signals: DigestSignal[]): { capped: DigestSignal[]; additionalCount: number } {
+/** Cap with diversity: max 3 per (signal_type, action), max total from param; within each bucket only one per unique normalized what_changed. */
+export function capSignalsWithDiversity(
+  signals: DigestSignal[],
+  maxTotalSignals: number = 12
+): { capped: DigestSignal[]; additionalCount: number } {
   const bucketSeen = new Map<string, Set<string>>();
   const bucketCount = new Map<string, number>();
   const capped: DigestSignal[] = [];
   for (const s of signals) {
-    if (capped.length >= MAX_TOTAL_SIGNALS) break;
+    if (capped.length >= maxTotalSignals) break;
     const key = `${(s.signal_type || "Other").trim()}\0${(s.action || "Monitor").trim()}`;
     const n = bucketCount.get(key) ?? 0;
     if (n >= MAX_PER_TYPE_ACTION) continue;
@@ -244,15 +246,19 @@ export type PrepareDigestResult = {
 /**
  * Central pipeline: primary dedupe → near dedupe → prioritize → cap (with diversity).
  * Dedupe runs BEFORE grouping and BEFORE caps. Use for both manual send and cron send.
+ * maxTotalSignals: plan-dependent (e.g. 6 free, 12 pro).
  */
-export function prepareDigestSignals(signals: DigestSignal[]): PrepareDigestResult {
+export function prepareDigestSignals(
+  signals: DigestSignal[],
+  maxTotalSignals: number = 12
+): PrepareDigestResult {
   const signals_before_filter = signals.length;
   const afterPrimary = primaryDedupeSignals(signals);
   const signals_after_primary_dedupe = afterPrimary.length;
   const afterNear = nearDedupeInBuckets(afterPrimary);
   const signals_after_near_dedupe = afterNear.length;
   const prioritized = prioritizeSignals(afterNear);
-  const { capped, additionalCount } = capSignalsWithDiversity(prioritized);
+  const { capped, additionalCount } = capSignalsWithDiversity(prioritized, maxTotalSignals);
   const signals_sent = capped.length;
   const signals_truncated = additionalCount;
   const dedupeApplied =

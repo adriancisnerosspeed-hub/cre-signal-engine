@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { getDigestSignals, getDefaultPreferences, prepareDigestSignals } from "@/lib/digest";
+import { getEntitlementsForUser } from "@/lib/entitlements";
 import {
   buildDigestSubject,
   buildDigestHtmlBody,
@@ -18,6 +19,20 @@ export async function POST() {
   } = await supabase.auth.getUser();
   if (!user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const entitlements = await getEntitlementsForUser(supabase, user.id);
+  if (!entitlements.digest_manual_send) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+    const pricingUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/pricing` : "/pricing";
+    return NextResponse.json(
+      {
+        error: "Upgrade required",
+        message: "Scheduled and manual digest are Pro features. Upgrade to enable.",
+        upgrade_url: pricingUrl,
+      },
+      { status: 403 }
+    );
   }
 
   const { data: prefsRow } = await supabase
@@ -50,7 +65,7 @@ export async function POST() {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
-  const prepared = prepareDigestSignals(rawSignals);
+  const prepared = prepareDigestSignals(rawSignals, entitlements.email_digest_max_signals);
   const {
     signals,
     additionalCount,

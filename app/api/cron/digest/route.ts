@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getDigestSignals, getDefaultPreferences, prepareDigestSignals } from "@/lib/digest";
+import { getEntitlementsForUser } from "@/lib/entitlements";
 import {
   buildDigestSubject,
   buildDigestHtmlBody,
@@ -61,13 +62,29 @@ export async function GET(request: Request) {
   }
 
   const now = new Date();
-  const toProcess: typeof prefsRows = [];
+  const inWindow: typeof prefsRows = [];
   for (const row of prefsRows || []) {
     const { timeStr } = getLocalTimeInTimezone(row.timezone || "America/Chicago");
     const digestTime = (row.digest_time_local || "07:00").trim();
     if (isInSendWindow(digestTime, timeStr)) {
-      toProcess.push(row);
+      inWindow.push(row);
     }
+  }
+
+  const userIds = [...new Set((inWindow || []).map((r) => r.user_id))];
+  const { data: proProfiles } = await supabase
+    .from("profiles")
+    .select("id")
+    .in("id", userIds)
+    .in("role", ["pro", "owner"]);
+  const proOrOwnerIds = new Set(proProfiles?.map((p) => p.id) ?? []);
+  const toProcess = inWindow.filter((r) => proOrOwnerIds.has(r.user_id));
+  if (inWindow.length > toProcess.length && process.env.NODE_ENV !== "test") {
+    console.log(JSON.stringify({
+      digest_cron: true,
+      scheduled_skipped_non_pro: inWindow.length - toProcess.length,
+      reason: "scheduled digest is Pro only",
+    }));
   }
 
   const defaults = getDefaultPreferences();
@@ -111,7 +128,8 @@ export async function GET(request: Request) {
             prefs,
           });
 
-          const prepared = prepareDigestSignals(rawSignals);
+          const entitlements = await getEntitlementsForUser(supabase, userId);
+          const prepared = prepareDigestSignals(rawSignals, entitlements.email_digest_max_signals);
           const {
             signals,
             additionalCount,
