@@ -160,6 +160,11 @@ UPDATE signals SET user_id = 'known-user-id' WHERE user_id IS NULL;
 - Check email provider is enabled
 - Check spam folder
 
+### Google sign-in: 404 or redirect loop
+- **Redirect URLs:** In Supabase → Authentication → URL Configuration → **Redirect URLs**, add exactly your app URL: `https://your-app.vercel.app/auth/callback` (no trailing slash). Add `http://localhost:3000/auth/callback` for local.
+- **NEXT_PUBLIC_APP_URL:** Set in Vercel (e.g. `https://your-app.vercel.app`) so the callback redirects to the correct host and doesn’t use a wrong origin from the request.
+- Redeploy after changing env vars. If it still loops, clear cookies for the site and try again.
+
 ### RLS blocking inserts
 - Verify policies are created: `SELECT * FROM pg_policies WHERE tablename IN ('runs', 'signals');`
 - Check `user_id` is being set correctly in API route
