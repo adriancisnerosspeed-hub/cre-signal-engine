@@ -88,31 +88,32 @@ export default async function AppPage() {
           No signals yet. Use the analyze API to create signals.
         </p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {signals.map((signal: Signal) => {
             const actionStyles =
               signal.action === "Act"
-                ? { bg: "#431407", color: "#fcd34d" }
+                ? { bg: "#3d2e1f", color: "#e5c078" }
                 : signal.action === "Monitor"
-                  ? { bg: "#27272a", color: "#e4e4e7" }
-                  : { bg: "#14532d", color: "#86efac" };
-            const conf =
-              (signal.confidence || "").toLowerCase();
+                  ? { bg: "#2d2d32", color: "#b8b8be" }
+                  : { bg: "#1e3329", color: "#7cb89a" };
+            const conf = (signal.confidence || "").toLowerCase();
             const confidenceStyles =
               conf === "high"
-                ? { bg: "#14532d", color: "#86efac" }
+                ? { bg: "#1e3329", color: "#7cb89a" }
                 : conf === "medium"
-                  ? { bg: "#431407", color: "#fcd34d" }
-                  : { bg: "#3f3f46", color: "#a1a1aa" };
+                  ? { bg: "#3d2e1f", color: "#e5c078" }
+                  : { bg: "#2d2d32", color: "#8b8b92" };
             return (
               <div
                 key={signal.id}
+                className="signal-card"
                 style={{
                   backgroundColor: "#18181b",
                   border: "1px solid #3f3f46",
                   borderRadius: 10,
-                  padding: 20,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                  padding: 14,
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+                  cursor: "pointer",
                 }}
               >
                 <div
@@ -121,7 +122,7 @@ export default async function AppPage() {
                     justifyContent: "space-between",
                     alignItems: "flex-start",
                     gap: 12,
-                    marginBottom: 16,
+                    marginBottom: 12,
                   }}
                 >
                   <div
@@ -129,18 +130,18 @@ export default async function AppPage() {
                       display: "flex",
                       flexWrap: "wrap",
                       alignItems: "center",
-                      gap: 8,
+                      gap: 6,
                     }}
                   >
                     <span
                       style={{
                         display: "inline-block",
-                        padding: "5px 10px",
-                        borderRadius: 6,
-                        fontSize: 12,
+                        padding: "4px 8px",
+                        borderRadius: 5,
+                        fontSize: 11,
                         fontWeight: 600,
-                        backgroundColor: "#3f3f46",
-                        color: "#d4d4d8",
+                        backgroundColor: "#2d2d32",
+                        color: "#b8b8be",
                       }}
                     >
                       {signal.signal_type}
@@ -148,9 +149,9 @@ export default async function AppPage() {
                     <span
                       style={{
                         display: "inline-block",
-                        padding: "5px 10px",
-                        borderRadius: 6,
-                        fontSize: 12,
+                        padding: "4px 8px",
+                        borderRadius: 5,
+                        fontSize: 11,
                         fontWeight: 600,
                         backgroundColor: actionStyles.bg,
                         color: actionStyles.color,
@@ -161,9 +162,9 @@ export default async function AppPage() {
                     <span
                       style={{
                         display: "inline-block",
-                        padding: "5px 10px",
-                        borderRadius: 6,
-                        fontSize: 12,
+                        padding: "4px 8px",
+                        borderRadius: 5,
+                        fontSize: 11,
                         fontWeight: 500,
                         backgroundColor: confidenceStyles.bg,
                         color: confidenceStyles.color,
@@ -174,8 +175,8 @@ export default async function AppPage() {
                   </div>
                   <time
                     style={{
-                      fontSize: 11,
-                      color: "#71717a",
+                      fontSize: 10,
+                      color: "#52525b",
                       flexShrink: 0,
                       whiteSpace: "nowrap",
                     }}
@@ -186,13 +187,21 @@ export default async function AppPage() {
                 </div>
 
                 {signal.what_changed && (
-                  <div style={{ marginBottom: 14 }}>
+                  <div
+                    style={{
+                      marginBottom: 10,
+                      paddingBottom: 10,
+                      borderBottom: "1px solid #27272a",
+                    }}
+                  >
                     <div
                       style={{
-                        fontSize: 13,
+                        fontSize: 10,
                         fontWeight: 500,
-                        color: "#e4e4e7",
-                        marginBottom: 4,
+                        color: "#71717a",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        marginBottom: 2,
                       }}
                     >
                       What Changed
@@ -201,8 +210,8 @@ export default async function AppPage() {
                       style={{
                         margin: 0,
                         fontSize: 14,
-                        lineHeight: 1.55,
-                        color: "#d4d4d8",
+                        lineHeight: 1.5,
+                        color: "#e4e4e7",
                       }}
                     >
                       {signal.what_changed}
@@ -211,13 +220,21 @@ export default async function AppPage() {
                 )}
 
                 {signal.why_it_matters && (
-                  <div style={{ marginBottom: 14 }}>
+                  <div
+                    style={{
+                      marginBottom: 10,
+                      paddingBottom: 10,
+                      borderBottom: "1px solid #27272a",
+                    }}
+                  >
                     <div
                       style={{
-                        fontSize: 13,
+                        fontSize: 10,
                         fontWeight: 500,
-                        color: "#e4e4e7",
-                        marginBottom: 4,
+                        color: "#71717a",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        marginBottom: 2,
                       }}
                     >
                       Why It Matters
@@ -225,9 +242,9 @@ export default async function AppPage() {
                     <p
                       style={{
                         margin: 0,
-                        fontSize: 14,
-                        lineHeight: 1.55,
-                        color: "#d4d4d8",
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                        color: "#a1a1aa",
                       }}
                     >
                       {signal.why_it_matters}
@@ -239,10 +256,12 @@ export default async function AppPage() {
                   <div>
                     <div
                       style={{
-                        fontSize: 13,
+                        fontSize: 10,
                         fontWeight: 500,
-                        color: "#e4e4e7",
-                        marginBottom: 4,
+                        color: "#71717a",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        marginBottom: 2,
                       }}
                     >
                       Who This Affects
@@ -250,9 +269,9 @@ export default async function AppPage() {
                     <p
                       style={{
                         margin: 0,
-                        fontSize: 14,
-                        lineHeight: 1.55,
-                        color: "#d4d4d8",
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                        color: "#a1a1aa",
                       }}
                     >
                       {signal.who_this_affects}

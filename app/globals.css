@@ -24,3 +24,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Dashboard signal card: subtle hover elevation */
+.signal-card {
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.signal-card:hover {
+  background-color: #1f1f23;
+  border-color: #52525b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
