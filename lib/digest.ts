@@ -132,7 +132,8 @@ function isNearDuplicateWhatChanged(normA: string, normB: string): boolean {
   if (normA.startsWith(normB) || normB.startsWith(normA)) return true;
   const tokensA = tokenizeForSimilarity(normA);
   const tokensB = tokenizeForSimilarity(normB);
-  if (tokensA.length >= 2 && tokensB.length >= 2 && jaccardSimilarity(tokensA, tokensB) >= NEAR_DUPE_JACCARD_THRESHOLD)) {
+  const jaccard = jaccardSimilarity(tokensA, tokensB);
+  if (tokensA.length >= 2 && tokensB.length >= 2 && jaccard >= NEAR_DUPE_JACCARD_THRESHOLD) {
     return true;
   }
   return false;
