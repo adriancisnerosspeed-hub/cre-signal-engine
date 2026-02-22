@@ -1,13 +1,8 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import LandingCta from "./components/LandingCta";
 
-export default async function LandingPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+/** Public landing page. No server-side auth — renders fully with no cookies for bots / Stripe verification. */
+export default function LandingPage() {
   return (
     <main className="landing">
       {/* Hero */}
@@ -18,7 +13,7 @@ export default async function LandingPage() {
         <p className="landing-hero-tagline">
           CRE Signal Engine turns raw commercial real estate inputs into structured actionable signals.
         </p>
-        <LandingCta isLoggedIn={!!user} />
+        <LandingCta />
       </section>
 
       {/* How it works */}
@@ -91,8 +86,8 @@ export default async function LandingPage() {
           <div className="landing-plan featured">
             <h3 className="landing-plan-name">Pro</h3>
             <p className="landing-plan-desc">200 analyzes per day · Manual + scheduled digest · Up to 12 signals per email</p>
-            <Link href={user ? "/pricing" : "/login"} className="landing-plan-cta primary">
-              {user ? "Upgrade to Pro" : "Get started"}
+            <Link href="/login" className="landing-plan-cta primary">
+              Get started
             </Link>
           </div>
         </div>
@@ -100,8 +95,13 @@ export default async function LandingPage() {
 
       {/* Footer CTA */}
       <section className="landing-footer-cta">
-        <LandingCta isLoggedIn={!!user} />
+        <LandingCta />
       </section>
+
+      <footer className="landing-footer">
+        <Link href="/terms">Terms</Link>
+        <Link href="/privacy">Privacy</Link>
+      </footer>
     </main>
   );
 }

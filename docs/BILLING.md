@@ -19,6 +19,12 @@ Plan is stored in `profiles.role` (`free` | `pro` | `owner`). Stripe webhook upd
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Used by webhook and analyze (usage_daily writes). |
 | `OWNER_EMAIL` | Optional | Email that gets owner role (bypass). |
 
+## Public routes and Stripe verification
+
+- **Do not** enable Vercel Password Protection, Deployment Protection, or Vercel Authentication on the production deployment. Stripe (and bots) need to reach `/` with no cookies and get the full landing page with no redirects.
+- Public routes (no auth): `/`, `/pricing`, `/login`, `/terms`, `/privacy`, `/auth/callback`. API: `/api/stripe/webhook`.
+- See `lib/publicRoutes.ts` for the allowlist. Middleware must not redirect these paths.
+
 ## Stripe Dashboard setup
 
 1. **Products & prices**
