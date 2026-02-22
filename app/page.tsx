@@ -1,151 +1,107 @@
-"use client";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import LandingCta from "./components/LandingCta";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-
-function friendlyMessage(res: Response, body: { error?: string; message?: string }): string {
-  if (res.status === 401) return "Please sign in to analyze.";
-  if (res.status === 429) return "Rate limit reached. Try again later.";
-  if (res.status >= 500) {
-    if (body?.message && typeof body.message === "string") return body.message;
-    return "Something went wrong on our side. Please try again.";
-  }
-  if (body?.message && typeof body.message === "string") return body.message;
-  if (body?.error && typeof body.error === "string") return body.error;
-  return "Something went wrong. Please try again.";
-}
-
-export default function Home() {
-  const [inputs, setInputs] = useState("");
-  const [output, setOutput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const supabase = createClient();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setIsAuthenticated(!!user));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => setIsAuthenticated(!!session?.user));
-    return () => subscription.unsubscribe();
-  }, [supabase]);
-
-  async function run() {
-    if (!isAuthenticated) return;
-    setLoading(true);
-    setOutput("");
-    setErrorMessage(null);
-    try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ inputs }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setErrorMessage(friendlyMessage(res, data));
-        return;
-      }
-      setOutput(typeof data.output === "string" ? data.output : "");
-    } catch {
-      setErrorMessage("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
+export default async function LandingPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>CRE Signal Engine</h1>
-      <p style={{ marginBottom: 16, color: "var(--foreground)", opacity: 0.8 }}>
-        Paste your inputs below (each paragraph = one input), then click Analyze.
-      </p>
+    <main className="landing">
+      {/* Hero */}
+      <section className="landing-hero">
+        <h1 className="landing-hero-title">
+          Turn raw CRE inputs into structured, actionable signals
+        </h1>
+        <p className="landing-hero-tagline">
+          CRE Signal Engine turns raw commercial real estate inputs into structured actionable signals.
+        </p>
+        <LandingCta isLoggedIn={!!user} />
+      </section>
 
-      {isAuthenticated === false && (
-        <div
-          style={{
-            marginBottom: 12,
-            padding: 12,
-            borderRadius: 6,
-            backgroundColor: "rgba(251,191,36,0.15)",
-            border: "1px solid rgba(251,191,36,0.4)",
-            color: "var(--foreground)",
-            fontSize: 14,
-          }}
-        >
-          Sign in to analyze.
+      {/* How it works */}
+      <section className="landing-section">
+        <h2 className="landing-section-title">How it works</h2>
+        <div className="landing-steps">
+          <div className="landing-step">
+            <span className="landing-step-num">1</span>
+            <h3 className="landing-step-title">Analyze</h3>
+            <p className="landing-step-desc">
+              Paste your CRE notes, emails, or updates. We extract structured signals with action, confidence, and impact.
+            </p>
+          </div>
+          <div className="landing-step">
+            <span className="landing-step-num">2</span>
+            <h3 className="landing-step-title">Signals</h3>
+            <p className="landing-step-desc">
+              Each signal is tagged (Act / Monitor / Track), with &quot;What changed,&quot; &quot;Why it matters,&quot; and &quot;Who this affects.&quot;
+            </p>
+          </div>
+          <div className="landing-step">
+            <span className="landing-step-num">3</span>
+            <h3 className="landing-step-title">Digest</h3>
+            <p className="landing-step-desc">
+              Build a manual digest or schedule a recurring email so you never miss what matters.
+            </p>
+          </div>
         </div>
-      )}
+      </section>
 
-      <textarea
-        value={inputs}
-        onChange={(e) => setInputs(e.target.value)}
-        placeholder="INPUT 1...\n\nINPUT 2...\n\nINPUT 3..."
-        style={{
-          width: "100%",
-          height: 260,
-          marginTop: 12,
-          padding: 12,
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-          fontSize: 13,
-          backgroundColor: "var(--background)",
-          color: "var(--foreground)",
-          border: "1px solid rgba(255,255,255,0.15)",
-          borderRadius: 6,
-        }}
-      />
-
-      <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-        <button
-          onClick={run}
-          disabled={loading || !inputs.trim() || isAuthenticated === false}
-          style={{
-            padding: "10px 14px",
-            cursor: isAuthenticated === false || loading ? "not-allowed" : "pointer",
-            opacity: isAuthenticated === false || loading ? 0.6 : 1,
-            background: "var(--foreground)",
-            color: "var(--background)",
-            border: "none",
-            borderRadius: 6,
-          }}
-        >
-          {loading ? "Running..." : "Analyze"}
-        </button>
-        <button
-          onClick={() => { setInputs(""); setOutput(""); setErrorMessage(null); }}
-          disabled={loading}
-          style={{
-            padding: "10px 14px",
-            background: "transparent",
-            color: "var(--foreground)",
-            border: "1px solid rgba(255,255,255,0.3)",
-            borderRadius: 6,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          Clear
-        </button>
-      </div>
-
-      {errorMessage && (
-        <div
-          style={{
-            marginTop: 12,
-            padding: 12,
-            borderRadius: 6,
-            backgroundColor: "rgba(248,113,113,0.15)",
-            border: "1px solid rgba(248,113,113,0.3)",
-            color: "#fca5a5",
-            fontSize: 14,
-          }}
-        >
-          {errorMessage}
+      {/* Example signal card mock */}
+      <section className="landing-section">
+        <h2 className="landing-section-title">Example signal</h2>
+        <div className="landing-signal-mock">
+          <div className="landing-signal-mock-tags">
+            <span className="landing-signal-tag type">Lease / Deal</span>
+            <span className="landing-signal-tag act">Act</span>
+            <span className="landing-signal-tag conf">High</span>
+          </div>
+          <div className="landing-signal-mock-block">
+            <div className="landing-signal-mock-label">What changed</div>
+            <p className="landing-signal-mock-text">
+              Anchor tenant signed 10-year renewal; landlord agreed to cap annual escalations at 2.5%.
+            </p>
+          </div>
+          <div className="landing-signal-mock-block">
+            <div className="landing-signal-mock-label">Why it matters</div>
+            <p className="landing-signal-mock-text">
+              Stabilizes NOI and reduces re-leasing risk for the next cycle. Comparable deals may follow.
+            </p>
+          </div>
+          <div className="landing-signal-mock-block">
+            <div className="landing-signal-mock-label">Who this affects</div>
+            <p className="landing-signal-mock-text">
+              Asset managers, lenders, and tenants in the same submarket.
+            </p>
+          </div>
         </div>
-      )}
+      </section>
 
-      <pre style={{ whiteSpace: "pre-wrap", marginTop: 16, padding: 12, color: "var(--foreground)", opacity: 0.9 }}>
-        {output}
-      </pre>
+      {/* Pricing preview */}
+      <section className="landing-section">
+        <h2 className="landing-section-title">Pricing</h2>
+        <div className="landing-pricing">
+          <div className="landing-plan">
+            <h3 className="landing-plan-name">Free</h3>
+            <p className="landing-plan-desc">10 analyzes per day · Manual digest (up to 6 signals) · No scheduled digest</p>
+            <Link href="/login" className="landing-plan-cta secondary">Get started</Link>
+          </div>
+          <div className="landing-plan featured">
+            <h3 className="landing-plan-name">Pro</h3>
+            <p className="landing-plan-desc">200 analyzes per day · Manual + scheduled digest · Up to 12 signals per email</p>
+            <Link href={user ? "/pricing" : "/login"} className="landing-plan-cta primary">
+              {user ? "Upgrade to Pro" : "Get started"}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer CTA */}
+      <section className="landing-footer-cta">
+        <LandingCta isLoggedIn={!!user} />
+      </section>
     </main>
   );
 }

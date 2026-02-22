@@ -24,8 +24,9 @@ export async function POST() {
     );
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
-  const returnUrl = `${baseUrl.replace(/\/$/, "")}/settings`;
+  // Use root domain only (e.g. https://yourdomain.com) for Stripe return URL.
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+  const returnUrl = `${baseUrl}/settings`;
 
   try {
     const stripe = getStripe();

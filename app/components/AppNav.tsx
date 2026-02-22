@@ -69,7 +69,7 @@ export default function AppNav() {
     <nav style={navStyle}>
       <Link href="/" style={pathname === "/" ? activeLinkStyle : linkStyle}>Home</Link>
       <Link href="/app" style={pathname === "/app" ? activeLinkStyle : linkStyle}>Dashboard</Link>
-      <Link href="/" style={pathname === "/" ? activeLinkStyle : linkStyle}>Analyze</Link>
+      <Link href="/analyze" style={pathname === "/analyze" ? activeLinkStyle : linkStyle}>Analyze</Link>
       {user ? (
         <>
           <Link href="/pricing" style={pathname === "/pricing" ? activeLinkStyle : linkStyle}>Pricing</Link>

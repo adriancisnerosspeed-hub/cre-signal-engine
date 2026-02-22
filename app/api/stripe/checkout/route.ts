@@ -16,9 +16,10 @@ export async function POST() {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
-  const successUrl = `${baseUrl.replace(/\/$/, "")}/settings?upgraded=1`;
-  const cancelUrl = `${baseUrl.replace(/\/$/, "")}/pricing`;
+  // Use root domain only (e.g. https://yourdomain.com) so Stripe redirects back to your site correctly.
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+  const successUrl = `${baseUrl}/settings?upgraded=1`;
+  const cancelUrl = `${baseUrl}/pricing`;
 
   try {
     const customerId = await getOrCreateStripeCustomerId(supabase, user.id, user.email);

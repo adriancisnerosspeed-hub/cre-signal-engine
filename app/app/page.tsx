@@ -51,7 +51,7 @@ export default async function AppPage() {
 
       <div style={{ marginBottom: 24 }}>
         <Link
-          href="/"
+          href="/analyze"
           style={{
             display: "inline-block",
             padding: "12px 24px",

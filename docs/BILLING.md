@@ -15,7 +15,7 @@ Plan is stored in `profiles.role` (`free` | `pro` | `owner`). Stripe webhook upd
 | `STRIPE_SECRET_KEY` | Yes | Stripe secret key (server-only). |
 | `STRIPE_WEBHOOK_SECRET` | Yes | Webhook signing secret for `POST /api/stripe/webhook`. |
 | `STRIPE_PRICE_ID_PRO` | Yes | Stripe Price ID for Pro monthly (e.g. `price_xxx`). |
-| `NEXT_PUBLIC_APP_URL` | Recommended | Base URL for checkout/portal return URLs. |
+| `NEXT_PUBLIC_APP_URL` | Recommended | Root domain for checkout/portal return URLs (e.g. `https://yourdomain.com`). No trailing slash. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Used by webhook and analyze (usage_daily writes). |
 | `OWNER_EMAIL` | Optional | Email that gets owner role (bypass). |
 
