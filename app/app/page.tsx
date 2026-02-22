@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import UsageBanner from "./UsageBanner";
 
 type Signal = {
   id: number;
@@ -48,6 +49,8 @@ export default async function AppPage() {
           Signed in as <strong style={{ color: "#e4e4e7" }}>{user.email}</strong>
         </p>
       </div>
+
+      <UsageBanner />
 
       <div style={{ marginBottom: 24 }}>
         <Link

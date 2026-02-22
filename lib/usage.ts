@@ -22,35 +22,17 @@ export async function getUsageToday(
   };
 }
 
-/** Increment analyze usage for today. Call with service role client (writes to usage_daily). */
+/** Increment analyze usage for today. Call with service role client. Uses RPC for atomic upsert (no race conditions). */
 export async function incrementAnalyzeUsage(
   supabase: SupabaseClient,
   userId: string,
   tokensEstimated: number
 ): Promise<void> {
   const date = todayDateStr();
-  const { data: existing } = await supabase
-    .from("usage_daily")
-    .select("analyze_calls, tokens_estimated")
-    .eq("user_id", userId)
-    .eq("date", date)
-    .maybeSingle();
-
-  if (existing) {
-    await supabase
-      .from("usage_daily")
-      .update({
-        analyze_calls: existing.analyze_calls + 1,
-        tokens_estimated: existing.tokens_estimated + tokensEstimated,
-      })
-      .eq("user_id", userId)
-      .eq("date", date);
-  } else {
-    await supabase.from("usage_daily").insert({
-      user_id: userId,
-      date,
-      analyze_calls: 1,
-      tokens_estimated: tokensEstimated,
-    });
-  }
+  const { error } = await supabase.rpc("increment_usage_daily", {
+    p_user_id: userId,
+    p_date: date,
+    p_tokens_estimated: Math.round(tokensEstimated) || 0,
+  });
+  if (error) throw error;
 }

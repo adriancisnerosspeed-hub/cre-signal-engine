@@ -7,7 +7,7 @@ import {
   getCurrentUserRole,
   ensureProfile,
 } from "@/lib/auth";
-import { getEntitlementsForUser } from "@/lib/entitlements";
+import { getPlanForUser, getEntitlementsForUser } from "@/lib/entitlements";
 import { getUsageToday, incrementAnalyzeUsage } from "@/lib/usage";
 
 export const runtime = "nodejs";
@@ -161,22 +161,22 @@ export async function POST(req: Request) {
       auth: { persistSession: false },
     });
 
+    const plan = await getPlanForUser(supabase, user.id);
     const entitlements = await getEntitlementsForUser(supabase, user.id);
+    const limit = entitlements.analyze_calls_per_day;
     const usage = await getUsageToday(supabase, user.id);
-    if (usage.analyze_calls >= entitlements.analyze_calls_per_day) {
-      console.warn(`[${requestId}] DAILY_LIMIT`, {
-        userId: user.id,
-        used: usage.analyze_calls,
-        limit: entitlements.analyze_calls_per_day,
-      });
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
-      const upgradeUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/pricing` : "/pricing";
+    const used = usage.analyze_calls;
+
+    // Owner bypasses all limits
+    if (plan !== "owner" && used >= limit) {
+      console.warn(`[${requestId}] DAILY_LIMIT`, { userId: user.id, used, limit });
       return Response.json(
         {
-          error: "Daily limit reached",
-          message: `You've used ${usage.analyze_calls} of ${entitlements.analyze_calls_per_day} analyzes today. Upgrade to Pro for more.`,
-          upgrade_url: upgradeUrl,
-          meta: debug ? { requestId } : undefined,
+          error: "DAILY_LIMIT_REACHED",
+          limit,
+          used,
+          plan,
+          upgrade_url: "/pricing",
         },
         { status: 429 }
       );
@@ -348,8 +348,19 @@ export async function POST(req: Request) {
     const ms = Date.now() - started;
     console.log(`[${requestId}] DONE`, { ms, runId: runRow.id, signalsInserted });
 
+    // Usage after this successful call (we just incremented)
+    const usedAfter = used + 1;
+    const percent = limit > 0 ? usedAfter / limit : 0;
+    const usageWarning = limit > 0 && percent >= 0.8 && usedAfter < limit;
+
     return Response.json({
       output: normalizedOutput,
+      usage: {
+        used: usedAfter,
+        limit,
+        percent,
+        warning: usageWarning,
+      },
       meta: debug
         ? {
             requestId,

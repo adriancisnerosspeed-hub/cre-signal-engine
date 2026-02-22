@@ -1,11 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-function friendlyMessage(res: Response, body: { error?: string; message?: string }): string {
+function friendlyMessage(
+  res: Response,
+  body: { error?: string; message?: string; upgrade_url?: string }
+): string {
   if (res.status === 401) return "Please sign in to analyze.";
-  if (res.status === 429) return "Rate limit reached. Try again later.";
+  if (res.status === 429) {
+    if (body?.error === "DAILY_LIMIT_REACHED") return "Daily limit reached. Upgrade to continue.";
+    return "Rate limit reached. Try again later.";
+  }
   if (res.status >= 500) {
     if (body?.message && typeof body.message === "string") return body.message;
     return "Something went wrong on our side. Please try again.";
@@ -21,6 +28,7 @@ export default function AnalyzePage() {
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [upgradeUrl, setUpgradeUrl] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -34,6 +42,7 @@ export default function AnalyzePage() {
     setLoading(true);
     setOutput("");
     setErrorMessage(null);
+    setUpgradeUrl(null);
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -44,6 +53,7 @@ export default function AnalyzePage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setErrorMessage(friendlyMessage(res, data));
+        if (res.status === 429 && data?.upgrade_url) setUpgradeUrl(data.upgrade_url);
         return;
       }
       setOutput(typeof data.output === "string" ? data.output : "");
@@ -140,6 +150,14 @@ export default function AnalyzePage() {
           }}
         >
           {errorMessage}
+          {upgradeUrl && (
+            <>
+              {" "}
+              <Link href={upgradeUrl} style={{ color: "#fcd34d", fontWeight: 600 }}>
+                Upgrade to Pro
+              </Link>
+            </>
+          )}
         </div>
       )}
 
