@@ -280,3 +280,18 @@ body {
   padding: 48px 24px 64px;
   text-align: center;
 }
+
+.landing-footer {
+  padding: 24px;
+  text-align: center;
+  border-top: 1px solid var(--landing-border);
+}
+.landing-footer a {
+  color: var(--landing-muted);
+  font-size: 14px;
+  text-decoration: none;
+  margin: 0 12px;
+}
+.landing-footer a:hover {
+  color: var(--landing-fg);
+}
