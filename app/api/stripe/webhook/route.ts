@@ -103,8 +103,9 @@ async function upsertSubscription(
   userId: string,
   sub: Stripe.Subscription
 ) {
-  const periodEnd = sub.current_period_end
-    ? new Date(sub.current_period_end * 1000).toISOString()
+  const periodEndTs = sub.items?.data?.[0]?.current_period_end;
+  const periodEnd = periodEndTs
+    ? new Date(periodEndTs * 1000).toISOString()
     : null;
   await supabase.from("subscriptions").upsert(
     {
