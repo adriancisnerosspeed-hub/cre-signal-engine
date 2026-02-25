@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { ensureProfile } from "@/lib/auth";
+import { ensureDefaultOrganization } from "@/lib/org";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import { NextResponse } from "next/server";
 import { parse as parseCookieHeader } from "cookie";
 
@@ -53,6 +55,12 @@ export async function GET(request: Request) {
       await ensureProfile(supabase, session.user);
     } catch {
       // Don't block sign-in if profile upsert fails
+    }
+    try {
+      const service = createServiceRoleClient();
+      await ensureDefaultOrganization(service, session.user);
+    } catch {
+      // Don't block sign-in if default org bootstrap fails
     }
   }
 

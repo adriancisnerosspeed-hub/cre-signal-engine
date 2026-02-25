@@ -15,15 +15,24 @@ export async function GET() {
   }
 
   const plan = await getPlanForUser(supabase, user.id);
-  const limit = getEntitlements(plan).analyze_calls_per_day;
+  const entitlements = getEntitlements(plan);
   const usage = await getUsageToday(supabase, user.id);
-  const used = usage.analyze_calls;
-  const percent = limit > 0 ? used / limit : 0;
+
+  const analyzeLimit = entitlements.analyze_calls_per_day;
+  const analyzeUsed = usage.analyze_calls;
+  const analyzePercent = analyzeLimit > 0 ? analyzeUsed / analyzeLimit : 0;
+
+  const dealScansLimit = entitlements.deal_scans_per_day;
+  const dealScansUsed = usage.deal_scans;
+  const dealScansPercent = dealScansLimit > 0 ? dealScansUsed / dealScansLimit : 0;
 
   return Response.json({
-    used,
-    limit,
-    percent,
+    used: analyzeUsed,
+    limit: analyzeLimit,
+    percent: analyzePercent,
     plan,
+    deal_scans_used: dealScansUsed,
+    deal_scans_limit: dealScansLimit,
+    percent_deal_scans: dealScansPercent,
   });
 }

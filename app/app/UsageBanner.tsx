@@ -8,6 +8,9 @@ type UsageToday = {
   limit: number;
   percent: number;
   plan: string;
+  deal_scans_used?: number;
+  deal_scans_limit?: number;
+  percent_deal_scans?: number;
 };
 
 export default function UsageBanner() {
@@ -26,10 +29,25 @@ export default function UsageBanner() {
 
   if (loading || !usage) return null;
 
-  const { used, limit, percent } = usage;
+  const {
+    used,
+    limit,
+    percent,
+    deal_scans_used = 0,
+    deal_scans_limit = 0,
+    percent_deal_scans = 0,
+  } = usage;
 
-  // Block: at or over 100%
-  if (limit > 0 && percent >= 1) {
+  const analyzeAtLimit = limit > 0 && percent >= 1;
+  const dealScansAtLimit = deal_scans_limit > 0 && percent_deal_scans >= 1;
+  const atLimit = analyzeAtLimit || dealScansAtLimit;
+
+  const analyzeWarn = limit > 0 && percent >= 0.8 && percent < 1;
+  const dealScansWarn = deal_scans_limit > 0 && percent_deal_scans >= 0.8 && percent_deal_scans < 1;
+  const warn = analyzeWarn || dealScansWarn;
+
+  // Block: at or over 100% for either
+  if (atLimit) {
     return (
       <div
         style={{
@@ -42,7 +60,10 @@ export default function UsageBanner() {
           fontSize: 14,
         }}
       >
-        Daily limit reached.{" "}
+        Daily limit reached
+        {(analyzeAtLimit && dealScansAtLimit && " (analyses and deal scans).") ||
+          (analyzeAtLimit && " (analyses).") ||
+          " (deal scans)."}{" "}
         <Link href="/pricing" style={{ color: "#fcd34d", fontWeight: 600 }}>
           Upgrade to continue.
         </Link>
@@ -51,7 +72,7 @@ export default function UsageBanner() {
   }
 
   // Soft warning: >= 80% and < 100%
-  if (limit > 0 && percent >= 0.8) {
+  if (warn) {
     return (
       <div
         style={{
@@ -64,7 +85,8 @@ export default function UsageBanner() {
           fontSize: 14,
         }}
       >
-        You&apos;ve used {used}/{limit} daily analyses.{" "}
+        Usage: analyses {used}/{limit}
+        {deal_scans_limit > 0 && ` · deal scans ${deal_scans_used}/${deal_scans_limit}`}.{" "}
         <Link href="/pricing" style={{ color: "#fcd34d", fontWeight: 600 }}>
           Upgrade for higher limits.
         </Link>

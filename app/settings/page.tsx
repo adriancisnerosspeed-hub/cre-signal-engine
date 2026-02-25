@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { ensureProfile } from "@/lib/auth";
 import { getDefaultPreferences } from "@/lib/digest";
 import { getEntitlementsForUser } from "@/lib/entitlements";
 import { getUsageToday } from "@/lib/usage";
+import { getCurrentOrg } from "@/lib/org";
 import SettingsForm from "./SettingsForm";
 import BillingCard from "./BillingCard";
 
@@ -15,6 +17,9 @@ export default async function SettingsPage() {
   if (!user) {
     redirect("/login");
   }
+
+  await ensureProfile(supabase, user);
+  const currentOrg = await getCurrentOrg(supabase, user);
 
   const [entitlements, usage] = await Promise.all([
     getEntitlementsForUser(supabase, user.id),
@@ -56,6 +61,28 @@ export default async function SettingsPage() {
         analyzeLimit={entitlements.analyze_calls_per_day}
         digestScheduledEnabled={entitlements.digest_scheduled}
       />
+
+      {process.env.NODE_ENV === "development" && (
+        <section
+          style={{
+            marginBottom: 24,
+            padding: 16,
+            border: "1px dashed rgba(255,255,255,0.2)",
+            borderRadius: 8,
+            backgroundColor: "rgba(0,0,0,0.2)",
+          }}
+        >
+          <h2 style={{ fontSize: 14, fontWeight: 600, color: "#a1a1aa", marginBottom: 8 }}>
+            [Dev] Workspace
+          </h2>
+          <p style={{ fontSize: 13, color: "#e4e4e7", margin: 0 }}>
+            current_org_id: <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4 }}>{currentOrg?.id ?? "—"}</code>
+          </p>
+          <p style={{ fontSize: 13, color: "#e4e4e7", margin: "4px 0 0" }}>
+            org name: <strong>{currentOrg?.name ?? "—"}</strong>
+          </p>
+        </section>
+      )}
 
       <SettingsForm initialPreferences={initialPreferences} />
     </main>

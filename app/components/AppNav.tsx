@@ -32,8 +32,11 @@ const buttonStyle = {
   opacity: 0.9,
 };
 
+type CurrentOrg = { id: string; name: string } | null;
+
 export default function AppNav() {
   const [user, setUser] = useState<{ email?: string } | null>(null);
+  const [currentOrg, setCurrentOrg] = useState<CurrentOrg>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -50,6 +53,20 @@ export default function AppNav() {
     });
     return () => subscription.unsubscribe();
   }, [router, supabase]);
+
+  useEffect(() => {
+    if (!user) {
+      setCurrentOrg(null);
+      return;
+    }
+    fetch("/api/org/current")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.id && data.name) setCurrentOrg({ id: data.id, name: data.name });
+        else setCurrentOrg(null);
+      })
+      .catch(() => setCurrentOrg(null));
+  }, [user]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -72,11 +89,17 @@ export default function AppNav() {
     <nav style={navStyle}>
       <Link href="/" style={pathname === "/" ? activeLinkStyle : linkStyle}>Home</Link>
       <Link href="/app" style={pathname === "/app" ? activeLinkStyle : linkStyle}>Dashboard</Link>
+      <Link href="/app/deals" style={pathname?.startsWith("/app/deals") ? activeLinkStyle : linkStyle}>Deals</Link>
       <Link href="/analyze" style={pathname === "/analyze" ? activeLinkStyle : linkStyle}>Analyze</Link>
       <Link href="/pricing" style={pathname === "/pricing" ? activeLinkStyle : linkStyle}>Pricing</Link>
       <Link href="/digest/preview" style={pathname === "/digest/preview" ? activeLinkStyle : linkStyle}>Digest</Link>
       <Link href="/settings" style={pathname === "/settings" ? activeLinkStyle : linkStyle}>Settings</Link>
-      <button type="button" onClick={handleSignOut} style={{ ...buttonStyle, marginLeft: "auto" }}>
+      {currentOrg && (
+        <span style={{ fontSize: 13, opacity: 0.85, marginLeft: "auto", marginRight: 12 }}>
+          Workspace: {currentOrg.name}
+        </span>
+      )}
+      <button type="button" onClick={handleSignOut} style={{ ...buttonStyle, marginLeft: currentOrg ? 0 : "auto" }}>
         Sign out
       </button>
     </nav>

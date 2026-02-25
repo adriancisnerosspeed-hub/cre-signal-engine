@@ -5,6 +5,7 @@ export type Plan = "free" | "pro" | "owner";
 export type Entitlements = {
   plan: Plan;
   analyze_calls_per_day: number;
+  deal_scans_per_day: number;
   digest_manual_send: boolean;
   digest_scheduled: boolean;
   email_digest_max_signals: number;
@@ -13,6 +14,7 @@ export type Entitlements = {
 const FREE_ENTITLEMENTS: Entitlements = {
   plan: "free",
   analyze_calls_per_day: 10,
+  deal_scans_per_day: 2,
   digest_manual_send: true,
   digest_scheduled: false,
   email_digest_max_signals: 6,
@@ -21,6 +23,7 @@ const FREE_ENTITLEMENTS: Entitlements = {
 const PRO_ENTITLEMENTS: Entitlements = {
   plan: "pro",
   analyze_calls_per_day: 200,
+  deal_scans_per_day: 50,
   digest_manual_send: true,
   digest_scheduled: true,
   email_digest_max_signals: 12,
@@ -29,6 +32,7 @@ const PRO_ENTITLEMENTS: Entitlements = {
 const OWNER_ENTITLEMENTS: Entitlements = {
   plan: "owner",
   analyze_calls_per_day: 1000,
+  deal_scans_per_day: 50,
   digest_manual_send: true,
   digest_scheduled: true,
   email_digest_max_signals: 12,
