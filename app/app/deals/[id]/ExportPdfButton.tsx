@@ -25,20 +25,23 @@ export default function ExportPdfButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scan_id: scanId }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 403 && data.code === "PRO_REQUIRED_FOR_EXPORT") {
-        setPaywallOpen(true);
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({}));
+        if (data.code === "PRO_REQUIRED_FOR_EXPORT") setPaywallOpen(true);
         return;
       }
-      if (!res.ok) {
-        return;
-      }
+      if (!res.ok) return;
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `cre-signal-export-${scanId.slice(0, 8)}.pdf`;
+      a.download =
+        res.headers.get("Content-Disposition")?.match(/filename="?([^";\n]+)"?/)?.[1] ??
+        `cre-signal-export-${scanId.slice(0, 8)}.pdf`;
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } finally {
       setLoading(false);
