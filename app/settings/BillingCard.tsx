@@ -8,11 +8,15 @@ export default function BillingCard({
   plan,
   analyzeCallsToday,
   analyzeLimit,
+  dealScansToday,
+  dealScansLimit,
   digestScheduledEnabled,
 }: {
   plan: Plan;
   analyzeCallsToday: number;
   analyzeLimit: number;
+  dealScansToday: number;
+  dealScansLimit: number;
   digestScheduledEnabled: boolean;
 }) {
   const [loading, setLoading] = useState<"checkout" | "portal" | null>(null);
@@ -49,13 +53,22 @@ export default function BillingCard({
     marginBottom: 20,
   };
 
+  const dealScansPercent = dealScansLimit > 0 ? Math.round((dealScansToday / dealScansLimit) * 100) : 0;
+
   return (
     <div style={blockStyle}>
       <h2 style={{ fontSize: 14, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
         Billing & usage
       </h2>
+      <p style={{ color: "#71717a", fontSize: 12, marginBottom: 12 }}>
+        Designed for institutional underwriting teams.
+      </p>
       <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
         Plan: <strong style={{ color: "#e4e4e7" }}>{plan}</strong>
+      </p>
+      <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
+        You&apos;ve used {dealScansToday} of {dealScansLimit} daily deal scans
+        {dealScansLimit > 0 && ` (${dealScansPercent}% of limit)`}.
       </p>
       <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
         Analyzes today: {analyzeCallsToday} / {analyzeLimit}

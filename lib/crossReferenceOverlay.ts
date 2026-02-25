@@ -112,6 +112,8 @@ export async function runOverlay(
   const assumptions = (scanRow?.extraction as { assumptions?: Assumptions })?.assumptions ?? {};
 
   type LinkRow = { deal_risk_id: string; signal_id: string; link_reason: string };
+  const linkKey = (r: LinkRow) => `${r.deal_risk_id}:${r.signal_id}`;
+  const seenKeys = new Set<string>();
   const linksToUpsert: LinkRow[] = [];
   const riskIdsWithLink: Set<string> = new Set();
 
@@ -121,11 +123,14 @@ export async function runOverlay(
       if (!signalTypeMatchesRisk(st, risk.risk_type)) continue;
 
       const reason = `Signal: ${st}${signal.what_changed ? ` — ${String(signal.what_changed).slice(0, 80)}` : ""}`;
-      linksToUpsert.push({
+      const row: LinkRow = {
         deal_risk_id: risk.id,
         signal_id: String(signal.id),
         link_reason: reason,
-      });
+      };
+      if (seenKeys.has(linkKey(row))) continue;
+      seenKeys.add(linkKey(row));
+      linksToUpsert.push(row);
       riskIdsWithLink.add(risk.id);
     }
   }

@@ -80,12 +80,16 @@ export default function LandingPage() {
         <div className="landing-pricing">
           <div className="landing-plan">
             <h3 className="landing-plan-name">Free</h3>
-            <p className="landing-plan-desc">10 analyzes per day · Manual digest (up to 6 signals) · No scheduled digest</p>
+            <p className="landing-plan-desc">
+              10 signal analyzes per day · 2 deal scans per day · Manual digest (up to 6 signals) · No scheduled digest · Single user
+            </p>
             <Link href="/login" className="landing-plan-cta secondary">Get started</Link>
           </div>
           <div className="landing-plan featured">
             <h3 className="landing-plan-name">Pro</h3>
-            <p className="landing-plan-desc">200 analyzes per day · Manual + scheduled digest · Up to 12 signals per email</p>
+            <p className="landing-plan-desc">
+              200 signal analyzes per day · 50 deal scans per day · Manual + scheduled digest (up to 12 signals) · IC memorandum narrative · Export · Invite team &amp; workspaces
+            </p>
             <Link href="/login" className="landing-plan-cta primary">
               Get started
             </Link>

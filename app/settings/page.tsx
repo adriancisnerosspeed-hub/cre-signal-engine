@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { ensureProfile } from "@/lib/auth";
 import { getDefaultPreferences } from "@/lib/digest";
 import { getEntitlementsForUser } from "@/lib/entitlements";
@@ -53,12 +54,19 @@ export default async function SettingsPage() {
         <p style={{ color: "#a1a1aa", marginTop: 4 }}>
           Signed in as <strong style={{ color: "#e4e4e7" }}>{user.email}</strong>
         </p>
+        <p style={{ marginTop: 8, fontSize: 14 }}>
+          <Link href="/settings/workspace" style={{ color: "#a1a1aa" }}>
+            Workspace
+          </Link>
+        </p>
       </div>
 
       <BillingCard
         plan={entitlements.plan}
         analyzeCallsToday={usage.analyze_calls}
         analyzeLimit={entitlements.analyze_calls_per_day}
+        dealScansToday={usage.deal_scans}
+        dealScansLimit={entitlements.deal_scans_per_day}
         digestScheduledEnabled={entitlements.digest_scheduled}
       />
 

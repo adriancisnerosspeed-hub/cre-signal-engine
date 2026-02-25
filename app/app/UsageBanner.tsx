@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import PaywallModal from "@/app/components/PaywallModal";
 
 type UsageToday = {
   used: number;
@@ -16,6 +16,7 @@ type UsageToday = {
 export default function UsageBanner() {
   const [usage, setUsage] = useState<UsageToday | null>(null);
   const [loading, setLoading] = useState(true);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/usage/today", { credentials: "include" })
@@ -46,51 +47,91 @@ export default function UsageBanner() {
   const dealScansWarn = deal_scans_limit > 0 && percent_deal_scans >= 0.8 && percent_deal_scans < 1;
   const warn = analyzeWarn || dealScansWarn;
 
-  // Block: at or over 100% for either
+  // Block: at or over 100% for either — show banner + paywall modal on CTA
   if (atLimit) {
     return (
-      <div
-        style={{
-          marginBottom: 16,
-          padding: 14,
-          borderRadius: 8,
-          backgroundColor: "rgba(248,113,113,0.15)",
-          border: "1px solid rgba(248,113,113,0.4)",
-          color: "#fca5a5",
-          fontSize: 14,
-        }}
-      >
-        Daily limit reached
-        {(analyzeAtLimit && dealScansAtLimit && " (analyses and deal scans).") ||
-          (analyzeAtLimit && " (analyses).") ||
-          " (deal scans)."}{" "}
-        <Link href="/pricing" style={{ color: "#fcd34d", fontWeight: 600 }}>
-          Upgrade to continue.
-        </Link>
-      </div>
+      <>
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 14,
+            borderRadius: 8,
+            backgroundColor: "rgba(248,113,113,0.15)",
+            border: "1px solid rgba(248,113,113,0.4)",
+            color: "#fca5a5",
+            fontSize: 14,
+          }}
+        >
+          Daily limit reached
+          {(analyzeAtLimit && dealScansAtLimit && " (analyses and deal scans).") ||
+            (analyzeAtLimit && " (analyses).") ||
+            " (deal scans)."}{" "}
+          <button
+            type="button"
+            onClick={() => setPaywallOpen(true)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#fcd34d",
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: 0,
+              textDecoration: "underline",
+            }}
+          >
+            Upgrade to continue.
+          </button>
+        </div>
+        <PaywallModal
+          open={paywallOpen}
+          onClose={() => setPaywallOpen(false)}
+          title="Daily limit reached"
+          subtitle="Upgrade to Pro for higher scan limits, IC Memorandum Narrative, and more."
+        />
+      </>
     );
   }
 
   // Soft warning: >= 80% and < 100%
   if (warn) {
     return (
-      <div
-        style={{
-          marginBottom: 16,
-          padding: 14,
-          borderRadius: 8,
-          backgroundColor: "rgba(251,191,36,0.15)",
-          border: "1px solid rgba(251,191,36,0.4)",
-          color: "#fde047",
-          fontSize: 14,
-        }}
-      >
-        Usage: analyses {used}/{limit}
-        {deal_scans_limit > 0 && ` · deal scans ${deal_scans_used}/${deal_scans_limit}`}.{" "}
-        <Link href="/pricing" style={{ color: "#fcd34d", fontWeight: 600 }}>
-          Upgrade for higher limits.
-        </Link>
-      </div>
+      <>
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 14,
+            borderRadius: 8,
+            backgroundColor: "rgba(251,191,36,0.15)",
+            border: "1px solid rgba(251,191,36,0.4)",
+            color: "#fde047",
+            fontSize: 14,
+          }}
+        >
+          Usage: analyses {used}/{limit}
+          {deal_scans_limit > 0 && ` · deal scans ${deal_scans_used}/${deal_scans_limit}`}.{" "}
+          <button
+            type="button"
+            onClick={() => setPaywallOpen(true)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#fcd34d",
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: 0,
+              textDecoration: "underline",
+            }}
+          >
+            Upgrade for higher limits.
+          </button>
+        </div>
+        <PaywallModal
+          open={paywallOpen}
+          onClose={() => setPaywallOpen(false)}
+          title="Upgrade to Pro"
+          subtitle="Get higher daily limits and Pro features."
+        />
+      </>
     );
   }
 

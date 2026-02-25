@@ -2,7 +2,11 @@ import { Resend } from "resend";
 import type { DigestSignal } from "@/lib/digest";
 import { groupSignalsForDigest } from "@/lib/digest";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
 
 const DEFAULT_FROM = "CRE Signals <onboarding@resend.dev>";
 
@@ -104,7 +108,8 @@ export async function sendDigestEmail(options: {
   subject: string;
   html: string;
 }): Promise<{ success: boolean; error?: string }> {
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResend();
+  if (!resend) {
     return { success: false, error: "RESEND_API_KEY not configured" };
   }
   const from = process.env.RESEND_FROM || DEFAULT_FROM;
@@ -114,6 +119,42 @@ export async function sendDigestEmail(options: {
       to: options.to,
       subject: options.subject,
       html: options.html,
+    });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, error: message };
+  }
+}
+
+export async function sendWorkspaceInviteEmail(options: {
+  to: string;
+  orgName: string;
+  inviteLink: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const resend = getResend();
+  if (!resend) {
+    return { success: false, error: "RESEND_API_KEY not configured" };
+  }
+  const from = process.env.RESEND_FROM || DEFAULT_FROM;
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Workspace invite</title></head>
+<body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #1a1a1a; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h1 style="font-size: 18px;">You’re invited to ${escapeHtml(options.orgName)}</h1>
+  <p style="color: #444;">Click the link below to join the workspace on CRE Signal Engine.</p>
+  <p style="margin: 24px 0;"><a href="${escapeHtml(options.inviteLink)}" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">Accept invite</a></p>
+  <p style="font-size: 12px; color: #666;">If you didn’t expect this invite, you can ignore this email.</p>
+</body>
+</html>`;
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to: options.to,
+      subject: `Invitation to join ${options.orgName} on CRE Signal Engine`,
+      html,
     });
     if (error) return { success: false, error: error.message };
     return { success: true };
