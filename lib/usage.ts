@@ -8,7 +8,7 @@ function todayDateStr(): string {
 export async function getUsageToday(
   supabase: SupabaseClient,
   userId: string
-): Promise<{ analyze_calls: number; tokens_estimated: number }> {
+): Promise<{ analyze_calls: number; tokens_estimated: number; deal_scans: number }> {
   const date = todayDateStr();
   const { data } = await supabase
     .from("usage_daily")
@@ -54,15 +54,38 @@ export async function getDealScansToday(
   return (data as { deal_scans?: number } | null)?.deal_scans ?? 0;
 }
 
-/** Increment deal scan usage for today. Call with service role client. */
+/** Increment deal scan usage for today. Call with service role client. Uses v2 RPC with org_id. */
 export async function incrementDealScanUsage(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  orgId: string
 ): Promise<void> {
   const date = todayDateStr();
-  const { error } = await supabase.rpc("increment_usage_daily_deal_scans", {
+  const { error } = await supabase.rpc("increment_usage_daily_deal_scans_v2", {
     p_user_id: userId,
     p_date: date,
+    p_org_id: orgId,
   });
   if (error) throw error;
+}
+
+/** Get lifetime full scans used (Free plan cap). Requires client with read access to profiles. */
+export async function getTotalFullScansUsed(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<number> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("total_full_scans_used")
+    .eq("id", userId)
+    .maybeSingle();
+  const row = data as { total_full_scans_used?: number } | null;
+  return row?.total_full_scans_used ?? 0;
+}
+
+/** Increment lifetime full scans. Call with service role only after successful full scan commit (Free plan only). Uses SECURITY DEFINER RPC. */
+export async function incrementTotalFullScans(supabase: SupabaseClient, userId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("increment_total_full_scans", { p_user_id: userId });
+  if (error) throw error;
+  return (data as number) ?? 0;
 }

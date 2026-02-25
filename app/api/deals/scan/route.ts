@@ -3,7 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
 import { getPlanForUser, getEntitlementsForUser } from "@/lib/entitlements";
-import { getDealScansToday, incrementDealScanUsage } from "@/lib/usage";
+import { getDealScansToday, getTotalFullScansUsed, incrementDealScanUsage, incrementTotalFullScans } from "@/lib/usage";
 import { parseAndNormalizeDealScan } from "@/lib/dealScanContract";
 import { DEAL_SCAN_SYSTEM_PROMPT, DEAL_SCAN_PROMPT_VERSION } from "@/lib/prompts/dealScanPrompt";
 import OpenAI from "openai";
@@ -49,12 +49,51 @@ export async function POST(request: Request) {
 
   const { data: deal, error: dealError } = await supabase
     .from("deals")
-    .select("id, organization_id, created_by")
+    .select("id, organization_id, created_by, asset_type, market")
     .eq("id", dealId)
     .single();
 
   if (dealError || !deal) {
     return NextResponse.json({ error: "Deal not found" }, { status: 404 });
+  }
+
+  const service = createServiceRoleClient();
+  const plan = await getPlanForUser(service, user.id);
+  const entitlements = await getEntitlementsForUser(service, user.id);
+
+  // Free: lifetime cap only. Block before any OpenAI calls.
+  if (plan === "free" && entitlements.lifetime_full_scan_limit != null) {
+    const used = await getTotalFullScansUsed(service, user.id);
+    const limit = entitlements.lifetime_full_scan_limit;
+    if (used >= limit) {
+      return NextResponse.json(
+        {
+          code: "LIFETIME_LIMIT_REACHED",
+          used,
+          limit,
+          message: "Institutional features require Pro access.",
+        },
+        { status: 429 }
+      );
+    }
+  }
+
+  // Pro/Owner: daily cap only.
+  if (plan !== "free") {
+    const limit = entitlements.deal_scans_per_day;
+    const used = await getDealScansToday(service, user.id);
+    if (used >= limit) {
+      return NextResponse.json(
+        {
+          code: "DAILY_LIMIT_REACHED",
+          limit,
+          used,
+          plan,
+          upgrade_url: "/pricing",
+        },
+        { status: 429 }
+      );
+    }
   }
 
   const { data: inputs } = await supabase
@@ -67,26 +106,6 @@ export async function POST(request: Request) {
   const dealInput = Array.isArray(inputs) && inputs.length > 0 ? inputs[0] : null;
   const rawText = dealInput?.raw_text ?? "";
   const dealInputId = dealInput?.id ?? null;
-
-  const service = createServiceRoleClient();
-
-  const plan = await getPlanForUser(service, user.id);
-  const entitlements = await getEntitlementsForUser(service, user.id);
-  const limit = entitlements.deal_scans_per_day;
-  const used = await getDealScansToday(service, user.id);
-
-  if (plan !== "owner" && used >= limit) {
-    return NextResponse.json(
-      {
-        error: "DAILY_LIMIT_REACHED",
-        limit,
-        used,
-        plan,
-        upgrade_url: "/pricing",
-      },
-      { status: 429 }
-    );
-  }
 
   if (!forceRescan && rawText) {
     const hash = inputTextHash(rawText);
@@ -164,6 +183,8 @@ export async function POST(request: Request) {
       noi_year1: normalized.assumptions.noi_year1?.value ?? null,
       ltv: normalized.assumptions.ltv?.value ?? null,
       hold_period_years: normalized.assumptions.hold_period_years?.value ?? null,
+      asset_type: (deal as { asset_type?: string | null }).asset_type ?? null,
+      market: (deal as { market?: string | null }).market ?? null,
     })
     .select("id")
     .single();
@@ -198,7 +219,27 @@ export async function POST(request: Request) {
     console.error("Overlay error:", err);
   });
 
-  await incrementDealScanUsage(service, user.id);
+  const { data: riskRows } = await service
+    .from("deal_risks")
+    .select("severity_current, confidence, risk_type")
+    .eq("deal_scan_id", scan.id);
+  const risks = (riskRows ?? []) as { severity_current: string; confidence: string | null; risk_type: string }[];
+  const { computeRiskIndex } = await import("@/lib/riskIndex");
+  const riskIndex = computeRiskIndex(risks, DEAL_SCAN_PROMPT_VERSION);
+  await service
+    .from("deal_scans")
+    .update({
+      risk_index_score: riskIndex.score,
+      risk_index_band: riskIndex.band,
+      risk_index_breakdown: riskIndex.breakdown,
+    })
+    .eq("id", scan.id);
+
+  if (plan === "free") {
+    await incrementTotalFullScans(service, user.id);
+  } else {
+    await incrementDealScanUsage(service, user.id, orgId);
+  }
 
   return NextResponse.json({ scan_id: scan.id, deal_id: dealId });
 }

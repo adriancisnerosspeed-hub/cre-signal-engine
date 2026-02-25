@@ -1,9 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
+import { getEntitlementsForUser } from "@/lib/entitlements";
+import { getRecommendedActions } from "@/lib/icRecommendedActions";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import DealDetailClient from "./DealDetailClient";
+import ExportPdfButton from "./ExportPdfButton";
+import IcNarrativeBlock from "./IcNarrativeBlock";
+import PercentileBlock from "./PercentileBlock";
+import ScenarioComparisonBlock from "./ScenarioComparisonBlock";
 
 type Deal = {
   id: string;
@@ -26,6 +32,8 @@ type DealScan = {
   noi_year1: number | null;
   ltv: number | null;
   hold_period_years: number | null;
+  risk_index_score: number | null;
+  risk_index_band: string | null;
 };
 
 type DealRisk = {
@@ -40,12 +48,19 @@ type DealRisk = {
   confidence: string | null;
 };
 
+const SEVERITY_ORDER: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+const CONFIDENCE_ORDER: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+
 export default async function DealPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { id: dealId } = await params;
+  const { tab } = await searchParams;
+  const activeTab = tab === "ic-summary" ? "ic-summary" : "overview";
   const supabase = await createClient();
   const {
     data: { user },
@@ -81,10 +96,23 @@ export default async function DealPage({
   let scan: DealScan | null = null;
   let risks: DealRisk[] = [];
 
+  const entitlements = await getEntitlementsForUser(supabase, user.id);
+  const plan = entitlements.plan;
+
+  let narrativeContent: string | null = null;
+  if (d.latest_scan_id) {
+    const { data: narrativeRow } = await supabase
+      .from("deal_scan_narratives")
+      .select("content")
+      .eq("deal_scan_id", d.latest_scan_id)
+      .maybeSingle();
+    narrativeContent = (narrativeRow as { content: string } | null)?.content ?? null;
+  }
+
   if (d.latest_scan_id) {
     const { data: scanRow } = await supabase
       .from("deal_scans")
-      .select("id, extraction, status, created_at, model, prompt_version, cap_rate_in, exit_cap, noi_year1, ltv, hold_period_years")
+      .select("id, extraction, status, created_at, model, prompt_version, cap_rate_in, exit_cap, noi_year1, ltv, hold_period_years, risk_index_score, risk_index_band")
       .eq("id", d.latest_scan_id)
       .single();
 
@@ -153,6 +181,21 @@ export default async function DealPage({
 
   const assumptions = scan?.extraction?.assumptions as Record<string, { value?: number | null; unit?: string | null; confidence?: string }> | undefined;
 
+  const { data: recentScans } = await supabase
+    .from("deal_scans")
+    .select("id, created_at, model, risk_index_score, risk_index_band")
+    .eq("deal_id", dealId)
+    .eq("status", "completed")
+    .order("created_at", { ascending: false })
+    .limit(3);
+  const last3Scans = (recentScans ?? []) as {
+    id: string;
+    created_at: string;
+    model: string | null;
+    risk_index_score: number | null;
+    risk_index_band: string | null;
+  }[];
+
   return (
     <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
       <div style={{ marginBottom: 24 }}>
@@ -172,7 +215,15 @@ export default async function DealPage({
             </p>
           )}
         </div>
-        <DealDetailClient dealId={d.id} hasScan={!!scan} />
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {scan && (
+            <ExportPdfButton
+              scanId={scan.id}
+              scanExportEnabled={entitlements.scan_export_enabled}
+            />
+          )}
+          <DealDetailClient dealId={d.id} hasScan={!!scan} />
+        </div>
       </div>
 
       {!scan && (
@@ -185,6 +236,88 @@ export default async function DealPage({
 
       {scan && (
         <>
+          <nav style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+            <Link
+              href={`/app/deals/${dealId}`}
+              style={{
+                padding: "10px 16px",
+                fontSize: 14,
+                fontWeight: 600,
+                color: activeTab === "overview" ? "#fafafa" : "#a1a1aa",
+                textDecoration: "none",
+                borderBottom: activeTab === "overview" ? "2px solid #fafafa" : "2px solid transparent",
+                marginBottom: -1,
+              }}
+            >
+              Overview
+            </Link>
+            <Link
+              href={`/app/deals/${dealId}?tab=ic-summary`}
+              style={{
+                padding: "10px 16px",
+                fontSize: 14,
+                fontWeight: 600,
+                color: activeTab === "ic-summary" ? "#fafafa" : "#a1a1aa",
+                textDecoration: "none",
+                borderBottom: activeTab === "ic-summary" ? "2px solid #fafafa" : "2px solid transparent",
+                marginBottom: -1,
+              }}
+            >
+              IC Summary
+            </Link>
+          </nav>
+
+          {activeTab === "overview" && (
+          <>
+          {last3Scans.length > 0 && (
+            <section style={{ marginBottom: 32 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+                Recent scans
+              </h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {last3Scans.map((s, i) => {
+                  const prevScore = last3Scans[i + 1]?.risk_index_score ?? null;
+                  const currScore = s.risk_index_score ?? null;
+                  const trend =
+                    currScore != null && prevScore != null
+                      ? currScore > prevScore
+                        ? "↑"
+                        : currScore < prevScore
+                          ? "↓"
+                          : "→"
+                      : null;
+                  return (
+                    <Link
+                      key={s.id}
+                      href={`/app/deals/${dealId}/scans/${s.id}`}
+                      style={{
+                        display: "block",
+                        padding: "12px 16px",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: 8,
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        textDecoration: "none",
+                        color: "inherit",
+                        fontSize: 14,
+                      }}
+                    >
+                      {new Date(s.created_at).toLocaleString()}
+                      {s.model && ` · ${s.model}`}
+                      {s.risk_index_score != null && ` · CRE Signal Risk Index™: ${s.risk_index_score} — ${s.risk_index_band ?? "—"}`}
+                      {trend && ` ${trend}`}
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <ScenarioComparisonBlock
+            dealId={dealId}
+            scans={last3Scans.map((s) => ({ id: s.id, created_at: s.created_at, risk_index_band: s.risk_index_band }))}
+            plan={plan}
+          />
+
           <section style={{ marginBottom: 32 }}>
             <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
               Assumptions
@@ -220,6 +353,10 @@ export default async function DealPage({
             <p style={{ marginTop: 8, fontSize: 12, color: "#71717a" }}>
               Scan: {new Date(scan.created_at).toLocaleString()}
               {scan.model && ` · ${scan.model}`}
+              {" · "}
+              <Link href={`/app/deals/${d.id}/scans`} style={{ color: "#a1a1aa" }}>
+                Scan history
+              </Link>
             </p>
           </section>
 
@@ -280,6 +417,187 @@ export default async function DealPage({
               </ul>
             )}
           </section>
+          </>
+          )}
+
+          {activeTab === "ic-summary" && scan && (
+            <>
+              {scan.risk_index_score != null && (
+                <section style={{ marginBottom: 32 }}>
+                  <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+                    CRE Signal Risk Index™
+                  </h2>
+                  <div
+                    style={{
+                      padding: "16px 20px",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      borderRadius: 8,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                    }}
+                  >
+                    <div style={{ fontSize: 20, fontWeight: 700, color: "#fafafa" }}>
+                      {scan.risk_index_score} — {scan.risk_index_band ?? "—"}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              <PercentileBlock scanId={scan.id} plan={plan} />
+
+              <section style={{ marginBottom: 32 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+                  Deal Snapshot
+                </h2>
+                {assumptions && Object.keys(assumptions).length > 0 ? (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
+                          <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Key</th>
+                          <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Value</th>
+                          <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Unit</th>
+                          <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Confidence</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(assumptions)
+                          .slice(0, 10)
+                          .map(([key, cell]) => (
+                            <tr key={key} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                              <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{key.replace(/_/g, " ")}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
+                                {cell.value != null ? cell.value : "—"}
+                              </td>
+                              <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.unit ?? "—"}</td>
+                              <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.confidence ?? "—"}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p style={{ color: "#a1a1aa", fontSize: 14 }}>No assumptions extracted.</p>
+                )}
+              </section>
+
+              <section style={{ marginBottom: 32 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+                  Primary Risks
+                </h2>
+                {(() => {
+                  const sorted = [...risks].sort((a, b) => {
+                    const sev = (SEVERITY_ORDER[b.severity_current] ?? 0) - (SEVERITY_ORDER[a.severity_current] ?? 0);
+                    if (sev !== 0) return sev;
+                    return (CONFIDENCE_ORDER[b.confidence ?? ""] ?? 0) - (CONFIDENCE_ORDER[a.confidence ?? ""] ?? 0);
+                  });
+                  return sorted.length === 0 ? (
+                    <p style={{ color: "#a1a1aa", fontSize: 14 }}>No risks flagged.</p>
+                  ) : (
+                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                      {sorted.map((r) => (
+                        <li
+                          key={r.id}
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            borderRadius: 8,
+                            marginBottom: 8,
+                            backgroundColor: "rgba(255,255,255,0.03)",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                            <span style={{ fontWeight: 600, color: "#fafafa" }}>{r.risk_type}</span>
+                            <span style={{ fontSize: 12, color: "#a1a1aa" }}>{r.severity_current}</span>
+                          </div>
+                          {r.what_changed_or_trigger && (
+                            <p style={{ margin: "6px 0 0", fontSize: 13, color: "#e4e4e7" }}>{r.what_changed_or_trigger}</p>
+                          )}
+                          {r.who_this_affects && (
+                            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#a1a1aa" }}>Affects: {r.who_this_affects}</p>
+                          )}
+                          {linksByRisk[r.id]?.length > 0 && (
+                            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#71717a" }}>
+                              Linked: {linksByRisk[r.id].map((l) => l.signal_type ?? "Signal").join(", ")}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()}
+              </section>
+
+              <section style={{ marginBottom: 32 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+                  Linked Macro Signals
+                </h2>
+                {(() => {
+                  const seen = new Set<string>();
+                  const list: { signal_type: string | null; what_changed: string | null }[] = [];
+                  for (const r of risks) {
+                    for (const link of linksByRisk[r.id] ?? []) {
+                      const key = `${link.signal_type ?? ""}|${link.what_changed ?? ""}`;
+                      if (!seen.has(key)) {
+                        seen.add(key);
+                        list.push({ signal_type: link.signal_type, what_changed: link.what_changed });
+                      }
+                    }
+                  }
+                  return list.length === 0 ? (
+                    <p style={{ color: "#a1a1aa", fontSize: 14 }}>No linked macro signals.</p>
+                  ) : (
+                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "#e4e4e7" }}>
+                      {list.map((item, i) => (
+                        <li key={i}>
+                          {item.signal_type && <strong>{item.signal_type}</strong>}
+                          {item.what_changed && ` — ${item.what_changed.slice(0, 100)}${item.what_changed.length > 100 ? "…" : ""}`}
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()}
+              </section>
+
+              <section style={{ marginBottom: 32 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+                  Recommended Actions
+                </h2>
+                {(() => {
+                  const risksWithSignals = risks.map((r) => ({
+                    severity_current: r.severity_current,
+                    risk_type: r.risk_type,
+                    signal_types: (linksByRisk[r.id] ?? []).map((l) => l.signal_type ?? "").filter(Boolean),
+                  }));
+                  const actions = getRecommendedActions(risksWithSignals);
+                  return actions.length === 0 ? (
+                    <p style={{ color: "#a1a1aa", fontSize: 14 }}>No rule-based actions for this scan.</p>
+                  ) : (
+                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "#e4e4e7" }}>
+                      {actions.map((a, i) => (
+                        <li key={i}>{a}</li>
+                      ))}
+                    </ul>
+                  );
+                })()}
+              </section>
+
+              <IcNarrativeBlock
+                icNarrativeEnabled={entitlements.ic_narrative_enabled}
+                scanExportEnabled={entitlements.scan_export_enabled}
+                scanId={scan.id}
+                narrativeContent={narrativeContent}
+                dealName={d.name}
+                scanCreatedAt={scan.created_at}
+                riskIndexScore={scan.risk_index_score}
+                riskIndexBand={scan.risk_index_band}
+              />
+
+              <p style={{ fontSize: 12, color: "#71717a", marginTop: 24, fontStyle: "italic" }}>
+                CRE Signal Risk Index™ is an underwriting support tool. Final investment
+                decisions should incorporate sponsor diligence and third-party validation.
+              </p>
+            </>
+          )}
         </>
       )}
     </main>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import PaywallModal from "@/app/components/PaywallModal";
 
 export default function DealDetailClient({
   dealId,
@@ -14,6 +15,8 @@ export default function DealDetailClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [freshScanHint, setFreshScanHint] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [lifetimeLimitPaywall, setLifetimeLimitPaywall] = useState(false);
 
   async function handleRunScan() {
     setError(null);
@@ -28,8 +31,16 @@ export default function DealDetailClient({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (res.status === 429 && data.code === "LIFETIME_LIMIT_REACHED") {
+          setError(null);
+          setPaywallOpen(true);
+          setLifetimeLimitPaywall(true);
+          return;
+        }
         if (res.status === 429) {
-          setError(`Daily limit reached (${data.used}/${data.limit}). Upgrade for more scans.`);
+          setError(`Daily limit reached (${data.used ?? 0}/${data.limit ?? 0}). Upgrade for more scans.`);
+          setPaywallOpen(true);
+          setLifetimeLimitPaywall(false);
           return;
         }
         setError(data.error || `Error ${res.status}`);
@@ -52,6 +63,13 @@ export default function DealDetailClient({
       {freshScanHint && (
         <p style={{ marginBottom: 8, fontSize: 14, color: "#22c55e" }}>Fresh scan started…</p>
       )}
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => { setPaywallOpen(false); setLifetimeLimitPaywall(false); }}
+        variant={lifetimeLimitPaywall ? "lifetime_limit" : "default"}
+        title={lifetimeLimitPaywall ? undefined : "Daily limit reached"}
+        subtitle={lifetimeLimitPaywall ? undefined : "Upgrade to Pro for higher scan limits, IC Memorandum Narrative, and more."}
+      />
       <button
         type="button"
         onClick={handleRunScan}
@@ -68,7 +86,7 @@ export default function DealDetailClient({
           opacity: loading ? 0.7 : 1,
         }}
       >
-        {loading ? "Running scan…" : hasScan ? "Rescan" : "Run Deal Risk Scan"}
+        {loading ? "Running scan…" : hasScan ? "Rescan (Fresh)" : "Run Deal Risk Scan"}
       </button>
     </div>
   );
