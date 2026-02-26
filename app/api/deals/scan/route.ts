@@ -215,17 +215,34 @@ export async function POST(request: Request) {
     .eq("id", dealId);
 
   const { runOverlay } = await import("@/lib/crossReferenceOverlay");
-  await runOverlay(service, scan.id, deal.created_by).catch((err) => {
+  await runOverlay(service, scan.id, deal.created_by, {
+    asset_type: (deal as { asset_type?: string | null }).asset_type ?? null,
+    market: (deal as { market?: string | null }).market ?? null,
+  }).catch((err) => {
     console.error("Overlay error:", err);
   });
 
   const { data: riskRows } = await service
     .from("deal_risks")
-    .select("severity_current, confidence, risk_type")
+    .select("id, severity_current, confidence, risk_type")
     .eq("deal_scan_id", scan.id);
-  const risks = (riskRows ?? []) as { severity_current: string; confidence: string | null; risk_type: string }[];
+  const risks = (riskRows ?? []) as { id: string; severity_current: string; confidence: string | null; risk_type: string }[];
+  const riskIds = risks.map((r) => r.id);
+  let macroLinkedCount = 0;
+  if (riskIds.length > 0) {
+    const { data: linkRows } = await service
+      .from("deal_signal_links")
+      .select("deal_risk_id")
+      .in("deal_risk_id", riskIds);
+    const linkedRiskIds = new Set((linkRows ?? []).map((r: { deal_risk_id: string }) => r.deal_risk_id));
+    macroLinkedCount = linkedRiskIds.size;
+  }
   const { computeRiskIndex } = await import("@/lib/riskIndex");
-  const riskIndex = computeRiskIndex(risks, DEAL_SCAN_PROMPT_VERSION);
+  const riskIndex = computeRiskIndex({
+    risks: risks.map((r) => ({ severity_current: r.severity_current, confidence: r.confidence, risk_type: r.risk_type })),
+    assumptions: normalized.assumptions,
+    macroLinkedCount,
+  });
   await service
     .from("deal_scans")
     .update({

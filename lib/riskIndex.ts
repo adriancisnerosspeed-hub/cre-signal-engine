@@ -1,8 +1,10 @@
 /**
- * CRE Signal Risk Index™ — single server-side utility.
- * Deterministic, version-aware (prompt_version may be used in future formula versions).
- * Formula is isolated: changes apply only to new scans; historical scores are stored and never recomputed.
+ * CRE Signal Risk Index™ — recalibrated balanced scoring.
+ * Final Score = Base + Risk Penalties - Stabilizers.
+ * Bands: 0–34 Low, 35–49 Moderate, 50–64 Elevated, 65+ High.
  */
+
+import type { DealScanAssumptions } from "./dealScanContract";
 
 export type RiskIndexBand = "Low" | "Moderate" | "Elevated" | "High";
 
@@ -10,6 +12,8 @@ export type RiskIndexBreakdown = {
   structural_weight: number;
   market_weight: number;
   confidence_factor: number;
+  stabilizer_benefit: number;
+  penalty_total: number;
 };
 
 export type RiskIndexResult = {
@@ -18,7 +22,7 @@ export type RiskIndexResult = {
   breakdown: RiskIndexBreakdown;
 };
 
-/** Risk types that contribute to "structural" (capital structure, debt, refi) vs "market" (exit, rent, vacancy, supply). */
+/** Structural risk types (capital structure, debt, refi). Used for DataMissing cap rule. */
 const STRUCTURAL_RISK_TYPES = new Set([
   "RefiRisk",
   "DebtCostRisk",
@@ -33,84 +37,227 @@ type RiskRow = {
   risk_type: string;
 };
 
-const SEVERITY_WEIGHT: Record<string, number> = {
-  High: 3,
-  Medium: 2,
-  Low: 1,
+const SEVERITY_POINTS: Record<string, number> = {
+  High: 8,
+  Medium: 4,
+  Low: 2,
 };
 
-const CONFIDENCE_WEIGHT: Record<string, number> = {
+const CONFIDENCE_FACTOR: Record<string, number> = {
   High: 1,
   Medium: 0.7,
   Low: 0.4,
 };
 
-function severityWeight(s: string): number {
-  return SEVERITY_WEIGHT[s] ?? 1;
+const BASE_SCORE = 40;
+const STABILIZER_CAP = 20;
+const MACRO_PENALTY_CAP = 5;
+
+/** Severity bands (recalibrated). */
+function scoreToBand(score: number): RiskIndexBand {
+  if (score <= 34) return "Low";
+  if (score <= 49) return "Moderate";
+  if (score <= 64) return "Elevated";
+  return "High";
 }
 
-function confidenceWeight(s: string | null): number {
-  if (!s) return 0.4;
-  return CONFIDENCE_WEIGHT[s] ?? 0.4;
+function getAssumptionValue(
+  assumptions: DealScanAssumptions | undefined,
+  key: keyof DealScanAssumptions
+): number | null {
+  const cell = assumptions?.[key];
+  if (cell == null || typeof cell !== "object") return null;
+  const v = (cell as { value?: number | null }).value;
+  return v != null && typeof v === "number" && !Number.isNaN(v) ? v : null;
 }
 
 /**
- * Compute CRE Signal Risk Index™ from deal_risks rows.
- * @param risks — Array of risk rows (severity_current, confidence, risk_type)
- * @param _promptVersion — Reserved for future version-aware formula; currently unused
+ * Stabilizers (negative scoring). Cap total benefit at STABILIZER_CAP.
  */
-export function computeRiskIndex(
+function computeStabilizers(assumptions: DealScanAssumptions | undefined): number {
+  let total = 0;
+
+  const ltv = getAssumptionValue(assumptions, "ltv");
+  if (ltv != null) {
+    if (ltv <= 60) total += 8;
+    else if (ltv <= 65) total += 4;
+  }
+
+  const exitCap = getAssumptionValue(assumptions, "exit_cap");
+  const capRateIn = getAssumptionValue(assumptions, "cap_rate_in");
+  if (exitCap != null && capRateIn != null && exitCap >= capRateIn) {
+    total += 6;
+  }
+
+  // Fixed-rate debt ≥7y, DSCR ≥1.6x, vacancy ≤ market, anchor >10y: not in current assumption keys; omit
+  return Math.min(total, STABILIZER_CAP);
+}
+
+/**
+ * Per-risk penalties with caps and conditions.
+ * Returns { penalty, isDataMissingOnly, isExpenseGrowthMissing } for DataMissing cap rule.
+ */
+function computePenalties(
   risks: RiskRow[],
-  _promptVersion?: string | null
-): RiskIndexResult {
-  let structuralRaw = 0;
-  let marketRaw = 0;
-  let totalConfidence = 0;
-  let count = 0;
+  assumptions: DealScanAssumptions | undefined
+): {
+  total: number;
+  onlyDataMissingOrExpense: boolean;
+  structuralRiskCount: number;
+} {
+  const ltv = getAssumptionValue(assumptions, "ltv");
+  const exitCap = getAssumptionValue(assumptions, "exit_cap");
+  const capRateIn = getAssumptionValue(assumptions, "cap_rate_in");
+  const hasExpenseGrowth = getAssumptionValue(assumptions, "expense_growth") != null;
+  const hasDebtRate = getAssumptionValue(assumptions, "debt_rate") != null;
+
+  let total = 0;
+  let dataMissingOrExpenseCount = 0;
+  let otherRiskCount = 0;
+  let structuralCount = 0;
 
   for (const r of risks) {
-    const sev = severityWeight(r.severity_current);
-    const conf = confidenceWeight(r.confidence);
-    const weighted = sev * conf;
-    totalConfidence += conf;
-    count += 1;
-    if (STRUCTURAL_RISK_TYPES.has(r.risk_type)) {
-      structuralRaw += weighted;
-    } else {
-      marketRaw += weighted;
+    const conf = CONFIDENCE_FACTOR[r.confidence ?? ""] ?? 0.4;
+    const sevPoints = SEVERITY_POINTS[r.severity_current] ?? 2;
+
+    if (STRUCTURAL_RISK_TYPES.has(r.risk_type)) structuralCount += 1;
+
+    switch (r.risk_type) {
+      case "DataMissing":
+        total += Math.min(sevPoints * conf, 3);
+        dataMissingOrExpenseCount += 1;
+        break;
+      case "ExpenseUnderstated":
+        if (!hasExpenseGrowth) total += Math.min(sevPoints * conf, 3);
+        dataMissingOrExpenseCount += 1;
+        break;
+      case "DebtCostRisk":
+        if (hasDebtRate === false && ltv != null && ltv > 65) {
+          total += Math.min(4 * conf, 4);
+        } else {
+          total += Math.min(sevPoints * conf, 6);
+        }
+        otherRiskCount += 1;
+        break;
+      case "ExitCapCompression":
+        if (
+          exitCap != null &&
+          capRateIn != null &&
+          capRateIn - exitCap > 0.25
+        ) {
+          total += Math.min(sevPoints * conf, 8);
+        }
+        otherRiskCount += 1;
+        break;
+      case "RentGrowthAggressive":
+        total += Math.min(sevPoints * conf, 6);
+        otherRiskCount += 1;
+        break;
+      case "RefiRisk":
+      case "MarketLiquidityRisk":
+      case "InsuranceRisk":
+      case "ConstructionTimingRisk":
+      case "RegulatoryPolicyExposure":
+      case "VacancyUnderstated":
+      default:
+        total += Math.min(sevPoints * conf, 6);
+        otherRiskCount += 1;
+        break;
     }
   }
 
-  const structuralMax = count * 3 * 1;
-  const marketMax = count * 3 * 1;
-  const structuralWeight =
-    structuralMax > 0 ? Math.min(100, Math.round((structuralRaw / structuralMax) * 100)) : 0;
-  const marketWeight =
-    marketMax > 0 ? Math.min(100, Math.round((marketRaw / marketMax) * 100)) : 0;
-  const confidenceFactor = count > 0 ? totalConfidence / count : 0.4;
+  const onlyDataMissingOrExpense =
+    dataMissingOrExpenseCount > 0 && otherRiskCount === 0;
 
-  const rawScore = (structuralRaw + marketRaw) / (count || 1);
-  const maxPerRisk = 3 * 1;
-  const score = Math.min(100, Math.round((rawScore / maxPerRisk) * 100));
+  return {
+    total,
+    onlyDataMissingOrExpense,
+    structuralRiskCount: structuralCount,
+  };
+}
 
+export type ComputeRiskIndexParams = {
+  risks: RiskRow[];
+  assumptions?: DealScanAssumptions;
+  /** Number of risks that have a linked macro signal (overlay). Capped at +5 total. */
+  macroLinkedCount?: number;
+  _promptVersion?: string | null;
+};
+
+/**
+ * Compute CRE Signal Risk Index™: Base 40 + Penalties - Stabilizers.
+ * DataMissing alone cannot push above Moderate without at least two structural risks.
+ */
+export function computeRiskIndex(
+  params: ComputeRiskIndexParams | RiskRow[],
+  _promptVersion?: string | null
+): RiskIndexResult {
+  const risks = Array.isArray(params) ? params : params.risks;
+  const assumptions =
+    Array.isArray(params) ? undefined : (params as ComputeRiskIndexParams).assumptions;
+  const macroLinkedCount = Array.isArray(params)
+    ? 0
+    : (params as ComputeRiskIndexParams).macroLinkedCount ?? 0;
+
+  const stabilizerBenefit = computeStabilizers(assumptions);
+  const {
+    total: penaltyTotal,
+    onlyDataMissingOrExpense,
+    structuralRiskCount,
+  } = computePenalties(risks, assumptions);
+
+  const macroPenalty = Math.min(macroLinkedCount * 2, MACRO_PENALTY_CAP);
+  let rawScore = BASE_SCORE + penaltyTotal + macroPenalty - stabilizerBenefit;
+
+  if (
+    onlyDataMissingOrExpense &&
+    structuralRiskCount < 2 &&
+    rawScore > 49
+  ) {
+    rawScore = 49;
+  }
+
+  const score = Math.max(0, Math.min(100, Math.round(rawScore)));
   const band = scoreToBand(score);
+
+  const structuralRaw = risks
+    .filter((r) => STRUCTURAL_RISK_TYPES.has(r.risk_type))
+    .reduce(
+      (sum, r) =>
+        sum +
+        (SEVERITY_POINTS[r.severity_current] ?? 2) *
+          (CONFIDENCE_FACTOR[r.confidence ?? ""] ?? 0.4),
+      0
+    );
+  const marketRaw = risks
+    .filter((r) => !STRUCTURAL_RISK_TYPES.has(r.risk_type))
+    .reduce(
+      (sum, r) =>
+        sum +
+        (SEVERITY_POINTS[r.severity_current] ?? 2) *
+          (CONFIDENCE_FACTOR[r.confidence ?? ""] ?? 0.4),
+      0
+    );
+  const totalConfidence = risks.reduce(
+    (s, r) => s + (CONFIDENCE_FACTOR[r.confidence ?? ""] ?? 0.4),
+    0
+  );
+  const count = risks.length || 1;
 
   return {
     score,
     band,
     breakdown: {
-      structural_weight: structuralWeight,
-      market_weight: marketWeight,
-      confidence_factor: Math.round(confidenceFactor * 100) / 100,
+      structural_weight: Math.min(
+        100,
+        Math.round((structuralRaw / (count * 8)) * 100)
+      ),
+      market_weight: Math.min(100, Math.round((marketRaw / (count * 8)) * 100)),
+      confidence_factor: Math.round((totalConfidence / count) * 100) / 100,
+      stabilizer_benefit: stabilizerBenefit,
+      penalty_total: penaltyTotal,
     },
   };
-}
-
-function scoreToBand(score: number): RiskIndexBand {
-  if (score <= 25) return "Low";
-  if (score <= 50) return "Moderate";
-  if (score <= 75) return "Elevated";
-  return "High";
 }
 
 /**

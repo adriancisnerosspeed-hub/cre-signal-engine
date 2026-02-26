@@ -14,14 +14,6 @@ type DealRiskRow = {
   severity_current: string;
 };
 
-type Assumptions = {
-  exit_cap?: number | null;
-  ltv?: number | null;
-  rent_growth?: { value?: number | null } | null;
-  vacancy?: { value?: number | null } | null;
-  expense_growth?: { value?: number | null } | null;
-};
-
 /**
  * Deterministic rules: which risk types can be linked to which signal types.
  */
@@ -66,17 +58,50 @@ function bumpedSeverity(current: string): string {
   return current;
 }
 
+/** True if signal appears to be multifamily supply (infer from signal_type; signals table has no asset_type). */
+function isMultifamilySupplySignal(signalType: string): boolean {
+  const t = signalType.toLowerCase();
+  return (t.includes("multifamily") || t.includes("multi-family")) && (t.includes("supply") || t.includes("vacancy") || t.includes("demand"));
+}
+
+/** True if deal is multifamily by asset_type. */
+function dealIsMultifamily(assetType: string | null | undefined): boolean {
+  if (!assetType) return false;
+  const a = assetType.toLowerCase();
+  return a.includes("multifamily") || a.includes("multi-family") || a.includes("multifam");
+}
+
+/** Do not apply multifamily supply signals to office or retail. Same asset class filter. */
+function signalAppliesToDeal(
+  signalType: string,
+  dealAssetType: string | null | undefined
+): boolean {
+  if (isMultifamilySupplySignal(signalType)) {
+    if (!dealAssetType) return true;
+    const a = dealAssetType.toLowerCase();
+    if (a.includes("office") || a.includes("retail")) return false;
+    return dealIsMultifamily(dealAssetType);
+  }
+  return true;
+}
+
+export type OverlayDealContext = {
+  asset_type?: string | null;
+  market?: string | null;
+};
+
 /**
  * Cross-reference overlay: link deal risks to macro signals using deal.created_by's signals.
- * Fetches recent signals for createdByUserId, applies simple type-matching rules,
- * inserts deal_signal_links, and may bump severity_current.
+ * Applies macro filter rules: same asset class (no multifamily supply to office/retail), etc.
  */
 export async function runOverlay(
   supabase: SupabaseClient,
   dealScanId: string,
-  createdByUserId: string
+  createdByUserId: string,
+  dealContext?: OverlayDealContext
 ): Promise<void> {
   const windowStart = new Date(Date.now() - SIGNAL_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const dealAssetType = dealContext?.asset_type ?? null;
 
   const { data: signals, error: sigErr } = await supabase
     .from("signals")
@@ -103,14 +128,6 @@ export async function runOverlay(
 
   const riskRows = risks as DealRiskRow[];
 
-  const { data: scanRow } = await supabase
-    .from("deal_scans")
-    .select("extraction")
-    .eq("id", dealScanId)
-    .single();
-
-  const assumptions = (scanRow?.extraction as { assumptions?: Assumptions })?.assumptions ?? {};
-
   type LinkRow = { deal_risk_id: string; signal_id: string; link_reason: string };
   const linkKey = (r: LinkRow) => `${r.deal_risk_id}:${r.signal_id}`;
   const seenKeys = new Set<string>();
@@ -121,6 +138,7 @@ export async function runOverlay(
     for (const signal of signalRows) {
       const st = (signal.signal_type ?? "").trim();
       if (!signalTypeMatchesRisk(st, risk.risk_type)) continue;
+      if (!signalAppliesToDeal(st, dealAssetType)) continue;
 
       const reason = `Signal: ${st}${signal.what_changed ? ` — ${String(signal.what_changed).slice(0, 80)}` : ""}`;
       const row: LinkRow = {
