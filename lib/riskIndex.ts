@@ -56,8 +56,8 @@ const CONFIDENCE_FACTOR: Record<string, number> = {
 
 const BASE_SCORE = 40;
 const STABILIZER_CAP = 20;
-/** +1 per unique macro signal; cap so duplicates in deal_signal_links cannot increase score beyond cap. */
-const MACRO_PENALTY_CAP = 4;
+/** +1 per unique macro signal; cap so macro amplifies risk slightly, not dominates. */
+const MACRO_PENALTY_CAP = 3;
 
 /** Severity bands (recalibrated). */
 function scoreToBand(score: number): RiskIndexBand {

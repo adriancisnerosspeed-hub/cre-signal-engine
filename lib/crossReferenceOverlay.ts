@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isSignalRelevant, inferSignalContext } from "./macroRelevance";
 
 const SIGNAL_WINDOW_DAYS = 30;
 
@@ -117,6 +118,17 @@ export async function runOverlay(
 
   const signalRows = signals as SignalRow[];
 
+  const dealContextForRelevance = {
+    asset_type: dealContext?.asset_type ?? null,
+    state: dealContext?.market ?? null,
+    market: dealContext?.market ?? null,
+  };
+
+  const relevantSignals = signalRows.filter((s) => {
+    const signalView = inferSignalContext(s.signal_type ?? null, s.what_changed ?? null);
+    return isSignalRelevant(signalView, dealContextForRelevance);
+  });
+
   const { data: risks, error: riskErr } = await supabase
     .from("deal_risks")
     .select("id, risk_type, severity_current")
@@ -135,7 +147,7 @@ export async function runOverlay(
   const riskIdsWithLink: Set<string> = new Set();
 
   for (const risk of riskRows) {
-    for (const signal of signalRows) {
+    for (const signal of relevantSignals) {
       const st = (signal.signal_type ?? "").trim();
       if (!signalTypeMatchesRisk(st, risk.risk_type)) continue;
       if (!signalAppliesToDeal(st, dealAssetType)) continue;

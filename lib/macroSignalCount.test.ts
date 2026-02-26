@@ -43,15 +43,15 @@ describe("risk index macro penalty (unique signals)", () => {
     expect(b.score - a.score).toBe(1);
   });
 
-  it("macroLinkedCount = 10 => capped at +4 macro penalty", () => {
+  it("macroLinkedCount = 10 => capped at +3 macro penalty", () => {
     const a = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 0 });
     const b = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 10 });
-    expect(b.score - a.score).toBe(4);
+    expect(b.score - a.score).toBe(3);
   });
 
   it("duplicates in deal_signal_links cannot increase score beyond cap", () => {
-    const with4 = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 4 });
+    const with3 = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 3 });
     const with10 = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 10 });
-    expect(with10.score).toBe(with4.score);
+    expect(with10.score).toBe(with3.score);
   });
 });

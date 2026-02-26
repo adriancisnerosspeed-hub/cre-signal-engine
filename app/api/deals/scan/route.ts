@@ -200,12 +200,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
   }
 
-  for (const r of normalized.risks) {
+  const { applySeverityOverride } = await import("@/lib/riskSeverityOverrides");
+  const stabilizedRisks = normalized.risks.map((r) => ({
+    ...r,
+    severity_current: applySeverityOverride(r.risk_type, r.severity, normalized.assumptions),
+  }));
+
+  for (const r of stabilizedRisks) {
     await service.from("deal_risks").insert({
       deal_scan_id: scan.id,
       risk_type: r.risk_type,
       severity_original: r.severity,
-      severity_current: r.severity,
+      severity_current: r.severity_current,
       what_changed_or_trigger: r.what_changed_or_trigger,
       why_it_matters: r.why_it_matters,
       who_this_affects: r.who_this_affects,
@@ -232,8 +238,7 @@ export async function POST(request: Request) {
     .from("deal_risks")
     .select("id, severity_current, confidence, risk_type")
     .eq("deal_scan_id", scan.id);
-  const risks = (riskRows ?? []) as { id: string; severity_current: string; confidence: string | null; risk_type: string }[];
-  const riskIds = risks.map((r) => r.id);
+  const riskIds = (riskRows ?? []).map((r: { id: string }) => r.id);
   let macroLinkedCount = 0;
   if (riskIds.length > 0) {
     const { data: linkRows } = await service
@@ -247,7 +252,11 @@ export async function POST(request: Request) {
   }
   const { computeRiskIndex } = await import("@/lib/riskIndex");
   const riskIndex = computeRiskIndex({
-    risks: risks.map((r) => ({ severity_current: r.severity_current, confidence: r.confidence, risk_type: r.risk_type })),
+    risks: stabilizedRisks.map((r) => ({
+      severity_current: r.severity_current,
+      confidence: r.confidence,
+      risk_type: r.risk_type,
+    })),
     assumptions: normalized.assumptions,
     macroLinkedCount,
   });
