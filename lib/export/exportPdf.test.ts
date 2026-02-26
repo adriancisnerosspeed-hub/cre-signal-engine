@@ -64,4 +64,25 @@ describe("buildExportPdf", () => {
     const doc = await PDFDocument.load(pdfBytes);
     expect(doc.getPages()).toHaveLength(1);
   });
+
+  it("renders fallback text when macroSignals is empty", async () => {
+    const pdfBytes = await buildExportPdf({
+      dealName: "Test Deal",
+      assetType: "Office",
+      market: "Chicago",
+      riskIndexScore: 38,
+      riskIndexBand: "Moderate",
+      promptVersion: null,
+      scanTimestamp: "2025-01-15 14:30:00",
+      scanId: "scan-uuid",
+      model: null,
+      assumptions: [],
+      risks: [],
+      macroSignals: [],
+      macroSectionLabel: "Market Signals",
+    });
+    expect(pdfBytes.length).toBeGreaterThan(0);
+    const doc = await PDFDocument.load(pdfBytes);
+    expect(doc.getPages()).toHaveLength(1);
+  });
 });

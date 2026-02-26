@@ -5,10 +5,13 @@ import { buildExportPdf } from "@/lib/export/exportPdf";
 import {
   selectTopAssumptions,
   selectTopRisks,
-  dedupeSignals,
+  selectMacroSignalsForPdf,
 } from "@/lib/export/pdfSelectors";
 import type { DealScanAssumptions } from "@/lib/dealScanContract";
+import { getRecommendedActions } from "@/lib/icRecommendedActions";
 import { NextResponse } from "next/server";
+
+const DEBUG_PDF_EXPORT = process.env.DEBUG_PDF_EXPORT === "true";
 
 export const runtime = "nodejs";
 
@@ -106,31 +109,33 @@ export async function POST(request: Request) {
     }
   }
 
-  const linksWithSignal = links.map((l) => {
+  const riskById = new Map(riskList.map((r) => [r.id, r]));
+  const linksWithRisk = links.map((l) => {
     const sig = signalsMap[String(l.signal_id)];
+    const risk = riskById.get(l.deal_risk_id);
     return {
+      deal_risk_id: l.deal_risk_id,
+      risk_type: risk?.risk_type ?? "",
       signal_id: String(l.signal_id),
       link_reason: l.link_reason,
       signal_type: sig?.signal_type ?? null,
       what_changed: sig?.what_changed ?? null,
     };
   });
-  const macroSignals = dedupeSignals(
-    linksWithSignal.map((l) => ({
-      signal_id: l.signal_id,
-      link_reason: l.link_reason,
-      signal_type: l.signal_type ?? null,
-      what_changed: l.what_changed ?? null,
-    })),
-    5
-  );
+  const assetType = (deal as { asset_type?: string | null }).asset_type ?? null;
+  const market = (deal as { market?: string | null }).market ?? null;
+  const macroSignals = selectMacroSignalsForPdf({
+    linksWithRisk,
+    assetType,
+    market,
+  });
 
   const extraction = (scan as { extraction?: unknown }).extraction;
   const assumptions =
     extraction != null && typeof extraction === "object" && extraction !== null && "assumptions" in extraction
       ? (extraction as { assumptions?: DealScanAssumptions }).assumptions
       : undefined;
-  const topAssumptions = selectTopAssumptions(assumptions, 6);
+  const topAssumptions = selectTopAssumptions(assumptions, 9);
   const riskRows = riskList.map((r) => ({
     risk_type: r.risk_type,
     severity_current: r.severity_current,
@@ -140,8 +145,27 @@ export async function POST(request: Request) {
   }));
   const topRisks = selectTopRisks(riskRows, 3);
 
-  const hasDealContext =
-    !!((deal as { asset_type?: string | null }).asset_type ?? (deal as { market?: string | null }).market);
+  const risksWithSignals = riskList.map((r) => ({
+    severity_current: r.severity_current,
+    risk_type: r.risk_type,
+    signal_types: (linksWithRisk.filter((l) => l.deal_risk_id === r.id).map((l) => l.signal_type ?? "")).filter(Boolean),
+  }));
+  const recommendedActions = getRecommendedActions(risksWithSignals);
+  const recommendedBullets = recommendedActions.length > 0 ? recommendedActions.slice(0, 4) : [];
+
+  let icMemoHighlights: string | null = null;
+  const { data: narrativeRow } = await service
+    .from("deal_scan_narratives")
+    .select("content")
+    .eq("deal_scan_id", scanId)
+    .maybeSingle();
+  const narrativeContent = (narrativeRow as { content: string } | undefined)?.content;
+  if (narrativeContent && typeof narrativeContent === "string") {
+    const trimmed = narrativeContent.trim();
+    icMemoHighlights = trimmed.length > 1200 ? trimmed.slice(0, 1197) + "…" : trimmed;
+  }
+
+  const hasDealContext = !!(assetType ?? market);
   const macroSectionLabel = hasDealContext ? "Market Signals" : "General Macro Signals";
 
   const scanTimestamp =
@@ -149,10 +173,10 @@ export async function POST(request: Request) {
     (scan as { created_at?: string }).created_at ||
     new Date().toISOString();
 
-  const pdfBytes = await buildExportPdf({
+  const payload = {
     dealName: (deal as { name: string }).name,
-    assetType: (deal as { asset_type?: string | null }).asset_type ?? null,
-    market: (deal as { market?: string | null }).market ?? null,
+    assetType,
+    market,
     riskIndexScore: (scan as { risk_index_score?: number | null }).risk_index_score ?? null,
     riskIndexBand: (scan as { risk_index_band?: string | null }).risk_index_band ?? null,
     promptVersion: (scan as { prompt_version?: string | null }).prompt_version ?? null,
@@ -163,7 +187,14 @@ export async function POST(request: Request) {
     risks: topRisks,
     macroSignals,
     macroSectionLabel,
-  });
+    recommendedActions: recommendedBullets,
+    icMemoHighlights,
+  };
+  if (DEBUG_PDF_EXPORT) {
+    console.info("[DEBUG_PDF_EXPORT] payload", JSON.stringify(payload, null, 2));
+  }
+
+  const pdfBytes = await buildExportPdf(payload);
 
   const filename = `cre-signal-${(deal as { name: string }).name.replace(/\s+/g, "-").slice(0, 30)}-${new Date().toISOString().slice(0, 10)}.pdf`;
 
