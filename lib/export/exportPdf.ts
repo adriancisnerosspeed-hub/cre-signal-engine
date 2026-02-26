@@ -234,7 +234,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
       const c = scenario.conservative[k] ?? scenario.conservative[k as string];
       if (b != null || c != null) {
         const delta = typeof b === "number" && typeof c === "number" ? c - b : null;
-        const line = `${k}: Base ${b ?? "—"} | Conservative ${c ?? "—"}${delta != null ? ` (Δ ${delta >= 0 ? "+" : ""}${delta})` : ""}`;
+        const line = `${k}: Base ${b ?? "—"} | Conservative ${c ?? "—"}${delta != null ? ` (delta ${delta >= 0 ? "+" : ""}${delta})` : ""}`;
         if (!drawLine(line, 8, false, rgb(0.3, 0.3, 0.3))) break;
       }
     }

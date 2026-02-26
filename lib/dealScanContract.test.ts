@@ -91,6 +91,19 @@ describe("normalizeDealScanOutput", () => {
     const out = normalizeDealScanOutput(parsed);
     expect(out.risks).toHaveLength(2);
   });
+
+  it("collapses multiple DataMissing into one", () => {
+    const parsed: DealScanRaw = {
+      assumptions: {},
+      risks: [
+        { risk_type: "DataMissing", severity: "Low", what_changed_or_trigger: "Missing cap rate", why_it_matters: "", who_this_affects: "", recommended_action: "Monitor", confidence: "Low", evidence_snippets: [] },
+        { risk_type: "DataMissing", severity: "Medium", what_changed_or_trigger: "Missing vacancy", why_it_matters: "", who_this_affects: "", recommended_action: "Act", confidence: "High", evidence_snippets: [] },
+      ],
+    };
+    const out = normalizeDealScanOutput(parsed);
+    expect(out.risks.filter((r) => r.risk_type === "DataMissing")).toHaveLength(1);
+    expect(out.risks.some((r) => r.risk_type === "DataMissing")).toBe(true);
+  });
 });
 
 describe("parseAndNormalizeDealScan", () => {

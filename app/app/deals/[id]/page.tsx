@@ -490,39 +490,48 @@ export default async function DealPage({
                     if (sev !== 0) return sev;
                     return (CONFIDENCE_ORDER[b.confidence ?? ""] ?? 0) - (CONFIDENCE_ORDER[a.confidence ?? ""] ?? 0);
                   });
+                  const topRisks = sorted.slice(0, 5);
+                  const riskOmitted = sorted.length > 5;
                   return sorted.length === 0 ? (
                     <p style={{ color: "#a1a1aa", fontSize: 14 }}>No risks flagged.</p>
                   ) : (
-                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                      {sorted.map((r) => (
-                        <li
-                          key={r.id}
-                          style={{
-                            padding: "12px 16px",
-                            border: "1px solid rgba(255,255,255,0.1)",
-                            borderRadius: 8,
-                            marginBottom: 8,
-                            backgroundColor: "rgba(255,255,255,0.03)",
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                            <span style={{ fontWeight: 600, color: "#fafafa" }}>{r.risk_type}</span>
-                            <span style={{ fontSize: 12, color: "#a1a1aa" }}>{r.severity_current}</span>
-                          </div>
-                          {r.what_changed_or_trigger && (
-                            <p style={{ margin: "6px 0 0", fontSize: 13, color: "#e4e4e7" }}>{r.what_changed_or_trigger}</p>
-                          )}
-                          {r.who_this_affects && (
-                            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#a1a1aa" }}>Affects: {r.who_this_affects}</p>
-                          )}
-                          {linksByRisk[r.id]?.length > 0 && (
-                            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#71717a" }}>
-                              Linked: {linksByRisk[r.id].map((l) => l.signal_type ?? "Signal").join(", ")}
-                            </p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                    <>
+                      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                        {topRisks.map((r) => (
+                          <li
+                            key={r.id}
+                            style={{
+                              padding: "12px 16px",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              borderRadius: 8,
+                              marginBottom: 8,
+                              backgroundColor: "rgba(255,255,255,0.03)",
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                              <span style={{ fontWeight: 600, color: "#fafafa" }}>{r.risk_type}</span>
+                              <span style={{ fontSize: 12, color: "#a1a1aa" }}>{r.severity_current}</span>
+                            </div>
+                            {r.what_changed_or_trigger && (
+                              <p style={{ margin: "6px 0 0", fontSize: 13, color: "#e4e4e7" }}>{r.what_changed_or_trigger}</p>
+                            )}
+                            {r.who_this_affects && (
+                              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#a1a1aa" }}>Affects: {r.who_this_affects}</p>
+                            )}
+                            {linksByRisk[r.id]?.length > 0 && (
+                              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#71717a" }}>
+                                Linked: {linksByRisk[r.id].map((l) => l.signal_type ?? "Signal").join(", ")}
+                              </p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      {riskOmitted && (
+                        <p style={{ fontSize: 12, color: "#71717a", marginTop: 8, fontStyle: "italic" }}>
+                          Additional risks not shown ({sorted.length} total).
+                        </p>
+                      )}
+                    </>
                   );
                 })()}
               </section>
@@ -543,17 +552,26 @@ export default async function DealPage({
                       }
                     }
                   }
+                  const topSignals = list.slice(0, 5);
+                  const signalsOmitted = list.length > 5;
                   return list.length === 0 ? (
                     <p style={{ color: "#a1a1aa", fontSize: 14 }}>No linked macro signals.</p>
                   ) : (
-                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "#e4e4e7" }}>
-                      {list.map((item, i) => (
-                        <li key={i}>
-                          {item.signal_type && <strong>{item.signal_type}</strong>}
-                          {item.what_changed && ` — ${item.what_changed.slice(0, 100)}${item.what_changed.length > 100 ? "…" : ""}`}
-                        </li>
-                      ))}
-                    </ul>
+                    <>
+                      <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "#e4e4e7" }}>
+                        {topSignals.map((item, i) => (
+                          <li key={i}>
+                            {item.signal_type && <strong>{item.signal_type}</strong>}
+                            {item.what_changed && ` — ${item.what_changed.slice(0, 100)}${item.what_changed.length > 100 ? "…" : ""}`}
+                          </li>
+                        ))}
+                      </ul>
+                      {signalsOmitted && (
+                        <p style={{ fontSize: 12, color: "#71717a", marginTop: 8, fontStyle: "italic" }}>
+                          Additional macro signals not shown ({list.length} total).
+                        </p>
+                      )}
+                    </>
                   );
                 })()}
               </section>

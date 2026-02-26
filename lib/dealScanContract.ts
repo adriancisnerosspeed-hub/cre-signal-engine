@@ -1,7 +1,13 @@
 /**
  * Deal Risk Scan: strict output contract, normalization, and parsing.
  * No markdown; JSON only. Repair once then fail safely.
+ * AI output is validated with Zod (dealScanSchema) before normalization.
  */
+
+import { validateDealScanRaw } from "./dealScanSchema";
+
+/** Cap risks per scan to prevent noisy output; keep top by severity then confidence. */
+export const MAX_RISKS_PER_SCAN = 30;
 
 export const ASSUMPTION_KEYS = [
   "purchase_price",
@@ -167,6 +173,9 @@ function riskDedupeKey(r: DealScanRisk): string {
   return `${r.risk_type}:${normalizeTrigger(r.what_changed_or_trigger).toLowerCase().slice(0, 200)}`;
 }
 
+const SEVERITY_ORDER: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+const CONFIDENCE_ORDER_RISK: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+
 function normalizeRisks(raw: unknown[] | undefined): DealScanRisk[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
@@ -193,7 +202,35 @@ function normalizeRisks(raw: unknown[] | undefined): DealScanRisk[] {
     result.push(risk);
   }
 
-  return result;
+  // Single DataMissing: if multiple DataMissing (e.g. missing assumptions), collapse to one.
+  const dataMissingRisks = result.filter((r) => r.risk_type === "DataMissing");
+  const others = result.filter((r) => r.risk_type !== "DataMissing");
+  if (dataMissingRisks.length > 1) {
+    const single: DealScanRisk = {
+      ...dataMissingRisks[0],
+      what_changed_or_trigger:
+        dataMissingRisks.some((r) => r.what_changed_or_trigger?.length)
+          ? dataMissingRisks.map((r) => r.what_changed_or_trigger).filter(Boolean).join("; ").slice(0, 500)
+          : "Key assumptions or data missing.",
+    };
+    return capRisksBySeverityConfidence([single, ...others]);
+  }
+
+  return capRisksBySeverityConfidence(result);
+}
+
+/** Keep top MAX_RISKS_PER_SCAN by severity (desc) then confidence (desc). */
+function capRisksBySeverityConfidence(risks: DealScanRisk[]): DealScanRisk[] {
+  if (risks.length <= MAX_RISKS_PER_SCAN) return risks;
+  const sorted = [...risks].sort((a, b) => {
+    const sevA = SEVERITY_ORDER[a.severity] ?? 0;
+    const sevB = SEVERITY_ORDER[b.severity] ?? 0;
+    if (sevB !== sevA) return sevB - sevA;
+    const confA = CONFIDENCE_ORDER_RISK[a.confidence] ?? 0;
+    const confB = CONFIDENCE_ORDER_RISK[b.confidence] ?? 0;
+    return confB - confA;
+  });
+  return sorted.slice(0, MAX_RISKS_PER_SCAN);
 }
 
 /**
@@ -210,17 +247,17 @@ export function repairDealScanJson(raw: string): string {
 }
 
 /**
- * Parse raw string to DealScanRaw. Returns null if invalid.
+ * Parse raw string to DealScanRaw. Uses Zod to validate untrusted AI output; returns null if invalid.
  */
 export function parseDealScanOutput(raw: string): DealScanRaw | null {
   const repaired = repairDealScanJson(raw);
   try {
     const parsed = JSON.parse(repaired) as unknown;
-    if (!parsed || typeof parsed !== "object") return null;
-    const o = parsed as Record<string, unknown>;
+    const validated = validateDealScanRaw(parsed);
+    if (!validated) return null;
     return {
-      assumptions: o.assumptions && typeof o.assumptions === "object" ? (o.assumptions as Record<string, unknown>) : undefined,
-      risks: Array.isArray(o.risks) ? o.risks : undefined,
+      assumptions: Object.keys(validated.assumptions).length > 0 ? validated.assumptions : undefined,
+      risks: validated.risks,
     };
   } catch {
     return null;

@@ -2,6 +2,11 @@
  * CRE Signal Risk Index™ — recalibrated balanced scoring.
  * Final Score = Base + Risk Penalties - Stabilizers.
  * Bands: 0–34 Low, 35–49 Moderate, 50–64 Elevated, 65+ High.
+ *
+ * Robustness: deterministic (same inputs → same score), uses only normalized
+ * structured inputs (severity weights + macro adjustment + missing-data penalty).
+ * Satisfies boundedness (0–100), stability (no randomness), and explainability
+ * via breakdown (structural_weight, market_weight, confidence_factor, etc.).
  */
 
 import type { DealScanAssumptions } from "./dealScanContract";

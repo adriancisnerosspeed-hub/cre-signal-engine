@@ -194,7 +194,20 @@ export async function POST(request: Request) {
     console.info("[DEBUG_PDF_EXPORT] payload", JSON.stringify(payload, null, 2));
   }
 
-  const pdfBytes = await buildExportPdf(payload);
+  let pdfBytes: Uint8Array;
+  try {
+    pdfBytes = await buildExportPdf(payload);
+  } catch (err) {
+    console.error("[export_pdf] render_failed", { scan_id: scanId, deal_id: (deal as { id: string }).id, error: String(err) });
+    return NextResponse.json({ error: "PDF generation failed" }, { status: 500 });
+  }
+
+  console.info("[export_pdf] success", {
+    scan_id: scanId,
+    deal_id: (deal as { id: string }).id,
+    risk_count: topRisks.length,
+    macro_signal_count: macroSignals.length,
+  });
 
   const filename = `cre-signal-${(deal as { name: string }).name.replace(/\s+/g, "-").slice(0, 30)}-${new Date().toISOString().slice(0, 10)}.pdf`;
 

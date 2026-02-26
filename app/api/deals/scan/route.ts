@@ -160,6 +160,12 @@ export async function POST(request: Request) {
       .select("id")
       .single();
 
+    console.warn("[deal_scan] validation_failed", {
+      scan_id: failedScan?.id,
+      deal_id: dealId,
+      model,
+      content_length: content?.length ?? 0,
+    });
     return NextResponse.json(
       { error: "Failed to parse scan output", scan_id: failedScan?.id },
       { status: 500 }
@@ -243,14 +249,31 @@ export async function POST(request: Request) {
     assumptions: normalized.assumptions,
     macroLinkedCount,
   });
+
+  // Enforce scan invariants: score 0–100, band in allowed set
+  const score = Math.max(0, Math.min(100, riskIndex.score));
+  const band = ["Low", "Moderate", "Elevated", "High"].includes(riskIndex.band) ? riskIndex.band : "Moderate";
+
   await service
     .from("deal_scans")
     .update({
-      risk_index_score: riskIndex.score,
-      risk_index_band: riskIndex.band,
+      risk_index_score: score,
+      risk_index_band: band,
       risk_index_breakdown: riskIndex.breakdown,
     })
     .eq("id", scan.id);
+
+  const assumptionKeys = Object.keys(normalized.assumptions).length;
+  console.info("[deal_scan] completed", {
+    scan_id: scan.id,
+    deal_id: dealId,
+    model,
+    risk_count: normalized.risks.length,
+    assumption_keys: assumptionKeys,
+    score,
+    tier: band,
+    macro_linked_count: macroLinkedCount,
+  });
 
   if (plan === "free") {
     await incrementTotalFullScans(service, user.id);
