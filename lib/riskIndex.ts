@@ -56,7 +56,8 @@ const CONFIDENCE_FACTOR: Record<string, number> = {
 
 const BASE_SCORE = 40;
 const STABILIZER_CAP = 20;
-const MACRO_PENALTY_CAP = 5;
+/** +1 per unique macro signal; cap so duplicates in deal_signal_links cannot increase score beyond cap. */
+const MACRO_PENALTY_CAP = 4;
 
 /** Severity bands (recalibrated). */
 function scoreToBand(score: number): RiskIndexBand {
@@ -211,7 +212,7 @@ export function computeRiskIndex(
     structuralRiskCount,
   } = computePenalties(risks, assumptions);
 
-  const macroPenalty = Math.min(macroLinkedCount * 2, MACRO_PENALTY_CAP);
+  const macroPenalty = Math.min(macroLinkedCount * 1, MACRO_PENALTY_CAP);
   let rawScore = BASE_SCORE + penaltyTotal + macroPenalty - stabilizerBenefit;
 
   if (

@@ -238,10 +238,12 @@ export async function POST(request: Request) {
   if (riskIds.length > 0) {
     const { data: linkRows } = await service
       .from("deal_signal_links")
-      .select("deal_risk_id")
+      .select("deal_risk_id, signal_id")
       .in("deal_risk_id", riskIds);
-    const linkedRiskIds = new Set((linkRows ?? []).map((r: { deal_risk_id: string }) => r.deal_risk_id));
-    macroLinkedCount = linkedRiskIds.size;
+    const { countUniqueMacroSignals } = await import("@/lib/macroSignalCount");
+    macroLinkedCount = countUniqueMacroSignals(
+      (linkRows ?? []) as { deal_risk_id: string; signal_id: string }[]
+    );
   }
   const { computeRiskIndex } = await import("@/lib/riskIndex");
   const riskIndex = computeRiskIndex({
