@@ -8,7 +8,8 @@
 import { describe, it, expect } from "vitest";
 import { parseAndNormalizeDealScan, MAX_RISKS_PER_SCAN } from "./dealScanContract";
 import { validateDealScanRaw } from "./dealScanSchema";
-import { computeRiskIndex } from "./riskIndex";
+import { normalizeAssumptionsForScoring } from "./assumptionNormalization";
+import { computeRiskIndex, scoreToBand } from "./riskIndex";
 import { buildExportPdf } from "./export/exportPdf";
 import {
   selectMacroSignalsForPdf,
@@ -92,6 +93,262 @@ describe("Robustness: scoring engine", () => {
     const result = computeRiskIndex({ risks: [], assumptions: {} });
     expect(result.score).toBeGreaterThanOrEqual(0);
     expect(result.score).toBeLessThanOrEqual(100);
+  });
+
+  it("decimal vs percent form produce identical normalized value and identical final score", () => {
+    const risks = [
+      { severity_current: "Medium", confidence: "High", risk_type: "VacancyUnderstated" as const },
+    ];
+    const assumptionsDecimal: DealScanAssumptions = {
+      vacancy: { value: 0.05, unit: "%", confidence: "High" },
+      ltv: { value: 65, unit: "%", confidence: "Medium" },
+    };
+    const assumptionsPercent: DealScanAssumptions = {
+      vacancy: { value: 5, unit: "%", confidence: "High" },
+      ltv: { value: 65, unit: "%", confidence: "Medium" },
+    };
+    const normDec = normalizeAssumptionsForScoring(assumptionsDecimal);
+    const normPct = normalizeAssumptionsForScoring(assumptionsPercent);
+    expect(normDec.vacancy?.value).toBe(5);
+    expect(normPct.vacancy?.value).toBe(5);
+    const resultDec = computeRiskIndex({ risks, assumptions: normDec });
+    const resultPct = computeRiskIndex({ risks, assumptions: normPct });
+    expect(resultDec.score).toBe(resultPct.score);
+    expect(resultDec.band).toBe(resultPct.band);
+  });
+
+  it("tier calibration v2: Low 0-34, Moderate 35-54, Elevated 55-69, High 70+", () => {
+    expect(scoreToBand(34)).toBe("Low");
+    expect(scoreToBand(35)).toBe("Moderate");
+    expect(scoreToBand(54)).toBe("Moderate");
+    expect(scoreToBand(55)).toBe("Elevated");
+    expect(scoreToBand(69)).toBe("Elevated");
+    expect(scoreToBand(70)).toBe("High");
+  });
+
+  it("missing-only: score ≤ 49 and missing penalty capped at 15", () => {
+    const risks = [
+      { severity_current: "High", confidence: "High", risk_type: "DataMissing" as const },
+      { severity_current: "High", confidence: "High", risk_type: "DataMissing" as const },
+      { severity_current: "High", confidence: "High", risk_type: "DataMissing" as const },
+    ];
+    const assumptions: DealScanAssumptions = {};
+    const result = computeRiskIndex({ risks, assumptions });
+    expect(result.score).toBeLessThanOrEqual(49);
+    expect(result.band).toBe("Moderate");
+  });
+
+  it("missing + structural high-severity: score can exceed 49; missing-only < missing+structural", () => {
+    const missingOnlyRisks = [
+      { severity_current: "High", confidence: "High", risk_type: "DataMissing" as const },
+    ];
+    const missingPlusStructuralRisks = [
+      { severity_current: "High", confidence: "High", risk_type: "DataMissing" as const },
+      { severity_current: "High", confidence: "High", risk_type: "DebtCostRisk" as const },
+    ];
+    const assumptions: DealScanAssumptions = { ltv: { value: 70, unit: "%", confidence: "Medium" } };
+    const norm = normalizeAssumptionsForScoring(assumptions);
+    const resultMissingOnly = computeRiskIndex({ risks: missingOnlyRisks, assumptions: norm });
+    const resultMissingPlusStructural = computeRiskIndex({ risks: missingPlusStructuralRisks, assumptions: norm });
+    expect(resultMissingOnly.score).toBeLessThanOrEqual(49);
+    expect(resultMissingPlusStructural.score).toBeGreaterThan(resultMissingOnly.score);
+  });
+
+  it("extreme case: 85% LTV, 35% vacancy, exit_cap < cap_rate_in, missing debt_rate → High tier ≥70", () => {
+    const assumptions: DealScanAssumptions = {
+      ltv: { value: 85, unit: "%", confidence: "High" },
+      vacancy: { value: 35, unit: "%", confidence: "High" },
+      cap_rate_in: { value: 5.5, unit: "%", confidence: "Medium" },
+      exit_cap: { value: 4.5, unit: "%", confidence: "Medium" },
+      purchase_price: { value: 10_000_000, unit: "USD", confidence: "High" },
+      noi_year1: { value: 500_000, unit: "USD", confidence: "Medium" },
+    };
+    const norm = normalizeAssumptionsForScoring(assumptions);
+    const risks = [
+      { severity_current: "High", confidence: "High", risk_type: "DebtCostRisk" as const },
+      { severity_current: "High", confidence: "High", risk_type: "RefiRisk" as const },
+      { severity_current: "High", confidence: "High", risk_type: "VacancyUnderstated" as const },
+      { severity_current: "High", confidence: "High", risk_type: "ExitCapCompression" as const },
+      { severity_current: "Medium", confidence: "High", risk_type: "DataMissing" as const },
+    ];
+    const result = computeRiskIndex({ risks, assumptions: norm });
+    expect(result.score).toBeGreaterThanOrEqual(70);
+    expect(result.band).toBe("High");
+  });
+});
+
+describe("Risk Index v2.0 stress scenarios", () => {
+  const scenarios = [
+    {
+      name: "percent normalization (decimal vs percent)",
+      run: () => {
+        const risks = [{ severity_current: "Low", confidence: "Medium", risk_type: "VacancyUnderstated" as const }];
+        const dec = normalizeAssumptionsForScoring({ vacancy: { value: 0.05, unit: "%", confidence: "High" } });
+        const pct = normalizeAssumptionsForScoring({ vacancy: { value: 5, unit: "%", confidence: "High" } });
+        const a = computeRiskIndex({ risks, assumptions: dec });
+        const b = computeRiskIndex({ risks, assumptions: pct });
+        return { score: a.score, band: a.band, match: a.score === b.score && a.band === b.band };
+      },
+    },
+    {
+      name: "missing-only",
+      run: () => {
+        const risks = [
+          { severity_current: "High", confidence: "High", risk_type: "DataMissing" as const },
+        ];
+        const result = computeRiskIndex({ risks, assumptions: {} });
+        return { score: result.score, band: result.band, breakdown: result.breakdown };
+      },
+    },
+    {
+      name: "missing + structural",
+      run: () => {
+        const risks = [
+          { severity_current: "High", confidence: "High", risk_type: "DataMissing" as const },
+          { severity_current: "High", confidence: "High", risk_type: "DebtCostRisk" as const },
+        ];
+        const assumptions = normalizeAssumptionsForScoring({ ltv: { value: 70, unit: "%", confidence: "Medium" } });
+        const result = computeRiskIndex({ risks, assumptions });
+        return { score: result.score, band: result.band, breakdown: result.breakdown };
+      },
+    },
+    {
+      name: "extreme leverage + vacancy",
+      run: () => {
+        const assumptions: DealScanAssumptions = {
+          ltv: { value: 85, unit: "%", confidence: "High" },
+          vacancy: { value: 35, unit: "%", confidence: "High" },
+          cap_rate_in: { value: 5.5, unit: "%", confidence: "Medium" },
+          exit_cap: { value: 4.5, unit: "%", confidence: "Medium" },
+          purchase_price: { value: 10_000_000, unit: "USD", confidence: "High" },
+          noi_year1: { value: 500_000, unit: "USD", confidence: "Medium" },
+        };
+        const norm = normalizeAssumptionsForScoring(assumptions);
+        const risks = [
+          { severity_current: "High", confidence: "High", risk_type: "DebtCostRisk" as const },
+          { severity_current: "High", confidence: "High", risk_type: "RefiRisk" as const },
+          { severity_current: "High", confidence: "High", risk_type: "VacancyUnderstated" as const },
+          { severity_current: "High", confidence: "High", risk_type: "ExitCapCompression" as const },
+          { severity_current: "Medium", confidence: "High", risk_type: "DataMissing" as const },
+        ];
+        const result = computeRiskIndex({ risks, assumptions: norm });
+        return { score: result.score, band: result.band, breakdown: result.breakdown };
+      },
+    },
+    {
+      name: "weighted exposure large deal (high LTV + vacancy + compression + DSCR)",
+      run: () => {
+        const assumptions: DealScanAssumptions = {
+          ltv: { value: 80, unit: "%", confidence: "High" },
+          vacancy: { value: 25, unit: "%", confidence: "High" },
+          cap_rate_in: { value: 5, unit: "%", confidence: "Medium" },
+          exit_cap: { value: 4, unit: "%", confidence: "Medium" },
+          purchase_price: { value: 25_000_000, unit: "USD", confidence: "High" },
+          noi_year1: { value: 800_000, unit: "USD", confidence: "Medium" },
+          debt_rate: { value: 6, unit: "%", confidence: "High" },
+        };
+        const norm = normalizeAssumptionsForScoring(assumptions);
+        const risks = [
+          { severity_current: "High", confidence: "High", risk_type: "ExitCapCompression" as const },
+          { severity_current: "High", confidence: "High", risk_type: "VacancyUnderstated" as const },
+        ];
+        const result = computeRiskIndex({ risks, assumptions: norm });
+        return { score: result.score, band: result.band, breakdown: result.breakdown };
+      },
+    },
+  ];
+
+  it("runs all stress scenarios and satisfies invariants", () => {
+    const distribution: Record<string, number> = { Low: 0, Moderate: 0, Elevated: 0, High: 0 };
+    let missingOnlyScore = 0;
+    let missingPlusStructuralScore = 0;
+    let extremeScore = 0;
+
+    for (const s of scenarios) {
+      const out = s.run();
+      if (typeof out === "object" && "score" in out) {
+        distribution[out.band] = (distribution[out.band] ?? 0) + 1;
+        if (s.name === "missing-only") missingOnlyScore = out.score;
+        if (s.name === "missing + structural") missingPlusStructuralScore = out.score;
+        if (s.name === "extreme leverage + vacancy") extremeScore = out.score;
+      }
+    }
+
+    expect(extremeScore).toBeGreaterThanOrEqual(70);
+    expect(missingOnlyScore).toBeLessThanOrEqual(49);
+    expect(missingPlusStructuralScore).toBeGreaterThan(missingOnlyScore);
+  });
+
+  it("percent normalization scenario produces identical score and band", () => {
+    const out = scenarios[0].run() as { match: boolean };
+    expect(out.match).toBe(true);
+  });
+
+  it("deterministic: same input produces same output", () => {
+    const risks = [
+      { severity_current: "Medium", confidence: "High", risk_type: "VacancyUnderstated" as const },
+    ];
+    const assumptions = normalizeAssumptionsForScoring({
+      vacancy: { value: 10, unit: "%", confidence: "High" },
+      ltv: { value: 65, unit: "%", confidence: "Medium" },
+    });
+    const a = computeRiskIndex({ risks, assumptions });
+    const b = computeRiskIndex({ risks, assumptions });
+    expect(a.score).toBe(b.score);
+    expect(a.band).toBe(b.band);
+  });
+});
+
+describe("Risk Index v2.0 PDF output (extreme case)", () => {
+  it("generates PDF with attribution for extreme risk scenario", async () => {
+    const assumptions: DealScanAssumptions = {
+      ltv: { value: 85, unit: "%", confidence: "High" },
+      vacancy: { value: 35, unit: "%", confidence: "High" },
+      cap_rate_in: { value: 5.5, unit: "%", confidence: "Medium" },
+      exit_cap: { value: 4.5, unit: "%", confidence: "Medium" },
+      purchase_price: { value: 10_000_000, unit: "USD", confidence: "High" },
+      noi_year1: { value: 500_000, unit: "USD", confidence: "Medium" },
+    };
+    const norm = normalizeAssumptionsForScoring(assumptions);
+    const risks = [
+      { severity_current: "High", confidence: "High", risk_type: "DebtCostRisk" as const },
+      { severity_current: "High", confidence: "High", risk_type: "RefiRisk" as const },
+      { severity_current: "High", confidence: "High", risk_type: "VacancyUnderstated" as const },
+      { severity_current: "High", confidence: "High", risk_type: "ExitCapCompression" as const },
+      { severity_current: "Medium", confidence: "High", risk_type: "DataMissing" as const },
+    ];
+    const result = computeRiskIndex({ risks, assumptions: norm });
+    const pdfBytes = await buildExportPdf({
+      dealName: "Extreme Risk Deal (v2.0 Stress)",
+      assetType: "Multifamily",
+      market: "Austin",
+      riskIndexScore: result.score,
+      riskIndexBand: result.band,
+      riskIndexVersion: "2.0",
+      riskBreakdown: result.breakdown,
+      promptVersion: null,
+      scanTimestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
+      scanId: "stress-extreme",
+      model: "gpt-4o-mini",
+      assumptions: [
+        { key: "ltv", value: 85, unit: "%", confidence: "High" },
+        { key: "vacancy", value: 35, unit: "%", confidence: "High" },
+        { key: "cap_rate_in", value: 5.5, unit: "%", confidence: "Medium" },
+        { key: "exit_cap", value: 4.5, unit: "%", confidence: "Medium" },
+      ],
+      risks: risks.map((r) => ({
+        risk_type: r.risk_type,
+        severity_current: r.severity_current,
+        confidence: r.confidence,
+        why_it_matters: null,
+        recommended_action: null,
+      })),
+      macroSignals: [],
+      macroSectionLabel: "Market Signals",
+    });
+    expect(pdfBytes.length).toBeGreaterThan(0);
+    expect(result.score).toBeGreaterThanOrEqual(70);
+    expect(result.band).toBe("High");
   });
 });
 

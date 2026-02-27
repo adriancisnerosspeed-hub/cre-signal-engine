@@ -237,30 +237,44 @@ export async function POST(request: Request) {
     .eq("deal_scan_id", scan.id);
   const riskIds = (riskRows ?? []).map((r: { id: string }) => r.id);
   let macroLinkedCount = 0;
+  let macroDecayedWeight: number | undefined;
   if (riskIds.length > 0) {
     const { data: linkRows } = await service
       .from("deal_signal_links")
-      .select("deal_risk_id, signal_id")
+      .select("deal_risk_id, signal_id, created_at")
       .in("deal_risk_id", riskIds);
-    const links = (linkRows ?? []) as { deal_risk_id: string; signal_id: string }[];
+    const links = (linkRows ?? []) as { deal_risk_id: string; signal_id: string; created_at?: string }[];
     const signalIds = [...new Set(links.map((l) => l.signal_id))];
-    let signalsMap: Record<string, string | null> = {};
+    let signalsMap: Record<string, { signal_type: string | null; created_at?: string }> = {};
     if (signalIds.length > 0) {
       const { data: signalRows } = await service
         .from("signals")
-        .select("id, signal_type")
+        .select("id, signal_type, created_at")
         .in("id", signalIds);
-      for (const s of (signalRows ?? []) as { id: string; signal_type: string | null }[]) {
-        signalsMap[String(s.id)] = s.signal_type ?? null;
+      for (const s of (signalRows ?? []) as { id: string; signal_type: string | null; created_at?: string }[]) {
+        signalsMap[String(s.id)] = { signal_type: s.signal_type ?? null, created_at: s.created_at };
       }
     }
-    const { countUniqueMacroCategories } = await import("@/lib/macroSignalCount");
+    const { countUniqueMacroCategories, computeDecayedMacroWeight } = await import("@/lib/macroSignalCount");
     const linksWithCategory = links.map((l) => ({
       deal_risk_id: l.deal_risk_id,
       signal_id: l.signal_id,
-      signal_type: signalsMap[String(l.signal_id)] ?? null,
+      signal_type: signalsMap[String(l.signal_id)]?.signal_type ?? null,
     }));
     macroLinkedCount = countUniqueMacroCategories(linksWithCategory);
+    const linksWithTimestamp = links.map((l) => {
+      const sig = signalsMap[String(l.signal_id)];
+      const timestamp = l.created_at ?? sig?.created_at ?? null;
+      return {
+        deal_risk_id: l.deal_risk_id,
+        signal_id: l.signal_id,
+        signal_type: sig?.signal_type ?? null,
+        timestamp,
+      };
+    });
+    if (linksWithTimestamp.some((l) => l.timestamp != null)) {
+      macroDecayedWeight = computeDecayedMacroWeight(linksWithTimestamp);
+    }
   }
   const { computeRiskIndex, RISK_INDEX_VERSION } = await import("@/lib/riskIndex");
   const riskIndex = computeRiskIndex({
@@ -271,6 +285,7 @@ export async function POST(request: Request) {
     })),
     assumptions: assumptionsForScoring,
     macroLinkedCount,
+    macroDecayedWeight,
   });
 
   // Enforce scan invariants: score 0–100, band in allowed set

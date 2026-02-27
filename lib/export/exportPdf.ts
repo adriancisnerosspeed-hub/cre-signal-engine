@@ -61,6 +61,8 @@ export type ExportPdfParams = {
     confidence_factor?: number;
     stabilizer_benefit?: number;
     penalty_total?: number;
+    contributions?: { driver: string; points: number }[];
+    top_drivers?: string[];
   } | null;
   /** 2–4 actionable bullets */
   recommendedActions?: string[];
@@ -109,6 +111,23 @@ function buildBreakdownLine(
   if (b.penalty_total != null) parts.push(`Penalties +${b.penalty_total}`);
   if (version) parts.push(`Scoring v${version}`);
   return parts.length ? parts.join(" | ") : "";
+}
+
+/** Build attribution line: Score = X, +A driver1, +B driver2, ..., -C stabilizers, Final: X (Band). */
+function buildAttributionLine(
+  score: number | null,
+  band: string | null,
+  contributions?: { driver: string; points: number }[]
+): string {
+  if (score == null || band == null) return "";
+  if (!contributions?.length) return `Final: ${score} (${band})`;
+  const parts: string[] = [];
+  for (const { driver, points } of contributions) {
+    if (points > 0) parts.push(`+${Math.round(points)} ${driver}`);
+    else if (points < 0) parts.push(`${Math.round(points)} ${driver}`);
+  }
+  const mid = parts.length ? ` ${parts.join(" ")} ` : " ";
+  return `Score = ${score}${mid}Final: ${score} (${band})`;
 }
 
 /** Normalize payload so one deal's bad/missing data never throws. */
@@ -270,6 +289,15 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   const breakdownLine = p.riskBreakdown ? buildBreakdownLine(p.riskBreakdown, p.riskIndexVersion) : "";
   if (breakdownLine && drawLine(breakdownLine, 8, false, rgb(0.3, 0.3, 0.3))) {
     y -= 8;
+  }
+  const attributionLine = p.riskBreakdown?.contributions?.length
+    ? buildAttributionLine(p.riskIndexScore, p.riskIndexBand, p.riskBreakdown.contributions)
+    : "";
+  if (attributionLine && drawLine(attributionLine, 8, false, rgb(0.3, 0.3, 0.3))) {
+    y -= 8;
+  }
+  if (p.riskBreakdown?.top_drivers?.length && drawLine(`Top 3 Risk Drivers: ${p.riskBreakdown.top_drivers.join(", ")}`, 7, false, rgb(0.35, 0.35, 0.35))) {
+    y -= 6;
   }
 
   // --- Section 2: Deal Snapshot (Key Assumptions) ---

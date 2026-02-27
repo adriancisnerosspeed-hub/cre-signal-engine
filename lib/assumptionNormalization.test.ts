@@ -6,28 +6,33 @@ import {
 import type { DealScanAssumptions } from "./dealScanContract";
 
 describe("normalizePercentValue", () => {
-  it("converts decimal cap_rate_in 0.08 to 8", () => {
-    expect(normalizePercentValue("cap_rate_in", 0.08)).toBe(8);
+  it("converts decimal cap_rate_in 0.08 to 8 when unit is percent", () => {
+    expect(normalizePercentValue("cap_rate_in", 0.08, "%")).toBe(8);
+  });
+
+  it("leaves cap_rate_in 0.08 unchanged when unit is not percent", () => {
+    expect(normalizePercentValue("cap_rate_in", 0.08)).toBe(0.08);
+    expect(normalizePercentValue("cap_rate_in", 0.08, "decimal")).toBe(0.08);
   });
 
   it("leaves cap_rate_in 5.5 unchanged (already percent range)", () => {
-    expect(normalizePercentValue("cap_rate_in", 5.5)).toBe(5.5);
+    expect(normalizePercentValue("cap_rate_in", 5.5, "%")).toBe(5.5);
   });
 
-  it("converts ltv 0.65 to 65", () => {
-    expect(normalizePercentValue("ltv", 0.65)).toBe(65);
+  it("converts ltv 0.65 to 65 when unit is percent", () => {
+    expect(normalizePercentValue("ltv", 0.65, "percent")).toBe(65);
   });
 
   it("leaves ltv 65 unchanged", () => {
-    expect(normalizePercentValue("ltv", 65)).toBe(65);
+    expect(normalizePercentValue("ltv", 65, "%")).toBe(65);
   });
 
-  it("converts vacancy 0.05 to 5", () => {
-    expect(normalizePercentValue("vacancy", 0.05)).toBe(5);
+  it("converts vacancy 0.05 to 5 when unit is percent", () => {
+    expect(normalizePercentValue("vacancy", 0.05, "%")).toBe(5);
   });
 
   it("leaves purchase_price unchanged (not percent-like)", () => {
-    expect(normalizePercentValue("purchase_price", 10_000_000)).toBe(10_000_000);
+    expect(normalizePercentValue("purchase_price", 10_000_000, "%")).toBe(10_000_000);
   });
 
   it("returns null for null value", () => {
@@ -35,15 +40,15 @@ describe("normalizePercentValue", () => {
   });
 
   it("leaves expense_growth 1.5 unchanged (valid percent, not in 0-1)", () => {
-    expect(normalizePercentValue("expense_growth", 1.5)).toBe(1.5);
+    expect(normalizePercentValue("expense_growth", 1.5, "%")).toBe(1.5);
   });
 
-  it("converts rent_growth 0.03 to 3", () => {
-    expect(normalizePercentValue("rent_growth", 0.03)).toBe(3);
+  it("converts rent_growth 0.03 to 3 when unit is percent", () => {
+    expect(normalizePercentValue("rent_growth", 0.03, "percent")).toBe(3);
   });
 
   it("leaves debt_rate 5 unchanged", () => {
-    expect(normalizePercentValue("debt_rate", 5)).toBe(5);
+    expect(normalizePercentValue("debt_rate", 5, "%")).toBe(5);
   });
 });
 
