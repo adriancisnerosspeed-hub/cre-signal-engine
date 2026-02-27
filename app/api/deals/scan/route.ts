@@ -231,6 +231,20 @@ export async function POST(request: Request) {
     console.error("Overlay error:", err);
   });
 
+  let previousScore: number | undefined;
+  const { data: prevScan } = await service
+    .from("deal_scans")
+    .select("risk_index_score")
+    .eq("deal_id", dealId)
+    .eq("status", "completed")
+    .neq("id", scan.id)
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (prevScan && typeof (prevScan as { risk_index_score?: number }).risk_index_score === "number") {
+    previousScore = (prevScan as { risk_index_score: number }).risk_index_score;
+  }
+
   const { data: riskRows } = await service
     .from("deal_risks")
     .select("id, severity_current, confidence, risk_type")
@@ -286,6 +300,7 @@ export async function POST(request: Request) {
     assumptions: assumptionsForScoring,
     macroLinkedCount,
     macroDecayedWeight,
+    ...(previousScore != null && { previous_score: previousScore }),
   });
 
   const purchasePrice = assumptionsForScoring.purchase_price?.value;

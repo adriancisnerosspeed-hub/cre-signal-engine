@@ -167,6 +167,26 @@ function main() {
   console.log("\n--- Distribution (count per tier) ---");
   console.log(JSON.stringify(distribution, null, 2));
 
+  // Calibration logging: aggregate distribution metrics
+  const allScores = [r1a.score, r1b.score, r2.score, r3.score, r4.score, r5.score, r6.score, r7.score, r8.score];
+  const totalCount = allScores.length;
+  const meanScore = allScores.reduce((a, b) => a + b, 0) / totalCount;
+  const bandOrder = ["Low", "Moderate", "Elevated", "High"] as const;
+  const bandPcts = bandOrder.map((b) => ({
+    band: b,
+    count: distribution[b] ?? 0,
+    pct: Math.round(((distribution[b] ?? 0) / totalCount) * 100),
+  }));
+  console.log("\n--- Calibration (aggregate distribution metrics) ---");
+  console.log(JSON.stringify({
+    run_at: new Date().toISOString(),
+    scenario_count: totalCount,
+    mean_score: Math.round(meanScore * 100) / 100,
+    min_score: Math.min(...allScores),
+    max_score: Math.max(...allScores),
+    distribution_by_band: bandPcts,
+  }, null, 2));
+
   // Assertions
   console.log("\n--- Assertions ---");
   const okExtreme = extremeScore >= 70;

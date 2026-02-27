@@ -7,6 +7,9 @@
  * structured inputs (severity weights + macro adjustment + missing-data penalty).
  * Satisfies boundedness (0–100), stability (no randomness), and explainability
  * via breakdown (structural_weight, market_weight, contributions, top_drivers, etc.).
+ *
+ * Optional future refactor: split into lib/riskIndex/ (constants, penalties, bands, index)
+ * if file size or complexity grows further.
  */
 
 import type { DealScanAssumptions } from "./dealScanContract";
@@ -40,6 +43,16 @@ export type RiskIndexBreakdown = {
   alert_tags?: string[];
   /** Set by API when returning scan: true if scan completed_at > 30 days ago. */
   stale_scan?: boolean;
+  /** When previous_score provided: prior scan score. */
+  previous_score?: number;
+  /** When previous_score provided: current minus previous. */
+  delta_score?: number;
+  /** When previous_score provided: band transition (e.g. "Moderate → Elevated"). */
+  delta_band?: string;
+  /** When previous_score provided: true if delta_score ≥ 8. */
+  deterioration_flag?: boolean;
+  /** Per-driver confidence multiplier (e.g. 1.0 High, 0.7 Medium) for visibility. */
+  driver_confidence_multipliers?: { driver: string; multiplier: number }[];
 };
 
 export type RiskIndexResult = {
@@ -306,6 +319,9 @@ function computePenalties(
   };
 }
 
+/** Max share of total contribution any single driver may have (institutional cap). */
+export const MAX_DRIVER_SHARE_PCT = 40;
+
 export type ComputeRiskIndexParams = {
   risks: RiskRow[];
   assumptions?: DealScanAssumptions;
@@ -313,6 +329,8 @@ export type ComputeRiskIndexParams = {
   macroLinkedCount?: number;
   /** When provided, use decayed macro weight instead of macroLinkedCount (e.g. from computeDecayedMacroWeight). */
   macroDecayedWeight?: number;
+  /** When provided, breakdown includes previous_score, delta_score, delta_band, deterioration_flag. */
+  previous_score?: number;
   _promptVersion?: string | null;
 };
 
@@ -333,6 +351,7 @@ export function computeRiskIndex(
   const macroDecayedWeight = Array.isArray(params)
     ? undefined
     : (params as ComputeRiskIndexParams).macroDecayedWeight;
+  const previous_score = Array.isArray(params) ? undefined : (params as ComputeRiskIndexParams).previous_score;
 
   const { sanitizedAssumptions, validation_errors, severe: validationSevere } =
     validateAndSanitizeForRiskIndex(rawAssumptions);
@@ -489,32 +508,67 @@ export function computeRiskIndex(
     }
   };
   const driverMap = new Map<string, number>();
+  const driverConfidenceSum = new Map<string, number>();
+  const driverConfidenceCount = new Map<string, number>();
+  const confFactor = (c: string | null) => CONFIDENCE_FACTOR[c ?? ""] ?? 0.4;
   for (const r of risks) {
     const pts = computeRiskPenaltyContribution(r, assumptions);
     if (pts <= 0) continue;
     const label = driverLabel(r.risk_type);
     driverMap.set(label, (driverMap.get(label) ?? 0) + pts);
+    const cf = confFactor(r.confidence);
+    driverConfidenceSum.set(label, (driverConfidenceSum.get(label) ?? 0) + cf);
+    driverConfidenceCount.set(label, (driverConfidenceCount.get(label) ?? 0) + 1);
   }
   driverMap.set("compression", (driverMap.get("compression") ?? 0) + compressionPenalty);
   driverMap.set("leverage", (driverMap.get("leverage") ?? 0) + ltvVacancyPenalty + dscrPenalty);
   driverMap.set("market", (driverMap.get("market") ?? 0) + macroPenalty);
   driverMap.set("stabilizers", -stabilizerBenefit);
+  driverConfidenceSum.set("compression", 1);
+  driverConfidenceCount.set("compression", 1);
+  driverConfidenceSum.set("leverage", 1);
+  driverConfidenceCount.set("leverage", 1);
+  driverConfidenceSum.set("market", 1);
+  driverConfidenceCount.set("market", 1);
+  driverConfidenceSum.set("stabilizers", 1);
+  driverConfidenceCount.set("stabilizers", 1);
 
-  const contributions = Array.from(driverMap.entries())
+  let contributions = Array.from(driverMap.entries())
     .filter(([, pts]) => pts !== 0)
     .map(([driver, points]) => ({ driver, points }));
   const totalContrib = contributions.reduce((s, c) => s + Math.abs(c.points), 0);
-  const contribution_pct =
+  let contribution_pct =
     totalContrib > 0
       ? contributions.map(({ driver, points }) => ({
           driver,
           pct: Math.round((Math.abs(points) / totalContrib) * 100),
         }))
       : [];
+
+  const maxSharePct = Math.max(0, ...contribution_pct.map((c) => c.pct));
+  if (maxSharePct > MAX_DRIVER_SHARE_PCT) {
+    edge_flags.push("EDGE_DRIVER_SHARE_CAP");
+    contribution_pct = contribution_pct.map(({ driver, pct }) => ({
+      driver,
+      pct: Math.min(pct, MAX_DRIVER_SHARE_PCT),
+    }));
+  }
+
   const top_drivers = [...contributions]
     .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
     .slice(0, 3)
     .map((c) => c.driver);
+
+  const driver_confidence_multipliers = contributions.map(({ driver }) => {
+    const sum = driverConfidenceSum.get(driver) ?? 0;
+    const n = driverConfidenceCount.get(driver) ?? 1;
+    return { driver, multiplier: Math.round((sum / n) * 100) / 100 };
+  });
+
+  const delta_score = previous_score != null ? score - previous_score : undefined;
+  const previous_band = previous_score != null ? scoreToBand(previous_score) : undefined;
+  const delta_band = previous_band != null ? `${previous_band} → ${band}` : undefined;
+  const deterioration_flag = delta_score != null && delta_score >= 8;
 
   return {
     score,
@@ -532,6 +586,8 @@ export function computeRiskIndex(
       ...(tier_drivers.length > 0 && { tier_drivers }),
       ...(validation_errors.length > 0 && { validation_errors }),
       ...(edge_flags.length > 0 && { edge_flags }),
+      ...(previous_score != null && { previous_score, delta_score, delta_band, deterioration_flag }),
+      driver_confidence_multipliers,
     },
   };
 }

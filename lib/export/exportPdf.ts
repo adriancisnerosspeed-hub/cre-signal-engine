@@ -69,6 +69,11 @@ export type ExportPdfParams = {
     exposure_bucket?: string;
     review_flag?: boolean;
     stale_scan?: boolean;
+    previous_score?: number;
+    delta_score?: number;
+    delta_band?: string;
+    deterioration_flag?: boolean;
+    driver_confidence_multipliers?: { driver: string; multiplier: number }[];
   } | null;
   /** When macro signals are truncated, show "+N more" (optional). */
   macroSignalsMoreCount?: number;

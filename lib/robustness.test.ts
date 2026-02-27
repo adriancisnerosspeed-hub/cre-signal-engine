@@ -233,6 +233,79 @@ describe("Risk Index Invariance Contract", () => {
   });
 });
 
+describe("Risk Index monotonicity", () => {
+  it("increasing LTV does not reduce score", () => {
+    const risks = [
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "DebtCostRisk" as const },
+    ];
+    const base = normalizeAssumptionsForScoring({ ltv: { value: 60, unit: "%", confidence: "High" } });
+    const higher = normalizeAssumptionsForScoring({ ltv: { value: 80, unit: "%", confidence: "High" } });
+    const a = computeRiskIndex({ risks, assumptions: base });
+    const b = computeRiskIndex({ risks, assumptions: higher });
+    expect(b.score).toBeGreaterThanOrEqual(a.score);
+  });
+
+  it("increasing vacancy does not reduce score", () => {
+    const risks = [
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
+    ];
+    const base = normalizeAssumptionsForScoring({ vacancy: { value: 10, unit: "%", confidence: "High" } });
+    const higher = normalizeAssumptionsForScoring({ vacancy: { value: 30, unit: "%", confidence: "High" } });
+    const a = computeRiskIndex({ risks, assumptions: base });
+    const b = computeRiskIndex({ risks, assumptions: higher });
+    expect(b.score).toBeGreaterThanOrEqual(a.score);
+  });
+
+  it("increasing exit cap compression does not reduce score", () => {
+    const risks = [
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "ExitCapCompression" as const },
+    ];
+    const base = normalizeAssumptionsForScoring({
+      cap_rate_in: { value: 5.5, unit: "%", confidence: "High" },
+      exit_cap: { value: 5, unit: "%", confidence: "High" },
+    });
+    const higherCompression = normalizeAssumptionsForScoring({
+      cap_rate_in: { value: 5.5, unit: "%", confidence: "High" },
+      exit_cap: { value: 4, unit: "%", confidence: "High" },
+    });
+    const a = computeRiskIndex({ risks, assumptions: base });
+    const b = computeRiskIndex({ risks, assumptions: higherCompression });
+    expect(b.score).toBeGreaterThanOrEqual(a.score);
+  });
+
+  it("delta tracking: previous_score yields breakdown.previous_score, delta_score, delta_band, deterioration_flag", () => {
+    const risks = [{ severity_current: "Medium" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const }];
+    const norm = normalizeAssumptionsForScoring({ vacancy: { value: 10, unit: "%", confidence: "High" }, ltv: { value: 65, unit: "%", confidence: "Medium" } });
+    const result = computeRiskIndex({ risks, assumptions: norm, previous_score: 35 });
+    expect(result.breakdown.previous_score).toBe(35);
+    expect(result.breakdown.delta_score).toBe(result.score - 35);
+    expect(result.breakdown.delta_band).toMatch(/→/);
+    if ((result.breakdown.delta_score ?? 0) >= 8) expect(result.breakdown.deterioration_flag).toBe(true);
+  });
+
+  it("decreasing DSCR does not reduce score", () => {
+    const risks = [
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "DebtCostRisk" as const },
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
+    ];
+    const baseAssump = {
+      ltv: { value: 75, unit: "%", confidence: "High" as const },
+      purchase_price: { value: 10_000_000, unit: "USD", confidence: "High" as const },
+      noi_year1: { value: 600_000, unit: "USD", confidence: "High" as const },
+      debt_rate: { value: 5, unit: "%", confidence: "High" as const },
+    };
+    const lowerNoi = {
+      ...baseAssump,
+      noi_year1: { value: 400_000, unit: "USD", confidence: "High" as const },
+    };
+    const base = normalizeAssumptionsForScoring(baseAssump);
+    const lowerDscr = normalizeAssumptionsForScoring(lowerNoi);
+    const a = computeRiskIndex({ risks, assumptions: base });
+    const b = computeRiskIndex({ risks, assumptions: lowerDscr });
+    expect(b.score).toBeGreaterThanOrEqual(a.score);
+  });
+});
+
 describe("Risk Index v2.0 stress scenarios", () => {
   const scenarios = [
     {
