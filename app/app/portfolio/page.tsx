@@ -30,7 +30,7 @@ export default async function PortfolioPage() {
 
   const { data: dealsList } = await service
     .from("deals")
-    .select("id, name, asset_type, market, market_key, market_label, latest_scan_id")
+    .select("id, name, asset_type, market, latest_scan_id")
     .eq("organization_id", orgId)
     .not("latest_scan_id", "is", null);
 
@@ -39,8 +39,6 @@ export default async function PortfolioPage() {
     name: string;
     asset_type: string | null;
     market: string | null;
-    market_key: string | null;
-    market_label: string | null;
     latest_scan_id: string | null;
   }[];
 
@@ -69,8 +67,6 @@ export default async function PortfolioPage() {
         name: d.name,
         asset_type: d.asset_type,
         market: d.market,
-        market_key: d.market_key,
-        market_label: d.market_label,
         risk_index_score: scan.risk_index_score as number,
         risk_index_band: scan.risk_index_band,
       };

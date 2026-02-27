@@ -57,10 +57,6 @@ export async function POST(request: Request) {
       name: name || "Untitled deal",
       asset_type: assetType,
       market,
-      city: norm.city,
-      state: norm.state,
-      market_key: norm.market_key,
-      market_label: norm.market_label,
     })
     .select("id")
     .single();
