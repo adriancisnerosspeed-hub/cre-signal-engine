@@ -235,6 +235,10 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa", marginBottom: 8 }}>Portfolio</h1>
       <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 24 }}>
         Exposure overview for your workspace.
+        {" "}
+        <Link href="/app/methodology" style={{ color: "#a1a1aa", fontSize: 14 }}>
+          Risk Index Methodology
+        </Link>
       </p>
 
       {isFree && (

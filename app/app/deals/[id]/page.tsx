@@ -439,6 +439,11 @@ export default async function DealPage({
                       {scan.risk_index_score} — {scan.risk_index_band ?? "—"}
                     </div>
                   </div>
+                  <p style={{ marginTop: 8, fontSize: 13 }}>
+                    <Link href="/app/methodology" style={{ color: "#a1a1aa" }}>
+                      How this is scored →
+                    </Link>
+                  </p>
                 </section>
               )}
 

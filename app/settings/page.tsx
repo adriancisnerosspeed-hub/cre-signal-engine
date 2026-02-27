@@ -58,6 +58,10 @@ export default async function SettingsPage() {
           <Link href="/settings/workspace" style={{ color: "#a1a1aa" }}>
             Workspace
           </Link>
+          {" · "}
+          <Link href="/app/methodology" style={{ color: "#a1a1aa" }}>
+            Risk Index Methodology
+          </Link>
         </p>
       </div>
 
