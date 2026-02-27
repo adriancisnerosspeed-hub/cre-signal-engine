@@ -32,19 +32,16 @@ type PortfolioViewConfig = {
   visibleColumns?: string[] | null;
 };
 
+type SerializedSummary = Omit<PortfolioSummary, "dealBadges" | "dealExplainability"> & {
+  dealBadges: Record<string, Badge[]>;
+  dealExplainability: Record<
+    string,
+    { topRiskContributors: { risk_type: string; penalty: number }[]; stabilizers: string[] }
+  >;
+};
+
 type Props = {
-  summary: PortfolioSummary & {
-    dealBadges: Record<string, Badge[]>;
-    dealExplainability: Record<
-      string,
-      {
-        topRiskContributors: { risk_type: string; penalty: number }[];
-        stabilizers: string[];
-        assumptionCompletenessPct?: number | null;
-        missingAssumptionKeys?: string[];
-      }
-    >;
-  };
+  summary: SerializedSummary;
   isFree: boolean;
   savedViews?: { id: string; name: string; config_json: PortfolioViewConfig }[];
 };

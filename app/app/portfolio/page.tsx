@@ -41,6 +41,13 @@ export default async function PortfolioPage() {
     dealExplainability[id] = value;
   });
 
+  const { dealBadges: _db, dealExplainability: _de, ...rest } = summary;
+  const serializedSummary = {
+    ...rest,
+    dealBadges,
+    dealExplainability,
+  };
+
   const savedViews: { id: string; name: string; config_json: Record<string, unknown> }[] = [];
   try {
     const { data: views } = await supabase
@@ -59,11 +66,7 @@ export default async function PortfolioPage() {
   return (
     <main>
       <PortfolioClient
-        summary={{
-          ...summary,
-          dealBadges,
-          dealExplainability,
-        }}
+        summary={serializedSummary}
         isFree={plan === "free"}
         savedViews={savedViews}
       />
