@@ -36,7 +36,12 @@ type SerializedSummary = Omit<PortfolioSummary, "dealBadges" | "dealExplainabili
   dealBadges: Record<string, Badge[]>;
   dealExplainability: Record<
     string,
-    { topRiskContributors: { risk_type: string; penalty: number }[]; stabilizers: string[] }
+    {
+      topRiskContributors: { risk_type: string; penalty: number }[];
+      stabilizers: string[];
+      assumptionCompletenessPct?: number | null;
+      missingAssumptionKeys?: string[];
+    }
   >;
 };
 
