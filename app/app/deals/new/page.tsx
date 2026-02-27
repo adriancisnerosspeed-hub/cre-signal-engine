@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { normalizeMarket } from "@/lib/normalizeMarket";
 
 export default function NewDealPage() {
   const router = useRouter();
@@ -106,7 +107,14 @@ export default function NewDealPage() {
             type="text"
             value={market}
             onChange={(e) => setMarket(e.target.value)}
-            placeholder="e.g. Austin, TX"
+            onBlur={() => {
+              const v = market.trim();
+              if (v) {
+                const r = normalizeMarket({ market: v });
+                if (r.market_label) setMarket(r.market_label);
+              }
+            }}
+            placeholder="e.g. Austin, TX or Dallas, Texas"
             style={{
               width: "100%",
               padding: "10px 12px",

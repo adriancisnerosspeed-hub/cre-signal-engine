@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
 import { getPlanForUser } from "@/lib/entitlements";
+import { exposureMarketKey, exposureMarketLabel } from "@/lib/normalizeMarket";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -29,7 +30,7 @@ export default async function PortfolioPage() {
 
   const { data: dealsList } = await service
     .from("deals")
-    .select("id, name, asset_type, market, latest_scan_id")
+    .select("id, name, asset_type, market, market_key, market_label, latest_scan_id")
     .eq("organization_id", orgId)
     .not("latest_scan_id", "is", null);
 
@@ -38,6 +39,8 @@ export default async function PortfolioPage() {
     name: string;
     asset_type: string | null;
     market: string | null;
+    market_key: string | null;
+    market_label: string | null;
     latest_scan_id: string | null;
   }[];
 
@@ -66,6 +69,8 @@ export default async function PortfolioPage() {
         name: d.name,
         asset_type: d.asset_type,
         market: d.market,
+        market_key: d.market_key,
+        market_label: d.market_label,
         risk_index_score: scan.risk_index_score as number,
         risk_index_band: scan.risk_index_band,
       };
@@ -88,9 +93,11 @@ export default async function PortfolioPage() {
   }
 
   const byMarket: Record<string, number> = {};
+  const marketLabelByKey: Record<string, string> = {};
   for (const d of withScore) {
-    const m = d.market ?? "Unspecified";
-    byMarket[m] = (byMarket[m] ?? 0) + 1;
+    const key = exposureMarketKey(d);
+    byMarket[key] = (byMarket[key] ?? 0) + 1;
+    if (!marketLabelByKey[key]) marketLabelByKey[key] = exposureMarketLabel(d);
   }
 
   const isFree = plan === "free";
@@ -261,9 +268,9 @@ export default async function PortfolioPage() {
               <tbody>
                 {Object.entries(byMarket)
                   .sort((a, b) => b[1] - a[1])
-                  .map(([market, count]) => (
-                    <tr key={market} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                      <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{market}</td>
+                  .map(([key, count]) => (
+                    <tr key={key} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                      <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{marketLabelByKey[key] ?? key}</td>
                       <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
                         {count}
                       </td>

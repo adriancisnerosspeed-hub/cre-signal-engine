@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/org";
+import { normalizeMarket } from "@/lib/normalizeMarket";
 import { NextResponse } from "next/server";
+
+const MARKET_MAX_LENGTH = 120;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -17,7 +20,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No workspace selected" }, { status: 400 });
   }
 
-  let body: { name?: string; asset_type?: string | null; market?: string | null; raw_text?: string | null };
+  let body: {
+    name?: string;
+    asset_type?: string | null;
+    market?: string | null;
+    city?: string | null;
+    state?: string | null;
+    raw_text?: string | null;
+  };
   try {
     body = await request.json();
   } catch {
@@ -26,7 +36,17 @@ export async function POST(request: Request) {
 
   const name = typeof body.name === "string" ? body.name.trim() : "Untitled deal";
   const assetType = typeof body.asset_type === "string" ? body.asset_type.trim() || null : null;
-  const market = typeof body.market === "string" ? body.market.trim() || null : null;
+  const rawMarket = typeof body.market === "string" ? body.market.trim() || null : null;
+  const rawCity = typeof body.city === "string" ? body.city.trim() || null : null;
+  const rawState = typeof body.state === "string" ? body.state.trim() || null : null;
+
+  const norm = normalizeMarket({
+    city: rawCity,
+    state: rawState,
+    market: rawMarket,
+  });
+
+  const market = norm.market_label ? norm.market_label.slice(0, MARKET_MAX_LENGTH) : null;
   const rawText = typeof body.raw_text === "string" ? body.raw_text.trim() || null : null;
 
   const { data: deal, error: dealError } = await supabase
@@ -37,6 +57,10 @@ export async function POST(request: Request) {
       name: name || "Untitled deal",
       asset_type: assetType,
       market,
+      city: norm.city,
+      state: norm.state,
+      market_key: norm.market_key,
+      market_label: norm.market_label,
     })
     .select("id")
     .single();
