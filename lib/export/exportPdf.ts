@@ -73,6 +73,7 @@ export type ExportPdfParams = {
     delta_score?: number;
     delta_band?: string;
     deterioration_flag?: boolean;
+    delta_comparable?: boolean;
     driver_confidence_multipliers?: { driver: string; multiplier: number }[];
   } | null;
   /** When macro signals are truncated, show "+N more" (optional). */
@@ -86,6 +87,12 @@ export type ExportPdfParams = {
     base: Record<string, number | null>;
     conservative: Record<string, number | null>;
   } | null;
+  /** Optional: for Data Coverage line (present/required, pct) */
+  dataCoverage?: { present: number; required: number; pct: number };
+  /** Optional: overall confidence 0–1 for Data Coverage line */
+  overallConfidence?: number;
+  /** Optional: review flag for Data Coverage line */
+  reviewFlag?: boolean;
 };
 
 const PAGE_WIDTH = 612;
@@ -143,6 +150,22 @@ function buildAttributionLine(
   return `Score = ${score}${mid}Final: ${score} (${band})`;
 }
 
+function confidenceLabel(confidence: number): "Low" | "Medium" | "High" {
+  if (confidence < 0.7) return "Low";
+  if (confidence < 0.9) return "Medium";
+  return "High";
+}
+
+/** Build Data Coverage line: Coverage present/required (pct%), Confidence (Low/Medium/High), Review Yes/No. */
+function buildDataCoverageLine(p: ExportPdfParams): string {
+  const present = p.dataCoverage?.present ?? 0;
+  const required = p.dataCoverage?.required ?? 0;
+  const pct = p.dataCoverage?.pct ?? 0;
+  const conf = p.overallConfidence ?? p.riskBreakdown?.confidence_factor ?? 0.5;
+  const review = p.reviewFlag ?? p.riskBreakdown?.review_flag ?? false;
+  return `Data Coverage: ${present}/${required} (${pct}%) · Confidence: ${conf.toFixed(2)} (${confidenceLabel(conf)}) · Review: ${review ? "Yes" : "No"}`;
+}
+
 /** Normalize payload so one deal's bad/missing data never throws. */
 function normalizeParams(params: ExportPdfParams): ExportPdfParams {
   const str = (v: unknown): string => (v != null && typeof v === "string" ? v : "");
@@ -187,6 +210,9 @@ function normalizeParams(params: ExportPdfParams): ExportPdfParams {
     recommendedActions: Array.isArray(params?.recommendedActions) ? params.recommendedActions.filter((b): b is string => typeof b === "string") : [],
     icMemoHighlights: params?.icMemoHighlights != null && typeof params.icMemoHighlights === "string" ? params.icMemoHighlights : null,
     scenarioComparison: params?.scenarioComparison ?? null,
+    dataCoverage: params?.dataCoverage,
+    overallConfidence: params?.overallConfidence,
+    reviewFlag: params?.reviewFlag,
   };
 }
 
@@ -314,6 +340,13 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     y -= 6;
   }
   if (p.riskBreakdown?.tier_drivers?.length && drawLine(`Tier Drivers: [${p.riskBreakdown.tier_drivers.join(", ")}]`, 7, false, rgb(0.35, 0.35, 0.35))) {
+    y -= 6;
+  }
+  if (p.riskBreakdown?.previous_score != null && p.riskBreakdown?.delta_comparable === false && drawLine("Version drift — delta not comparable", 7, false, rgb(0.5, 0.35, 0))) {
+    y -= 6;
+  }
+  const dataCoverageLine = buildDataCoverageLine(p);
+  if (dataCoverageLine && drawLine(dataCoverageLine, 7, false, rgb(0.35, 0.35, 0.35))) {
     y -= 6;
   }
 

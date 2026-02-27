@@ -5,7 +5,7 @@ import { getCurrentOrgId } from "@/lib/org";
 import { getPlanForUser, getEntitlementsForUser } from "@/lib/entitlements";
 import { getDealScansToday, getTotalFullScansUsed, incrementDealScanUsage, incrementTotalFullScans } from "@/lib/usage";
 import { parseAndNormalizeDealScan } from "@/lib/dealScanContract";
-import { normalizeAssumptionsForScoring } from "@/lib/assumptionNormalization";
+import { normalizeAssumptionsForScoringWithFlags } from "@/lib/assumptionNormalization";
 import { DEAL_SCAN_SYSTEM_PROMPT, DEAL_SCAN_PROMPT_VERSION } from "@/lib/prompts/dealScanPrompt";
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
@@ -173,7 +173,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const assumptionsForScoring = normalizeAssumptionsForScoring(normalized.assumptions);
+  const { assumptions: assumptionsForScoring, unitInferred } = normalizeAssumptionsForScoringWithFlags(normalized.assumptions);
   const extraction = normalized as unknown as Record<string, unknown>;
   const { data: scan, error: scanError } = await service
     .from("deal_scans")
@@ -232,17 +232,20 @@ export async function POST(request: Request) {
   });
 
   let previousScore: number | undefined;
+  let previousVersion: string | null = null;
   const { data: prevScan } = await service
     .from("deal_scans")
-    .select("risk_index_score")
+    .select("risk_index_score, risk_index_version")
     .eq("deal_id", dealId)
     .eq("status", "completed")
     .neq("id", scan.id)
     .order("completed_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (prevScan && typeof (prevScan as { risk_index_score?: number }).risk_index_score === "number") {
-    previousScore = (prevScan as { risk_index_score: number }).risk_index_score;
+  if (prevScan) {
+    const score = (prevScan as { risk_index_score?: number }).risk_index_score;
+    previousVersion = (prevScan as { risk_index_version?: string | null }).risk_index_version ?? null;
+    if (typeof score === "number") previousScore = score;
   }
 
   const { data: riskRows } = await service
@@ -252,6 +255,7 @@ export async function POST(request: Request) {
   const riskIds = (riskRows ?? []).map((r: { id: string }) => r.id);
   let macroLinkedCount = 0;
   let macroDecayedWeight: number | undefined;
+  let macroTimestampMissing = false;
   if (riskIds.length > 0) {
     const { data: linkRows } = await service
       .from("deal_signal_links")
@@ -289,8 +293,10 @@ export async function POST(request: Request) {
     if (linksWithTimestamp.some((l) => l.timestamp != null)) {
       macroDecayedWeight = computeDecayedMacroWeight(linksWithTimestamp);
     }
+    macroTimestampMissing = linksWithTimestamp.some((l) => l.timestamp == null);
   }
   const { computeRiskIndex, RISK_INDEX_VERSION } = await import("@/lib/riskIndex");
+  const deltaComparable = previousScore != null && previousVersion === RISK_INDEX_VERSION;
   const riskIndex = computeRiskIndex({
     risks: stabilizedRisks.map((r) => ({
       severity_current: r.severity_current,
@@ -300,11 +306,34 @@ export async function POST(request: Request) {
     assumptions: assumptionsForScoring,
     macroLinkedCount,
     macroDecayedWeight,
-    ...(previousScore != null && { previous_score: previousScore }),
+    ...(deltaComparable && previousScore != null && {
+      previous_score: previousScore,
+      previous_risk_index_version: previousVersion,
+    }),
   });
 
   const purchasePrice = assumptionsForScoring.purchase_price?.value;
   let breakdown = riskIndex.breakdown;
+  if (previousScore != null && !deltaComparable) {
+    breakdown = {
+      ...breakdown,
+      previous_score: previousScore,
+      delta_comparable: false,
+      delta_score: undefined,
+      delta_band: undefined,
+      deterioration_flag: undefined,
+    };
+  }
+  if (macroTimestampMissing) {
+    const flags = (breakdown.edge_flags ?? []).slice();
+    if (!flags.includes("EDGE_MACRO_TIMESTAMP_MISSING")) flags.push("EDGE_MACRO_TIMESTAMP_MISSING");
+    breakdown = { ...breakdown, edge_flags: flags };
+  }
+  if (unitInferred) {
+    const flags = (breakdown.edge_flags ?? []).slice();
+    if (!flags.includes("EDGE_UNIT_INFERRED")) flags.push("EDGE_UNIT_INFERRED");
+    breakdown = { ...breakdown, edge_flags: flags, review_flag: true };
+  }
   try {
     const { getPortfolioPurchasePriceP80 } = await import("@/lib/portfolioSummary");
     const p80 = await getPortfolioPurchasePriceP80(service, orgId);

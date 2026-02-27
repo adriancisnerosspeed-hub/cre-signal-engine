@@ -51,6 +51,8 @@ export type RiskIndexBreakdown = {
   delta_band?: string;
   /** When previous_score provided: true if delta_score ≥ 8. */
   deterioration_flag?: boolean;
+  /** When previous_score provided: true iff previous scan used same risk_index_version (delta is comparable). */
+  delta_comparable?: boolean;
   /** Per-driver confidence multiplier (e.g. 1.0 High, 0.7 Medium) for visibility. */
   driver_confidence_multipliers?: { driver: string; multiplier: number }[];
 };
@@ -329,8 +331,10 @@ export type ComputeRiskIndexParams = {
   macroLinkedCount?: number;
   /** When provided, use decayed macro weight instead of macroLinkedCount (e.g. from computeDecayedMacroWeight). */
   macroDecayedWeight?: number;
-  /** When provided, breakdown includes previous_score, delta_score, delta_band, deterioration_flag. */
+  /** When provided, breakdown includes previous_score, delta_score, delta_band, deterioration_flag, delta_comparable. */
   previous_score?: number;
+  /** When provided with previous_score: if !== RISK_INDEX_VERSION, delta not comparable (omit delta_*). */
+  previous_risk_index_version?: string | null;
   _promptVersion?: string | null;
 };
 
@@ -352,6 +356,7 @@ export function computeRiskIndex(
     ? undefined
     : (params as ComputeRiskIndexParams).macroDecayedWeight;
   const previous_score = Array.isArray(params) ? undefined : (params as ComputeRiskIndexParams).previous_score;
+  const previous_risk_index_version = Array.isArray(params) ? undefined : (params as ComputeRiskIndexParams).previous_risk_index_version;
 
   const { sanitizedAssumptions, validation_errors, severe: validationSevere } =
     validateAndSanitizeForRiskIndex(rawAssumptions);
@@ -533,26 +538,41 @@ export function computeRiskIndex(
   driverConfidenceSum.set("stabilizers", 1);
   driverConfidenceCount.set("stabilizers", 1);
 
+  // Driver share cap: no single positive driver exceeds 40% of total positive (excluding stabilizers)
+  const totalPositive = Array.from(driverMap.entries())
+    .filter(([d]) => d !== "stabilizers")
+    .reduce((s, [, pts]) => s + Math.max(0, pts), 0);
+  let driverShareCapApplied = false;
+  if (totalPositive > 0) {
+    let residual = 0;
+    for (const [driver, points] of driverMap.entries()) {
+      if (driver === "stabilizers" || points <= 0) continue;
+      if (points > MAX_DRIVER_SHARE_PCT / 100 * totalPositive) {
+        const cap = (MAX_DRIVER_SHARE_PCT / 100) * totalPositive;
+        driverMap.set(driver, cap);
+        residual += points - cap;
+        driverShareCapApplied = true;
+      }
+    }
+    if (residual > 0) {
+      driverMap.set("residual", (driverMap.get("residual") ?? 0) + residual);
+      driverConfidenceSum.set("residual", 1);
+      driverConfidenceCount.set("residual", 1);
+    }
+  }
+  if (driverShareCapApplied) edge_flags.push("EDGE_DRIVER_SHARE_CAP_APPLIED");
+
   let contributions = Array.from(driverMap.entries())
     .filter(([, pts]) => pts !== 0)
     .map(([driver, points]) => ({ driver, points }));
   const totalContrib = contributions.reduce((s, c) => s + Math.abs(c.points), 0);
-  let contribution_pct =
+  const contribution_pct =
     totalContrib > 0
       ? contributions.map(({ driver, points }) => ({
           driver,
           pct: Math.round((Math.abs(points) / totalContrib) * 100),
         }))
       : [];
-
-  const maxSharePct = Math.max(0, ...contribution_pct.map((c) => c.pct));
-  if (maxSharePct > MAX_DRIVER_SHARE_PCT) {
-    edge_flags.push("EDGE_DRIVER_SHARE_CAP");
-    contribution_pct = contribution_pct.map(({ driver, pct }) => ({
-      driver,
-      pct: Math.min(pct, MAX_DRIVER_SHARE_PCT),
-    }));
-  }
 
   const top_drivers = [...contributions]
     .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
@@ -565,10 +585,18 @@ export function computeRiskIndex(
     return { driver, multiplier: Math.round((sum / n) * 100) / 100 };
   });
 
-  const delta_score = previous_score != null ? score - previous_score : undefined;
+  const comparable = previous_score != null && (previous_risk_index_version == null || previous_risk_index_version === RISK_INDEX_VERSION);
+  const delta_score = comparable ? score - previous_score : undefined;
   const previous_band = previous_score != null ? scoreToBand(previous_score) : undefined;
-  const delta_band = previous_band != null ? `${previous_band} → ${band}` : undefined;
+  const delta_band = comparable && previous_band != null ? `${previous_band} → ${band}` : undefined;
   const deterioration_flag = delta_score != null && delta_score >= 8;
+
+  const deltaBreakdown =
+    previous_score != null
+      ? comparable
+        ? { previous_score, delta_score, delta_band, deterioration_flag, delta_comparable: true as const }
+        : { previous_score, delta_comparable: false as const }
+      : {};
 
   return {
     score,
@@ -586,7 +614,7 @@ export function computeRiskIndex(
       ...(tier_drivers.length > 0 && { tier_drivers }),
       ...(validation_errors.length > 0 && { validation_errors }),
       ...(edge_flags.length > 0 && { edge_flags }),
-      ...(previous_score != null && { previous_score, delta_score, delta_band, deterioration_flag }),
+      ...deltaBreakdown,
       driver_confidence_multipliers,
     },
   };

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   normalizePercentValue,
   normalizeAssumptionsForScoring,
+  normalizeAssumptionsForScoringWithFlags,
+  normalizePercentValueWithInferred,
 } from "./assumptionNormalization";
 import type { DealScanAssumptions } from "./dealScanContract";
 
@@ -10,9 +12,11 @@ describe("normalizePercentValue", () => {
     expect(normalizePercentValue("cap_rate_in", 0.08, "%")).toBe(8);
   });
 
-  it("leaves cap_rate_in 0.08 unchanged when unit is not percent", () => {
-    expect(normalizePercentValue("cap_rate_in", 0.08)).toBe(0.08);
+  it("leaves cap_rate_in 0.08 unchanged when unit is explicit non-percent (e.g. decimal)", () => {
     expect(normalizePercentValue("cap_rate_in", 0.08, "decimal")).toBe(0.08);
+  });
+  it("infers fraction when unit is missing and value in (0,1] (covered in unit missing tests)", () => {
+    expect(normalizePercentValue("cap_rate_in", 0.08)).toBe(8);
   });
 
   it("leaves cap_rate_in 5.5 unchanged (already percent range)", () => {
@@ -50,6 +54,21 @@ describe("normalizePercentValue", () => {
   it("leaves debt_rate 5 unchanged", () => {
     expect(normalizePercentValue("debt_rate", 5, "%")).toBe(5);
   });
+
+  it("unit missing and 0 < value <= 1: treats as fraction (×100)", () => {
+    expect(normalizePercentValue("vacancy", 0.05, null)).toBe(5);
+    expect(normalizePercentValue("ltv", 0.65, undefined)).toBe(65);
+    expect(normalizePercentValue("cap_rate_in", 0.055, "")).toBe(5.5);
+  });
+
+  it("unit missing and value > 1: assumes already percent (unchanged)", () => {
+    expect(normalizePercentValue("vacancy", 5, null)).toBe(5);
+    expect(normalizePercentValue("ltv", 80, undefined)).toBe(80);
+  });
+
+  it("non-PERCENT_KEYS with unit missing: unchanged", () => {
+    expect(normalizePercentValue("purchase_price", 0.5, null)).toBe(0.5);
+  });
 });
 
 describe("normalizeAssumptionsForScoring", () => {
@@ -77,5 +96,38 @@ describe("normalizeAssumptionsForScoring", () => {
     };
     const out = normalizeAssumptionsForScoring(assumptions);
     expect(out.vacancy).toEqual({ value: 5, unit: "%", confidence: "High" });
+  });
+});
+
+describe("normalizePercentValueWithInferred", () => {
+  it("returns inferred: true when unit missing and 0 < value <= 1 for PERCENT_KEYS", () => {
+    expect(normalizePercentValueWithInferred("vacancy", 0.05, null)).toEqual({ value: 5, inferred: true });
+    expect(normalizePercentValueWithInferred("ltv", 1, undefined)).toEqual({ value: 100, inferred: true });
+  });
+  it("returns inferred: false when unit present or value > 1", () => {
+    expect(normalizePercentValueWithInferred("vacancy", 0.05, "%")).toEqual({ value: 5, inferred: false });
+    expect(normalizePercentValueWithInferred("vacancy", 5, null)).toEqual({ value: 5, inferred: false });
+  });
+});
+
+describe("normalizeAssumptionsForScoringWithFlags", () => {
+  it("returns unitInferred: true when any PERCENT_KEY had missing unit and 0 < value <= 1", () => {
+    const { assumptions, unitInferred } = normalizeAssumptionsForScoringWithFlags({
+      vacancy: { value: 0.05, unit: null, confidence: "High" },
+      ltv: { value: 65, unit: "%", confidence: "Medium" },
+    });
+    expect(assumptions.vacancy?.value).toBe(5);
+    expect(assumptions.ltv?.value).toBe(65);
+    expect(unitInferred).toBe(true);
+  });
+  it("returns unitInferred: false when units present or values > 1", () => {
+    const { unitInferred } = normalizeAssumptionsForScoringWithFlags({
+      vacancy: { value: 5, unit: "%", confidence: "High" },
+    });
+    expect(unitInferred).toBe(false);
+    const { unitInferred: u2 } = normalizeAssumptionsForScoringWithFlags({
+      vacancy: { value: 10, unit: null, confidence: "High" },
+    });
+    expect(u2).toBe(false);
   });
 });

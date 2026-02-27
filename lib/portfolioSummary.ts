@@ -90,7 +90,7 @@ export type PortfolioSummary = {
   riskComposition: { structuralPct: number; marketPct: number };
   macroExposure: { category: string; dealCount: number }[];
   trendSummary: {
-    deteriorations: { dealId: string; dealName: string; delta: number; latestScore: number; previousScore: number }[];
+    deteriorations: { dealId: string; dealName: string; delta: number; latestScore: number; previousScore: number; deltaComparable?: boolean }[];
     bandTransitions: { dealId: string; dealName: string; fromBand: string; toBand: string }[];
   };
   alerts: AlertItem[];
@@ -387,12 +387,14 @@ export async function getPortfolioSummary(
         }
         if (delta >= 8) {
           badges.push("needs_review");
+          const breakdown = latestScan.risk_index_breakdown as { delta_comparable?: boolean } | null;
           deteriorations.push({
             dealId: d.id,
             dealName: d.name,
             delta,
             latestScore: score,
             previousScore: prevScore,
+            deltaComparable: breakdown?.delta_comparable ?? true,
           });
         }
       }
@@ -550,11 +552,15 @@ export async function getPortfolioSummary(
     });
   }
   for (const d of topDeteriorations) {
+    const message =
+      d.deltaComparable === false
+        ? "Version drift — delta not comparable"
+        : `Score +${d.delta} (${d.previousScore} → ${d.latestScore})`;
     alerts.push({
       type: "score_increase",
       dealId: d.dealId,
       dealName: d.dealName,
-      message: `Score +${d.delta} (${d.previousScore} → ${d.latestScore})`,
+      message,
     });
   }
   for (const d of deals) {

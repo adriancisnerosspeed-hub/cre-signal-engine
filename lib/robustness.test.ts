@@ -9,7 +9,7 @@ import { describe, it, expect } from "vitest";
 import { parseAndNormalizeDealScan, MAX_RISKS_PER_SCAN } from "./dealScanContract";
 import { validateDealScanRaw } from "./dealScanSchema";
 import { normalizeAssumptionsForScoring } from "./assumptionNormalization";
-import { computeRiskIndex, scoreToBand } from "./riskIndex";
+import { computeRiskIndex, scoreToBand, MAX_DRIVER_SHARE_PCT } from "./riskIndex";
 import { buildExportPdf } from "./export/exportPdf";
 import {
   selectMacroSignalsForPdf,
@@ -273,14 +273,44 @@ describe("Risk Index monotonicity", () => {
     expect(b.score).toBeGreaterThanOrEqual(a.score);
   });
 
-  it("delta tracking: previous_score yields breakdown.previous_score, delta_score, delta_band, deterioration_flag", () => {
+  it("delta tracking: previous_score yields breakdown.previous_score, delta_score, delta_band, deterioration_flag, delta_comparable", () => {
     const risks = [{ severity_current: "Medium" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const }];
     const norm = normalizeAssumptionsForScoring({ vacancy: { value: 10, unit: "%", confidence: "High" }, ltv: { value: 65, unit: "%", confidence: "Medium" } });
-    const result = computeRiskIndex({ risks, assumptions: norm, previous_score: 35 });
+    const result = computeRiskIndex({ risks, assumptions: norm, previous_score: 35, previous_risk_index_version: "2.0" });
     expect(result.breakdown.previous_score).toBe(35);
+    expect(result.breakdown.delta_comparable).toBe(true);
     expect(result.breakdown.delta_score).toBe(result.score - 35);
     expect(result.breakdown.delta_band).toMatch(/→/);
     if ((result.breakdown.delta_score ?? 0) >= 8) expect(result.breakdown.deterioration_flag).toBe(true);
+  });
+
+  it("driver share cap: no single driver exceeds 40% of total positive; excess goes to residual; EDGE_DRIVER_SHARE_CAP_APPLIED set", () => {
+    const risks = [
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
+      { severity_current: "Medium" as const, confidence: "High" as const, risk_type: "RentGrowthAggressive" as const },
+    ];
+    const assumptions = normalizeAssumptionsForScoring({ vacancy: { value: 15, unit: "%", confidence: "High" }, ltv: { value: 65, unit: "%", confidence: "Medium" } });
+    const result = computeRiskIndex({ risks, assumptions });
+    const totalPositive = (result.breakdown.contributions ?? [])
+      .filter((c) => c.driver !== "stabilizers")
+      .reduce((s, c) => s + Math.max(0, c.points), 0);
+    if (totalPositive > 0) {
+      const pcts = (result.breakdown.contribution_pct ?? []).filter((c) => c.driver !== "stabilizers");
+      const nonResidualPcts = pcts.filter((c) => c.driver !== "residual");
+      for (const { pct } of nonResidualPcts) {
+        expect(pct).toBeLessThanOrEqual(MAX_DRIVER_SHARE_PCT + 1); // +1 for rounding
+      }
+      if ((result.breakdown.edge_flags ?? []).includes("EDGE_DRIVER_SHARE_CAP_APPLIED")) {
+        const hasResidual = (result.breakdown.contributions ?? []).some((c) => c.driver === "residual");
+        expect(hasResidual).toBe(true);
+      }
+    }
+    expect(result.breakdown.edge_flags ?? []).toContain("EDGE_DRIVER_SHARE_CAP_APPLIED");
+    const again = computeRiskIndex({ risks, assumptions });
+    expect(again.breakdown.contributions).toEqual(result.breakdown.contributions);
+    expect(again.breakdown.edge_flags).toEqual(result.breakdown.edge_flags);
   });
 
   it("decreasing DSCR does not reduce score", () => {
@@ -425,6 +455,80 @@ describe("Risk Index v2.0 stress scenarios", () => {
     const b = computeRiskIndex({ risks, assumptions });
     expect(a.score).toBe(b.score);
     expect(a.band).toBe(b.band);
+  });
+});
+
+describe("Score stability near threshold", () => {
+  it("small assumption change near Moderate/Elevated boundary (54/55) does not produce >8 point jump without tier override", () => {
+    const risks = [
+      { severity_current: "Medium" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
+      { severity_current: "Medium" as const, confidence: "High" as const, risk_type: "RentGrowthAggressive" as const },
+    ];
+    const base = normalizeAssumptionsForScoring({
+      vacancy: { value: 19.9, unit: "%", confidence: "High" },
+      ltv: { value: 65, unit: "%", confidence: "Medium" },
+      cap_rate_in: { value: 5.5, unit: "%", confidence: "High" },
+      exit_cap: { value: 5.25, unit: "%", confidence: "High" },
+    });
+    const varied = normalizeAssumptionsForScoring({
+      vacancy: { value: 20.1, unit: "%", confidence: "High" },
+      ltv: { value: 65, unit: "%", confidence: "Medium" },
+      cap_rate_in: { value: 5.5, unit: "%", confidence: "High" },
+      exit_cap: { value: 5.25, unit: "%", confidence: "High" },
+    });
+    const a = computeRiskIndex({ risks, assumptions: base });
+    const b = computeRiskIndex({ risks, assumptions: varied });
+    const delta = Math.abs(b.score - a.score);
+    if (delta > 8) {
+      expect(b.breakdown.tier_drivers?.length ?? 0).toBeGreaterThan(0);
+      expect(a.breakdown.tier_drivers?.length ?? 0).toBeGreaterThan(0);
+    } else {
+      expect(delta).toBeLessThanOrEqual(8);
+    }
+  });
+
+  it("small assumption change near Elevated/High boundary (69/70) does not produce >8 point jump without tier override", () => {
+    const risks = [
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "DebtCostRisk" as const },
+      { severity_current: "Medium" as const, confidence: "High" as const, risk_type: "ExitCapCompression" as const },
+    ];
+    const base = normalizeAssumptionsForScoring({
+      vacancy: { value: 28, unit: "%", confidence: "High" },
+      ltv: { value: 78, unit: "%", confidence: "High" },
+      cap_rate_in: { value: 5.5, unit: "%", confidence: "High" },
+      exit_cap: { value: 5, unit: "%", confidence: "High" },
+    });
+    const varied = normalizeAssumptionsForScoring({
+      vacancy: { value: 28.5, unit: "%", confidence: "High" },
+      ltv: { value: 78, unit: "%", confidence: "High" },
+      cap_rate_in: { value: 5.5, unit: "%", confidence: "High" },
+      exit_cap: { value: 5, unit: "%", confidence: "High" },
+    });
+    const a = computeRiskIndex({ risks, assumptions: base });
+    const b = computeRiskIndex({ risks, assumptions: varied });
+    const delta = Math.abs(b.score - a.score);
+    if (delta > 8) {
+      expect((b.breakdown.tier_drivers?.length ?? 0) > 0 || (a.breakdown.tier_drivers?.length ?? 0) > 0).toBe(true);
+    } else {
+      expect(delta).toBeLessThanOrEqual(8);
+    }
+  });
+
+  it("exit cap compression ramp: small change in compression produces bounded score change", () => {
+    const risks = [{ severity_current: "High" as const, confidence: "High" as const, risk_type: "ExitCapCompression" as const }];
+    const base = normalizeAssumptionsForScoring({
+      cap_rate_in: { value: 5.5, unit: "%", confidence: "High" },
+      exit_cap: { value: 5.0, unit: "%", confidence: "High" },
+    });
+    const slightlyTighter = normalizeAssumptionsForScoring({
+      cap_rate_in: { value: 5.5, unit: "%", confidence: "High" },
+      exit_cap: { value: 4.9, unit: "%", confidence: "High" },
+    });
+    const a = computeRiskIndex({ risks, assumptions: base });
+    const b = computeRiskIndex({ risks, assumptions: slightlyTighter });
+    const delta = Math.abs(b.score - a.score);
+    expect(delta).toBeLessThanOrEqual(10);
   });
 });
 

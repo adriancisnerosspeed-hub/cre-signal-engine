@@ -27,6 +27,8 @@ type ScanRow = {
     structural_weight?: number;
     market_weight?: number;
     confidence_factor?: number;
+    previous_score?: number;
+    delta_comparable?: boolean;
   } | null;
 };
 
@@ -208,6 +210,9 @@ export default async function ScanDetailPage({
                 Structural risk weighting: {scan.risk_index_breakdown.structural_weight ?? "—"} · Market
                 risk weighting: {scan.risk_index_breakdown.market_weight ?? "—"} · Confidence
                 adjustment: {scan.risk_index_breakdown.confidence_factor ?? "—"}
+                {scan.risk_index_breakdown.previous_score != null && scan.risk_index_breakdown.delta_comparable === false && (
+                  <div style={{ marginTop: 4, color: "rgb(200, 140, 0)" }}>Version drift — delta not comparable</div>
+                )}
               </div>
             )}
           </div>

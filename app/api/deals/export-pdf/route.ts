@@ -8,6 +8,7 @@ import {
   selectMacroSignalsForPdf,
 } from "@/lib/export/pdfSelectors";
 import type { DealScanAssumptions } from "@/lib/dealScanContract";
+import { computeAssumptionCompleteness } from "@/lib/assumptionValidation";
 import { getRecommendedActions } from "@/lib/icRecommendedActions";
 import { NextResponse } from "next/server";
 
@@ -202,6 +203,15 @@ export async function POST(request: Request) {
     ? { ...rawBreakdown, stale_scan: staleScan }
     : null;
 
+  const completeness = computeAssumptionCompleteness(assumptions);
+  const dataCoverage = {
+    present: completeness.present.length,
+    required: completeness.present.length + completeness.missing.length,
+    pct: completeness.pct,
+  };
+  const overallConfidence = (riskBreakdown as { confidence_factor?: number } | null)?.confidence_factor;
+  const reviewFlag = (riskBreakdown as { review_flag?: boolean } | null)?.review_flag;
+
   const dealName =
     (deal as { name?: unknown }).name != null && typeof (deal as { name: string }).name === "string"
       ? (deal as { name: string }).name
@@ -225,6 +235,9 @@ export async function POST(request: Request) {
     macroSectionLabel,
     recommendedActions: recommendedBullets,
     icMemoHighlights,
+    dataCoverage,
+    overallConfidence: overallConfidence ?? undefined,
+    reviewFlag: reviewFlag ?? undefined,
   };
   if (DEBUG_PDF_EXPORT) {
     console.info("[DEBUG_PDF_EXPORT] payload", JSON.stringify(payload, null, 2));
