@@ -111,7 +111,54 @@ function buildBreakdownLine(
   return parts.length ? parts.join(" | ") : "";
 }
 
+/** Normalize payload so one deal's bad/missing data never throws. */
+function normalizeParams(params: ExportPdfParams): ExportPdfParams {
+  const str = (v: unknown): string => (v != null && typeof v === "string" ? v : "");
+  const arr = <T>(v: unknown, guard: (x: unknown) => x is T): T[] => (Array.isArray(v) ? v.filter(guard) : []);
+  const assumptionRow = (r: unknown): r is AssumptionRow =>
+    r != null && typeof r === "object" && "key" in r;
+  const riskRow = (r: unknown): r is RiskRow =>
+    r != null && typeof r === "object" && "risk_type" in r;
+  const macroRow = (m: unknown): m is MacroSignalRow =>
+    m != null && typeof m === "object" && "display_text" in m;
+  return {
+    dealName: str(params?.dealName) || "Deal",
+    assetType: params?.assetType != null && typeof params.assetType === "string" ? params.assetType : null,
+    market: params?.market != null && typeof params.market === "string" ? params.market : null,
+    riskIndexScore: params?.riskIndexScore != null && typeof params.riskIndexScore === "number" ? params.riskIndexScore : null,
+    riskIndexBand: params?.riskIndexBand != null && typeof params.riskIndexBand === "string" ? params.riskIndexBand : null,
+    promptVersion: params?.promptVersion != null && typeof params.promptVersion === "string" ? params.promptVersion : null,
+    scanTimestamp: str(params?.scanTimestamp) || new Date().toISOString().slice(0, 19).replace("T", " "),
+    scanId: str(params?.scanId) || "unknown",
+    model: params?.model != null && typeof params.model === "string" ? params.model : null,
+    assumptions: arr(params?.assumptions, assumptionRow).map((r) => ({
+      key: str((r as AssumptionRow).key),
+      value: (r as AssumptionRow).value != null && typeof (r as AssumptionRow).value === "number" ? (r as AssumptionRow).value : null,
+      unit: (r as AssumptionRow).unit != null && typeof (r as AssumptionRow).unit === "string" ? (r as AssumptionRow).unit : null,
+      confidence: str((r as AssumptionRow).confidence) || "Low",
+    })),
+    risks: arr(params?.risks, riskRow).map((r) => ({
+      risk_type: str((r as RiskRow).risk_type),
+      severity_current: str((r as RiskRow).severity_current),
+      confidence: (r as RiskRow).confidence != null && typeof (r as RiskRow).confidence === "string" ? (r as RiskRow).confidence : null,
+      why_it_matters: (r as RiskRow).why_it_matters != null && typeof (r as RiskRow).why_it_matters === "string" ? (r as RiskRow).why_it_matters : null,
+      recommended_action: (r as RiskRow).recommended_action != null && typeof (r as RiskRow).recommended_action === "string" ? (r as RiskRow).recommended_action : null,
+    })),
+    macroSignals: arr(params?.macroSignals, macroRow).map((m) => ({
+      signal_id: str((m as MacroSignalRow).signal_id),
+      display_text: str((m as MacroSignalRow).display_text) || "Signal",
+    })),
+    macroSectionLabel: str(params?.macroSectionLabel) || "Market Signals",
+    riskIndexVersion: params?.riskIndexVersion,
+    riskBreakdown: params?.riskBreakdown ?? null,
+    recommendedActions: Array.isArray(params?.recommendedActions) ? params.recommendedActions.filter((b): b is string => typeof b === "string") : [],
+    icMemoHighlights: params?.icMemoHighlights != null && typeof params.icMemoHighlights === "string" ? params.icMemoHighlights : null,
+    scenarioComparison: params?.scenarioComparison ?? null,
+  };
+}
+
 export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Array> {
+  const p = normalizeParams(params);
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -159,7 +206,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   };
 
   // --- Header: Deal Name, Asset Type, City/State; Scan timestamp, model, scan id ---
-  page.drawText(sanitizeForPdf(params.dealName), {
+  page.drawText(sanitizeForPdf(p.dealName), {
     x: MARGIN,
     y,
     size: 18,
@@ -167,7 +214,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     color: rgb(0, 0, 0),
   });
   y -= 22;
-  const sub = [params.assetType, params.market].filter(Boolean).join(" · ");
+  const sub = [p.assetType, p.market].filter(Boolean).join(" · ");
   if (sub) {
     page.drawText(sanitizeForPdf(sub), {
       x: MARGIN,
@@ -179,9 +226,9 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     y -= 14;
   }
   const auditLine = [
-    `Scan: ${params.scanTimestamp}`,
-    params.model ? `Model: ${params.model}` : null,
-    `ID: ${params.scanId.slice(0, 8)}`,
+    `Scan: ${p.scanTimestamp}`,
+    p.model ? `Model: ${p.model}` : null,
+    `ID: ${p.scanId.slice(0, 8)}`,
   ].filter(Boolean).join(" · ");
   page.drawText(sanitizeForPdf(auditLine), {
     x: MARGIN,
@@ -201,10 +248,10 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     color: rgb(0, 0, 0),
   });
   y -= 16;
-  const versionSuffix = params.riskIndexVersion ? ` · Scoring v${params.riskIndexVersion}` : "";
+  const versionSuffix = p.riskIndexVersion ? ` · Scoring v${p.riskIndexVersion}` : "";
   const scoreText =
-    params.riskIndexScore != null && params.riskIndexBand
-      ? `Score: ${params.riskIndexScore} — ${params.riskIndexBand}${versionSuffix}`
+    p.riskIndexScore != null && p.riskIndexBand
+      ? `Score: ${p.riskIndexScore} — ${p.riskIndexBand}${versionSuffix}`
       : "—";
   page.drawText(sanitizeForPdf(scoreText), {
     x: MARGIN,
@@ -214,28 +261,28 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     color: rgb(0.2, 0.2, 0.2),
   });
   y -= 14;
-  const interpretation = riskIndexInterpretation(params.riskIndexScore, params.riskIndexBand);
+  const interpretation = riskIndexInterpretation(p.riskIndexScore, p.riskIndexBand);
   if (interpretation && !drawLine(interpretation, 9, false, rgb(0.25, 0.25, 0.25))) {
     // skip if no space
   }
   y -= 10;
 
-  const breakdownLine = params.riskBreakdown ? buildBreakdownLine(params.riskBreakdown, params.riskIndexVersion) : "";
+  const breakdownLine = p.riskBreakdown ? buildBreakdownLine(p.riskBreakdown, p.riskIndexVersion) : "";
   if (breakdownLine && drawLine(breakdownLine, 8, false, rgb(0.3, 0.3, 0.3))) {
     y -= 8;
   }
 
   // --- Section 2: Deal Snapshot (Key Assumptions) ---
-  if (params.assumptions.length > 0 && drawSectionTitle("Deal Snapshot")) {
-    for (const row of params.assumptions) {
+  if (p.assumptions.length > 0 && drawSectionTitle("Deal Snapshot")) {
+    for (const row of p.assumptions) {
       if (!drawLine(formatAssumption(row), 9, false, rgb(0.25, 0.25, 0.25))) break;
     }
     y -= 8;
   }
 
   // --- Section 3: Primary Risks (top 3) ---
-  if (params.risks.length > 0 && drawSectionTitle("Primary Risks")) {
-    for (const r of params.risks) {
+  if (p.risks.length > 0 && drawSectionTitle("Primary Risks")) {
+    for (const r of p.risks) {
       if (y < MIN_Y) break;
       const titleLine = `${r.risk_type} — ${r.severity_current}${r.confidence ? ` / ${r.confidence}` : ""}`;
       if (!drawLine(titleLine, 9, true)) break;
@@ -249,9 +296,9 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   }
 
   // --- Section 4: Linked Macro Signals (deduped; fallback if none) ---
-  if (drawSectionTitle(params.macroSectionLabel)) {
-    if (params.macroSignals.length > 0) {
-      for (const m of params.macroSignals) {
+  if (drawSectionTitle(p.macroSectionLabel)) {
+    if (p.macroSignals.length > 0) {
+      for (const m of p.macroSignals) {
         if (!drawLine(m.display_text, 8, false, rgb(0.3, 0.3, 0.3))) break;
       }
     } else {
@@ -261,7 +308,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   }
 
   // --- Section 5: Recommended Actions ---
-  const recommendedActions = params.recommendedActions?.length ? params.recommendedActions : [];
+  const recommendedActions = p.recommendedActions?.length ? p.recommendedActions : [];
   if (recommendedActions.length > 0 && drawSectionTitle("Recommended Actions")) {
     for (const bullet of recommendedActions) {
       if (!drawLine(`• ${oneSentence(bullet)}`, 8, false, rgb(0.3, 0.3, 0.3))) break;
@@ -270,7 +317,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   }
 
   // --- Scenario comparison (optional: base vs conservative) ---
-  const scenario = params.scenarioComparison;
+  const scenario = p.scenarioComparison;
   if (scenario && drawSectionTitle("Scenario Comparison")) {
     const keys = ["vacancy", "exit_cap", "rent_growth", "debt_rate"] as const;
     for (const k of keys) {
@@ -286,8 +333,9 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   }
 
   // --- Section 6: IC Memorandum Narrative (optional); dedupe identical lines ---
-  if (params.icMemoHighlights && params.icMemoHighlights.trim().length > 0 && drawSectionTitle("IC Memo Highlights")) {
-    const rawLines = params.icMemoHighlights.trim().split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const icMemo = p.icMemoHighlights != null && typeof p.icMemoHighlights === "string" ? p.icMemoHighlights.trim() : "";
+  if (icMemo.length > 0 && drawSectionTitle("IC Memo Highlights")) {
+    const rawLines = icMemo.split(/\n/).map((l) => (typeof l === "string" ? l : "").trim()).filter(Boolean);
     const seen = new Set<string>();
     const lines: string[] = [];
     for (const line of rawLines) {
@@ -304,11 +352,11 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
 
   // --- Footer (fixed at bottom) ---
   const auditParts = [
-    `Scan: ${params.scanTimestamp}`,
-    `ID: ${params.scanId}`,
-    params.model ? `Model: ${params.model}` : null,
-    params.promptVersion ? `Prompt: ${params.promptVersion}` : null,
-    params.riskIndexVersion ? `Scoring v${params.riskIndexVersion}` : null,
+    `Scan: ${p.scanTimestamp}`,
+    `ID: ${p.scanId}`,
+    p.model ? `Model: ${p.model}` : null,
+    p.promptVersion ? `Prompt: ${p.promptVersion}` : null,
+    p.riskIndexVersion ? `Scoring v${p.riskIndexVersion}` : null,
   ].filter(Boolean);
   page.drawText(sanitizeForPdf(auditParts.join(" · ")), {
     x: MARGIN,
@@ -330,24 +378,43 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   return doc.save();
 }
 
-/** Word-wrap using font width. */
+/** Word-wrap using font width. Safe for empty or problematic strings. */
 function wrapText(
   text: string,
   maxWidth: number,
   fontSize: number,
   font: { widthOfTextAtSize: (t: string, s: number) => number }
 ): string[] {
-  if (font.widthOfTextAtSize(text, fontSize) <= maxWidth) return [text];
-  const words = text.split(/\s+/);
+  const safe = typeof text === "string" ? text : "";
+  if (!safe) return [];
+  try {
+    if (font.widthOfTextAtSize(safe, fontSize) <= maxWidth) return [safe];
+  } catch {
+    return [safe.slice(0, 80)];
+  }
+  const words = safe.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let line = "";
   for (const word of words) {
     const next = line ? `${line} ${word}` : word;
-    if (font.widthOfTextAtSize(next, fontSize) <= maxWidth) {
-      line = next;
-    } else {
+    try {
+      if (font.widthOfTextAtSize(next, fontSize) <= maxWidth) {
+        line = next;
+      } else {
+        if (line) lines.push(line);
+        line = word;
+        if (line) {
+          while (line.length > 50) {
+            const chunk = line.slice(0, 50);
+            lines.push(chunk);
+            line = line.slice(50);
+          }
+        }
+      }
+    } catch {
       if (line) lines.push(line);
-      line = word;
+      lines.push(word.slice(0, 80));
+      line = "";
     }
   }
   if (line) lines.push(line);

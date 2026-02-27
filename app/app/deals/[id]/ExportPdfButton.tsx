@@ -27,19 +27,23 @@ export default function ExportPdfButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scan_id: scanId }),
       });
-      if (res.status === 403) {
-        const data = await res.json().catch(() => ({}));
-        if (data.code === "PRO_REQUIRED_FOR_EXPORT") setPaywallOpen(true);
-        return;
-      }
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const d = data as { error?: string; detail?: string };
+        const raw = await res.text();
+        let data: { error?: string; detail?: string; code?: string } = {};
+        try {
+          data = raw ? JSON.parse(raw) : {};
+        } catch {
+          data = {};
+        }
+        if (res.status === 403 && data.code === "PRO_REQUIRED_FOR_EXPORT") {
+          setPaywallOpen(true);
+          return;
+        }
         const msg =
-          typeof d.detail === "string" && d.detail
-            ? d.detail
-            : typeof d.error === "string"
-              ? d.error
+          typeof data.detail === "string" && data.detail
+            ? data.detail
+            : typeof data.error === "string"
+              ? data.error
               : `Export failed (${res.status})`;
         setError(msg);
         return;

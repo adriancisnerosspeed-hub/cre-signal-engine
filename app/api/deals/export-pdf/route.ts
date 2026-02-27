@@ -15,30 +15,38 @@ const DEBUG_PDF_EXPORT = process.env.DEBUG_PDF_EXPORT === "true";
 
 export const runtime = "nodejs";
 
+function json500(error: string, detail?: string) {
+  return NextResponse.json(
+    { error, ...(detail ? { detail } : {}) },
+    { status: 500 }
+  );
+}
+
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  let body: { scan_id?: string };
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  const scanId = typeof body.scan_id === "string" ? body.scan_id.trim() : null;
-  if (!scanId) {
-    return NextResponse.json({ error: "scan_id required" }, { status: 400 });
-  }
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const service = createServiceRoleClient();
-  const plan = await getPlanForUser(service, user.id);
+    let body: { scan_id?: string };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const scanId = typeof body.scan_id === "string" ? body.scan_id.trim() : null;
+    if (!scanId) {
+      return NextResponse.json({ error: "scan_id required" }, { status: 400 });
+    }
+
+    const service = createServiceRoleClient();
+    const plan = await getPlanForUser(service, user.id);
 
   if (plan === "free") {
     return NextResponse.json({ code: "PRO_REQUIRED_FOR_EXPORT" }, { status: 403 });
@@ -159,8 +167,8 @@ export async function POST(request: Request) {
     .select("content")
     .eq("deal_scan_id", scanId)
     .maybeSingle();
-  const narrativeContent = (narrativeRow as { content: string } | undefined)?.content;
-  if (narrativeContent && typeof narrativeContent === "string") {
+  const narrativeContent = (narrativeRow as { content?: unknown } | undefined)?.content;
+  if (narrativeContent != null && typeof narrativeContent === "string") {
     const trimmed = narrativeContent.trim();
     icMemoHighlights = trimmed.length > 1200 ? trimmed.slice(0, 1197) + "…" : trimmed;
   }
@@ -168,15 +176,32 @@ export async function POST(request: Request) {
   const hasDealContext = !!(assetType ?? market);
   const macroSectionLabel = hasDealContext ? "Market Signals" : "General Macro Signals";
 
+  const completedAt = (scan as { completed_at?: string | null }).completed_at;
+  const createdAt = (scan as { created_at?: string }).created_at;
   const scanTimestamp =
-    (scan as { completed_at?: string | null }).completed_at ||
-    (scan as { created_at?: string }).created_at ||
+    (typeof completedAt === "string" && completedAt) ||
+    (typeof createdAt === "string" && createdAt) ||
     new Date().toISOString();
+  const scanTimestampStr =
+    typeof scanTimestamp === "string"
+      ? (() => {
+          try {
+            return new Date(scanTimestamp).toISOString().slice(0, 19).replace("T", " ");
+          } catch {
+            return new Date().toISOString().slice(0, 19).replace("T", " ");
+          }
+        })()
+      : new Date().toISOString().slice(0, 19).replace("T", " ");
 
   const riskBreakdown = (scan as { risk_index_breakdown?: { structural_weight?: number; market_weight?: number; confidence_factor?: number; stabilizer_benefit?: number; penalty_total?: number } | null }).risk_index_breakdown ?? null;
 
+  const dealName =
+    (deal as { name?: unknown }).name != null && typeof (deal as { name: string }).name === "string"
+      ? (deal as { name: string }).name
+      : "Deal";
+
   const payload = {
-    dealName: (deal as { name: string }).name,
+    dealName,
     assetType,
     market,
     riskIndexScore: (scan as { risk_index_score?: number | null }).risk_index_score ?? null,
@@ -184,7 +209,7 @@ export async function POST(request: Request) {
     riskIndexVersion: (scan as { risk_index_version?: string | null }).risk_index_version ?? null,
     riskBreakdown,
     promptVersion: (scan as { prompt_version?: string | null }).prompt_version ?? null,
-    scanTimestamp: new Date(scanTimestamp).toISOString().slice(0, 19).replace("T", " "),
+    scanTimestamp: scanTimestampStr,
     scanId,
     model: (scan as { model?: string | null }).model ?? null,
     assumptions: topAssumptions,
@@ -198,32 +223,34 @@ export async function POST(request: Request) {
     console.info("[DEBUG_PDF_EXPORT] payload", JSON.stringify(payload, null, 2));
   }
 
-  let pdfBytes: Uint8Array;
-  try {
-    pdfBytes = await buildExportPdf(payload);
+    let pdfBytes: Uint8Array;
+    try {
+      pdfBytes = await buildExportPdf(payload);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[export_pdf] render_failed", { scan_id: scanId, deal_id: (deal as { id: string }).id, error: message });
+      return json500("PDF generation failed", message);
+    }
+
+    console.info("[export_pdf] success", {
+      scan_id: scanId,
+      deal_id: (deal as { id: string }).id,
+      risk_count: topRisks.length,
+      macro_signal_count: macroSignals.length,
+    });
+
+    const filename = `cre-signal-${dealName.replace(/\s+/g, "-").slice(0, 30)}-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    return new NextResponse(Buffer.from(pdfBytes), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[export_pdf] render_failed", { scan_id: scanId, deal_id: (deal as { id: string }).id, error: message });
-    return NextResponse.json(
-      { error: "PDF generation failed", detail: message },
-      { status: 500 }
-    );
+    console.error("[export_pdf] unexpected_error", { error: message, stack: err instanceof Error ? err.stack : undefined });
+    return json500("Export failed", message);
   }
-
-  console.info("[export_pdf] success", {
-    scan_id: scanId,
-    deal_id: (deal as { id: string }).id,
-    risk_count: topRisks.length,
-    macro_signal_count: macroSignals.length,
-  });
-
-  const filename = `cre-signal-${(deal as { name: string }).name.replace(/\s+/g, "-").slice(0, 30)}-${new Date().toISOString().slice(0, 10)}.pdf`;
-
-  return new NextResponse(Buffer.from(pdfBytes), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-    },
-  });
 }
