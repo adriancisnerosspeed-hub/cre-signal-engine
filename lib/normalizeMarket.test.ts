@@ -103,6 +103,18 @@ describe("normalizeMarket", () => {
     expect(r.market_label).toBe("Dallas, TX");
   });
 
+  it("Dallas Texas (no comma) -> same canonical as Dallas, TX", () => {
+    const r = normalizeMarket({ market: "Dallas Texas" });
+    expect(r.market_key).toBe("dallas|TX");
+    expect(r.market_label).toBe("Dallas, TX");
+  });
+
+  it("Dallas ,TX (comma with space before state) -> Dallas, TX", () => {
+    const r = normalizeMarket({ market: "Dallas ,TX" });
+    expect(r.market_key).toBe("dallas|TX");
+    expect(r.market_label).toBe("Dallas, TX");
+  });
+
   it("empty input -> nulls", () => {
     const r = normalizeMarket({});
     expect(r.market_key).toBeNull();

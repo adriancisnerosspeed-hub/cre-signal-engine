@@ -28,7 +28,7 @@ export type RiskIndexResult = {
 };
 
 /** Structural risk types (capital structure, debt, refi). Used for DataMissing cap rule. */
-const STRUCTURAL_RISK_TYPES = new Set([
+export const STRUCTURAL_RISK_TYPES = new Set([
   "RefiRisk",
   "DebtCostRisk",
   "MarketLiquidityRisk",
@@ -42,13 +42,13 @@ type RiskRow = {
   risk_type: string;
 };
 
-const SEVERITY_POINTS: Record<string, number> = {
+export const SEVERITY_POINTS: Record<string, number> = {
   High: 8,
   Medium: 4,
   Low: 2,
 };
 
-const CONFIDENCE_FACTOR: Record<string, number> = {
+export const CONFIDENCE_FACTOR: Record<string, number> = {
   High: 1,
   Medium: 0.7,
   Low: 0.4,
@@ -56,8 +56,11 @@ const CONFIDENCE_FACTOR: Record<string, number> = {
 
 const BASE_SCORE = 40;
 const STABILIZER_CAP = 20;
-/** +1 per unique macro signal; cap so macro amplifies risk slightly, not dominates. */
+/** +1 per unique macro signal/category; cap so macro amplifies risk slightly, not dominates. */
 const MACRO_PENALTY_CAP = 3;
+
+/** Scoring logic version; stored on each scan for defensibility (e.g. older scans used older logic). */
+export const RISK_INDEX_VERSION = "1.2";
 
 /** Severity bands (recalibrated). */
 function scoreToBand(score: number): RiskIndexBand {
@@ -278,4 +281,63 @@ export function getRiskTrend(
   if (delta > 0) return "increased";
   if (delta < 0) return "decreased";
   return "stable";
+}
+
+/**
+ * Per-risk penalty contribution (for explainability). Uses same logic as computePenalties.
+ * Does not recompute total score; use stored severity_current and confidence only.
+ */
+export function computeRiskPenaltyContribution(
+  risk: { risk_type: string; severity_current: string; confidence: string | null },
+  assumptions: DealScanAssumptions | undefined
+): number {
+  const conf = CONFIDENCE_FACTOR[risk.confidence ?? ""] ?? 0.4;
+  const sevPoints = SEVERITY_POINTS[risk.severity_current] ?? 2;
+  const ltv = getAssumptionValue(assumptions, "ltv");
+  const exitCap = getAssumptionValue(assumptions, "exit_cap");
+  const capRateIn = getAssumptionValue(assumptions, "cap_rate_in");
+  const hasExpenseGrowth = getAssumptionValue(assumptions, "expense_growth") != null;
+  const hasDebtRate = getAssumptionValue(assumptions, "debt_rate") != null;
+
+  switch (risk.risk_type) {
+    case "DataMissing":
+      return Math.min(sevPoints * conf, 3);
+    case "ExpenseUnderstated":
+      return !hasExpenseGrowth ? Math.min(sevPoints * conf, 3) : 0;
+    case "DebtCostRisk":
+      if (hasDebtRate === false && ltv != null && ltv > 65) return Math.min(4 * conf, 4);
+      return Math.min(sevPoints * conf, 6);
+    case "ExitCapCompression":
+      if (exitCap != null && capRateIn != null && capRateIn - exitCap > 0.25) {
+        return Math.min(sevPoints * conf, 8);
+      }
+      return 0;
+    case "RentGrowthAggressive":
+    case "RefiRisk":
+    case "MarketLiquidityRisk":
+    case "InsuranceRisk":
+    case "ConstructionTimingRisk":
+    case "RegulatoryPolicyExposure":
+    case "VacancyUnderstated":
+    default:
+      return Math.min(sevPoints * conf, 6);
+  }
+}
+
+/**
+ * Describe which stabilizers applied from assumptions (for explainability).
+ */
+export function describeStabilizers(assumptions: DealScanAssumptions | undefined): string[] {
+  const out: string[] = [];
+  const ltv = getAssumptionValue(assumptions, "ltv");
+  if (ltv != null) {
+    if (ltv <= 60) out.push("Low LTV (≤60)");
+    else if (ltv <= 65) out.push("Moderate LTV (≤65)");
+  }
+  const exitCap = getAssumptionValue(assumptions, "exit_cap");
+  const capRateIn = getAssumptionValue(assumptions, "cap_rate_in");
+  if (exitCap != null && capRateIn != null && exitCap >= capRateIn) {
+    out.push("Exit cap ≥ cap rate in");
+  }
+  return out;
 }

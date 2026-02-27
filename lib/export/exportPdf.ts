@@ -7,6 +7,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import {
   oneSentence,
   diligenceAction,
+  normalizeTextForDedupe,
   type AssumptionRow,
   type RiskRow,
   type MacroSignalRow,
@@ -51,9 +52,19 @@ export type ExportPdfParams = {
   /** Deduped macro signals, max 5; empty shows fallback message */
   macroSignals: MacroSignalRow[];
   macroSectionLabel: string;
+  /** Scoring logic version (e.g. "1.2") for defensibility */
+  riskIndexVersion?: string | null;
+  /** Risk Index breakdown for PDF section */
+  riskBreakdown?: {
+    structural_weight?: number;
+    market_weight?: number;
+    confidence_factor?: number;
+    stabilizer_benefit?: number;
+    penalty_total?: number;
+  } | null;
   /** 2–4 actionable bullets */
   recommendedActions?: string[];
-  /** Abbreviated IC memo narrative (max ~1200 chars) or null */
+  /** Abbreviated IC memo narrative (max ~1200 chars) or null; deduped before render */
   icMemoHighlights?: string | null;
   /** Optional: base vs conservative key assumptions for scenario comparison */
   scenarioComparison?: {
@@ -72,6 +83,20 @@ function formatAssumption(row: AssumptionRow): string {
   const val = row.value != null ? String(row.value) : "—";
   const unit = row.unit ? ` ${row.unit}` : "";
   return `${row.key}: ${val}${unit} (${row.confidence})`;
+}
+
+function buildBreakdownLine(
+  b: { structural_weight?: number; market_weight?: number; confidence_factor?: number; stabilizer_benefit?: number; penalty_total?: number },
+  version?: string | null
+): string {
+  const parts: string[] = [];
+  if (b.structural_weight != null) parts.push(`Structural ${b.structural_weight}%`);
+  if (b.market_weight != null) parts.push(`Market ${b.market_weight}%`);
+  if (b.confidence_factor != null) parts.push(`Confidence ${b.confidence_factor}`);
+  if (b.stabilizer_benefit != null) parts.push(`Stabilizers -${b.stabilizer_benefit}`);
+  if (b.penalty_total != null) parts.push(`Penalties +${b.penalty_total}`);
+  if (version) parts.push(`Scoring v${version}`);
+  return parts.length ? parts.join(" | ") : "";
 }
 
 export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Array> {
@@ -163,9 +188,10 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     color: rgb(0, 0, 0),
   });
   y -= 16;
+  const versionSuffix = params.riskIndexVersion ? ` · Scoring v${params.riskIndexVersion}` : "";
   const scoreText =
     params.riskIndexScore != null && params.riskIndexBand
-      ? `Score: ${params.riskIndexScore} — ${params.riskIndexBand}`
+      ? `Score: ${params.riskIndexScore} — ${params.riskIndexBand}${versionSuffix}`
       : "—";
   page.drawText(scoreText, {
     x: MARGIN,
@@ -180,6 +206,11 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     // skip if no space
   }
   y -= 10;
+
+  const breakdownLine = params.riskBreakdown ? buildBreakdownLine(params.riskBreakdown, params.riskIndexVersion) : "";
+  if (breakdownLine && drawLine(breakdownLine, 8, false, rgb(0.3, 0.3, 0.3))) {
+    y -= 8;
+  }
 
   // --- Section 2: Deal Snapshot (Key Assumptions) ---
   if (params.assumptions.length > 0 && drawSectionTitle("Deal Snapshot")) {
@@ -241,10 +272,19 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     y -= 6;
   }
 
-  // --- Section 6: IC Memorandum Narrative (optional) ---
+  // --- Section 6: IC Memorandum Narrative (optional); dedupe identical lines ---
   if (params.icMemoHighlights && params.icMemoHighlights.trim().length > 0 && drawSectionTitle("IC Memo Highlights")) {
-    const lines = params.icMemoHighlights.trim().split(/\n/).slice(0, 8);
-    for (const line of lines) {
+    const rawLines = params.icMemoHighlights.trim().split(/\n/).map((l) => l.trim()).filter(Boolean);
+    const seen = new Set<string>();
+    const lines: string[] = [];
+    for (const line of rawLines) {
+      const key = normalizeTextForDedupe(line);
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        lines.push(line);
+      }
+    }
+    for (const line of lines.slice(0, 8)) {
       if (!drawLine(line.slice(0, 90), 8, false, rgb(0.3, 0.3, 0.3))) break;
     }
   }
@@ -255,6 +295,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     `ID: ${params.scanId}`,
     params.model ? `Model: ${params.model}` : null,
     params.promptVersion ? `Prompt: ${params.promptVersion}` : null,
+    params.riskIndexVersion ? `Scoring v${params.riskIndexVersion}` : null,
   ].filter(Boolean);
   page.drawText(auditParts.join(" · "), {
     x: MARGIN,

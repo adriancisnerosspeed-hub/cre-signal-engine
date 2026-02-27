@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { countUniqueMacroSignals } from "./macroSignalCount";
+import { countUniqueMacroSignals, countUniqueMacroCategories } from "./macroSignalCount";
 import { computeRiskIndex } from "./riskIndex";
 
 describe("countUniqueMacroSignals", () => {
@@ -53,5 +53,43 @@ describe("risk index macro penalty (unique signals)", () => {
     const with3 = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 3 });
     const with10 = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 10 });
     expect(with10.score).toBe(with3.score);
+  });
+});
+
+describe("countUniqueMacroCategories", () => {
+  it("two signals of same category => count = 1", () => {
+    const links = [
+      { deal_risk_id: "r1", signal_id: "s1", signal_type: "Credit" },
+      { deal_risk_id: "r2", signal_id: "s2", signal_type: "Credit" },
+    ];
+    expect(countUniqueMacroCategories(links)).toBe(1);
+  });
+
+  it("two different categories => count = 2", () => {
+    const links = [
+      { deal_risk_id: "r1", signal_id: "s1", signal_type: "Credit" },
+      { deal_risk_id: "r2", signal_id: "s2", signal_type: "Supply-Demand" },
+    ];
+    expect(countUniqueMacroCategories(links)).toBe(2);
+  });
+
+  it("same category different casing => count = 1", () => {
+    const links = [
+      { deal_risk_id: "r1", signal_id: "s1", signal_type: "credit" },
+      { deal_risk_id: "r2", signal_id: "s2", signal_type: "Credit" },
+    ];
+    expect(countUniqueMacroCategories(links)).toBe(1);
+  });
+
+  it("empty or null signal_type excluded", () => {
+    const links = [
+      { deal_risk_id: "r1", signal_id: "s1", signal_type: "" },
+      { deal_risk_id: "r2", signal_id: "s2", signal_type: null },
+    ];
+    expect(countUniqueMacroCategories(links)).toBe(0);
+  });
+
+  it("empty links => 0", () => {
+    expect(countUniqueMacroCategories([])).toBe(0);
   });
 });

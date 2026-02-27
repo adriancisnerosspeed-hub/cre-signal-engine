@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
   const { data: scan, error: scanError } = await service
     .from("deal_scans")
-    .select("id, deal_id, risk_index_score, risk_index_band, prompt_version, model, extraction, completed_at, created_at")
+    .select("id, deal_id, risk_index_score, risk_index_band, risk_index_breakdown, risk_index_version, prompt_version, model, extraction, completed_at, created_at")
     .eq("id", scanId)
     .eq("status", "completed")
     .single();
@@ -173,12 +173,16 @@ export async function POST(request: Request) {
     (scan as { created_at?: string }).created_at ||
     new Date().toISOString();
 
+  const riskBreakdown = (scan as { risk_index_breakdown?: { structural_weight?: number; market_weight?: number; confidence_factor?: number; stabilizer_benefit?: number; penalty_total?: number } | null }).risk_index_breakdown ?? null;
+
   const payload = {
     dealName: (deal as { name: string }).name,
     assetType,
     market,
     riskIndexScore: (scan as { risk_index_score?: number | null }).risk_index_score ?? null,
     riskIndexBand: (scan as { risk_index_band?: string | null }).risk_index_band ?? null,
+    riskIndexVersion: (scan as { risk_index_version?: string | null }).risk_index_version ?? null,
+    riskBreakdown,
     promptVersion: (scan as { prompt_version?: string | null }).prompt_version ?? null,
     scanTimestamp: new Date(scanTimestamp).toISOString().slice(0, 19).replace("T", " "),
     scanId,
