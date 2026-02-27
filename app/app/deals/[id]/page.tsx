@@ -216,7 +216,7 @@ export default async function DealPage({
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {scan && (
+          {scan?.status === "completed" && (
             <ExportPdfButton
               scanId={scan.id}
               scanExportEnabled={entitlements.scan_export_enabled}
