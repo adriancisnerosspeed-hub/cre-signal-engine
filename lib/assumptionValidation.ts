@@ -57,7 +57,7 @@ export function computeAssumptionCompleteness(
     if (v != null) present.push(key);
     else missing.push(key);
   }
-  const total = REQUIRED_ASSUMPTION_KEYS.length;
+  const total: number = REQUIRED_ASSUMPTION_KEYS.length;
   const pct = total === 0 ? 100 : Math.round((present.length / total) * 100);
   return { pct, missing, present };
 }
