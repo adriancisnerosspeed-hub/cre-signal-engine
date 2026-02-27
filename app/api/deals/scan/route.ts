@@ -5,6 +5,7 @@ import { getCurrentOrgId } from "@/lib/org";
 import { getPlanForUser, getEntitlementsForUser } from "@/lib/entitlements";
 import { getDealScansToday, getTotalFullScansUsed, incrementDealScanUsage, incrementTotalFullScans } from "@/lib/usage";
 import { parseAndNormalizeDealScan } from "@/lib/dealScanContract";
+import { normalizeAssumptionsForScoring } from "@/lib/assumptionNormalization";
 import { DEAL_SCAN_SYSTEM_PROMPT, DEAL_SCAN_PROMPT_VERSION } from "@/lib/prompts/dealScanPrompt";
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
@@ -172,6 +173,7 @@ export async function POST(request: Request) {
     );
   }
 
+  const assumptionsForScoring = normalizeAssumptionsForScoring(normalized.assumptions);
   const extraction = normalized as unknown as Record<string, unknown>;
   const { data: scan, error: scanError } = await service
     .from("deal_scans")
@@ -203,7 +205,7 @@ export async function POST(request: Request) {
   const { applySeverityOverride } = await import("@/lib/riskSeverityOverrides");
   const stabilizedRisks = normalized.risks.map((r) => ({
     ...r,
-    severity_current: applySeverityOverride(r.risk_type, r.severity, normalized.assumptions),
+    severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring),
   }));
 
   for (const r of stabilizedRisks) {
@@ -220,11 +222,6 @@ export async function POST(request: Request) {
       evidence_snippets: r.evidence_snippets,
     });
   }
-
-  await service
-    .from("deals")
-    .update({ latest_scan_id: scan.id, updated_at: new Date().toISOString() })
-    .eq("id", dealId);
 
   const { runOverlay } = await import("@/lib/crossReferenceOverlay");
   await runOverlay(service, scan.id, deal.created_by, {
@@ -245,19 +242,34 @@ export async function POST(request: Request) {
       .from("deal_signal_links")
       .select("deal_risk_id, signal_id")
       .in("deal_risk_id", riskIds);
-    const { countUniqueMacroSignals } = await import("@/lib/macroSignalCount");
-    macroLinkedCount = countUniqueMacroSignals(
-      (linkRows ?? []) as { deal_risk_id: string; signal_id: string }[]
-    );
+    const links = (linkRows ?? []) as { deal_risk_id: string; signal_id: string }[];
+    const signalIds = [...new Set(links.map((l) => l.signal_id))];
+    let signalsMap: Record<string, string | null> = {};
+    if (signalIds.length > 0) {
+      const { data: signalRows } = await service
+        .from("signals")
+        .select("id, signal_type")
+        .in("id", signalIds);
+      for (const s of (signalRows ?? []) as { id: string; signal_type: string | null }[]) {
+        signalsMap[String(s.id)] = s.signal_type ?? null;
+      }
+    }
+    const { countUniqueMacroCategories } = await import("@/lib/macroSignalCount");
+    const linksWithCategory = links.map((l) => ({
+      deal_risk_id: l.deal_risk_id,
+      signal_id: l.signal_id,
+      signal_type: signalsMap[String(l.signal_id)] ?? null,
+    }));
+    macroLinkedCount = countUniqueMacroCategories(linksWithCategory);
   }
-  const { computeRiskIndex } = await import("@/lib/riskIndex");
+  const { computeRiskIndex, RISK_INDEX_VERSION } = await import("@/lib/riskIndex");
   const riskIndex = computeRiskIndex({
     risks: stabilizedRisks.map((r) => ({
       severity_current: r.severity_current,
       confidence: r.confidence,
       risk_type: r.risk_type,
     })),
-    assumptions: normalized.assumptions,
+    assumptions: assumptionsForScoring,
     macroLinkedCount,
   });
 
@@ -265,14 +277,37 @@ export async function POST(request: Request) {
   const score = Math.max(0, Math.min(100, riskIndex.score));
   const band = ["Low", "Moderate", "Elevated", "High"].includes(riskIndex.band) ? riskIndex.band : "Moderate";
 
+  const completedAt = new Date().toISOString();
+
   await service
     .from("deal_scans")
     .update({
       risk_index_score: score,
       risk_index_band: band,
       risk_index_breakdown: riskIndex.breakdown,
+      risk_index_version: RISK_INDEX_VERSION,
+      macro_linked_count: macroLinkedCount,
     })
     .eq("id", scan.id);
+
+  const { data: dealRow } = await service
+    .from("deals")
+    .select("scan_count")
+    .eq("id", dealId)
+    .single();
+  const currentScanCount = (dealRow as { scan_count?: number } | null)?.scan_count ?? 0;
+
+  await service
+    .from("deals")
+    .update({
+      latest_scan_id: scan.id,
+      latest_risk_score: score,
+      latest_risk_band: band,
+      latest_scanned_at: completedAt,
+      scan_count: currentScanCount + 1,
+      updated_at: completedAt,
+    })
+    .eq("id", dealId);
 
   const assumptionKeys = Object.keys(normalized.assumptions).length;
   console.info("[deal_scan] completed", {
