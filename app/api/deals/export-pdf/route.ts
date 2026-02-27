@@ -202,8 +202,12 @@ export async function POST(request: Request) {
   try {
     pdfBytes = await buildExportPdf(payload);
   } catch (err) {
-    console.error("[export_pdf] render_failed", { scan_id: scanId, deal_id: (deal as { id: string }).id, error: String(err) });
-    return NextResponse.json({ error: "PDF generation failed" }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[export_pdf] render_failed", { scan_id: scanId, deal_id: (deal as { id: string }).id, error: message });
+    return NextResponse.json(
+      { error: "PDF generation failed", detail: message },
+      { status: 500 }
+    );
   }
 
   console.info("[export_pdf] success", {

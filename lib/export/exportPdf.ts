@@ -79,6 +79,18 @@ const MARGIN = 50;
 const FOOTER_BLOCK_HEIGHT = 72; // space for audit line + disclaimer
 const MIN_Y = MARGIN + FOOTER_BLOCK_HEIGHT;
 
+/** Ensure text is safe for pdf-lib StandardFonts (WinAnsi); replace unsupported chars to avoid 500. */
+function sanitizeForPdf(s: string | null | undefined): string {
+  if (s == null || typeof s !== "string") return "";
+  return String(s)
+    .replace(/\u2018|\u2019/g, "'")
+    .replace(/\u201C|\u201D/g, '"')
+    .replace(/\u2013|\u2014/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
+    .replace(/[^\x20-\x7E\u00A0-\u00FF]/g, "?");
+}
+
 function formatAssumption(row: AssumptionRow): string {
   const val = row.value != null ? String(row.value) : "—";
   const unit = row.unit ? ` ${row.unit}` : "";
@@ -116,7 +128,8 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     color = rgb(0, 0, 0)
   ): boolean => {
     if (y < MIN_Y) return false;
-    const lines = wrapText(text, contentWidth, size, bold ? fontBold : font);
+    const safe = sanitizeForPdf(text);
+    const lines = wrapText(safe, contentWidth, size, bold ? fontBold : font);
     for (const line of lines) {
       if (y < MIN_Y) return false;
       page.drawText(line, {
@@ -134,7 +147,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
 
   const drawSectionTitle = (title: string): boolean => {
     if (y < MIN_Y) return false;
-    page.drawText(title, {
+    page.drawText(sanitizeForPdf(title), {
       x: MARGIN,
       y,
       size: 11,
@@ -146,7 +159,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   };
 
   // --- Header: Deal Name, Asset Type, City/State; Scan timestamp, model, scan id ---
-  page.drawText(params.dealName, {
+  page.drawText(sanitizeForPdf(params.dealName), {
     x: MARGIN,
     y,
     size: 18,
@@ -156,7 +169,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   y -= 22;
   const sub = [params.assetType, params.market].filter(Boolean).join(" · ");
   if (sub) {
-    page.drawText(sub, {
+    page.drawText(sanitizeForPdf(sub), {
       x: MARGIN,
       y,
       size: 10,
@@ -170,7 +183,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     params.model ? `Model: ${params.model}` : null,
     `ID: ${params.scanId.slice(0, 8)}`,
   ].filter(Boolean).join(" · ");
-  page.drawText(auditLine, {
+  page.drawText(sanitizeForPdf(auditLine), {
     x: MARGIN,
     y,
     size: 8,
@@ -180,7 +193,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   y -= 14;
 
   // --- Section 1: CRE Signal Risk Index™ ---
-  page.drawText("CRE Signal Risk Index™", {
+  page.drawText(sanitizeForPdf("CRE Signal Risk Index™"), {
     x: MARGIN,
     y,
     size: 13,
@@ -193,7 +206,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     params.riskIndexScore != null && params.riskIndexBand
       ? `Score: ${params.riskIndexScore} — ${params.riskIndexBand}${versionSuffix}`
       : "—";
-  page.drawText(scoreText, {
+  page.drawText(sanitizeForPdf(scoreText), {
     x: MARGIN,
     y,
     size: 11,
@@ -297,7 +310,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     params.promptVersion ? `Prompt: ${params.promptVersion}` : null,
     params.riskIndexVersion ? `Scoring v${params.riskIndexVersion}` : null,
   ].filter(Boolean);
-  page.drawText(auditParts.join(" · "), {
+  page.drawText(sanitizeForPdf(auditParts.join(" · ")), {
     x: MARGIN,
     y: MARGIN + 50,
     size: 8,
@@ -305,7 +318,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     color: rgb(0.5, 0.5, 0.5),
     maxWidth: contentWidth,
   });
-  page.drawText(DISCLAIMER, {
+  page.drawText(sanitizeForPdf(DISCLAIMER), {
     x: MARGIN,
     y: MARGIN + 32,
     size: 7,

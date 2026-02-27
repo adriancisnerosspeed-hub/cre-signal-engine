@@ -34,9 +34,13 @@ export default function ExportPdfButton({
       }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const msg = typeof (data as { error?: string }).error === "string"
-          ? (data as { error: string }).error
-          : `Export failed (${res.status})`;
+        const d = data as { error?: string; detail?: string };
+        const msg =
+          typeof d.detail === "string" && d.detail
+            ? d.detail
+            : typeof d.error === "string"
+              ? d.error
+              : `Export failed (${res.status})`;
         setError(msg);
         return;
       }
