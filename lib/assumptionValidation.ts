@@ -103,3 +103,85 @@ export function hasMissingCriticalInputs(assumptions: DealScanAssumptions | unde
   const { present } = computeAssumptionCompleteness(assumptions);
   return CRITICAL_ASSUMPTION_KEYS.some((k) => !present.includes(k));
 }
+
+/** Clamp and range rules for risk index scoring (plan: institutional hardening). */
+const RISK_INDEX_CLAMPS: Record<string, [number, number]> = {
+  ltv: [0, 100],
+  vacancy: [0, 100],
+  cap_rate_in: [0, 20],
+  exit_cap: [0, 20],
+  debt_rate: [0, 20],
+  rent_growth: [-20, 20],
+  expense_growth: [-20, 20],
+};
+
+export type ValidateAndSanitizeResult = {
+  sanitizedAssumptions: DealScanAssumptions;
+  validation_errors: string[];
+  severe: boolean;
+};
+
+/**
+ * Validate and sanitize assumptions for risk index: clamp percent fields, validate purchase_price > 0,
+ * noi_year1 negative → review; hold_period_years > 0. Returns sanitized copy and errors for breakdown.
+ */
+export function validateAndSanitizeForRiskIndex(
+  assumptions: DealScanAssumptions | undefined
+): ValidateAndSanitizeResult {
+  const validation_errors: string[] = [];
+  let severe = false;
+
+  if (!assumptions || typeof assumptions !== "object") {
+    return { sanitizedAssumptions: {}, validation_errors: [], severe: false };
+  }
+
+  const sanitizedAssumptions: DealScanAssumptions = {};
+  for (const [key, cell] of Object.entries(assumptions)) {
+    if (!cell || typeof cell !== "object") continue;
+    const value = (cell as { value?: number | null }).value;
+    const unit = (cell as { unit?: string | null }).unit;
+    const confidence = (cell as { confidence?: string }).confidence ?? "Low";
+
+    if (value == null || typeof value !== "number" || Number.isNaN(value)) {
+      (sanitizedAssumptions as Record<string, unknown>)[key] = { ...cell };
+      continue;
+    }
+
+    let sanitizedValue = value;
+
+    if (key === "purchase_price") {
+      if (value <= 0) {
+        validation_errors.push("purchase_price must be > 0");
+        severe = true;
+      }
+      sanitizedValue = value <= 0 ? 1 : value;
+    }
+
+    if (key === "noi_year1" && value < 0) {
+      validation_errors.push("noi_year1 is negative; review underwriting");
+    }
+
+    if (key === "hold_period_years" && value <= 0) {
+      validation_errors.push("hold_period_years must be > 0 when present");
+      severe = true;
+      sanitizedValue = Math.max(1, value);
+    }
+
+    const range = RISK_INDEX_CLAMPS[key];
+    if (range) {
+      const [min, max] = range;
+      if (value < min || value > max) {
+        validation_errors.push(`${key} out of range [${min}, ${max}]: ${value}`);
+        sanitizedValue = Math.max(min, Math.min(max, value));
+      }
+    }
+
+    (sanitizedAssumptions as Record<string, unknown>)[key] = {
+      value: sanitizedValue,
+      unit: unit ?? null,
+      confidence,
+    };
+  }
+
+  return { sanitizedAssumptions, validation_errors, severe };
+}

@@ -5,7 +5,7 @@
 
 import type { DealScanAssumptions } from "@/lib/dealScanContract";
 
-export const MAX_SIGNALS_PER_RISK = 2;
+export const MAX_SIGNALS_PER_RISK = 3;
 export const MAX_SIGNALS_OVERALL = 5;
 
 const CONFIDENCE_ORDER: Record<string, number> = { High: 3, Medium: 2, Low: 1 };

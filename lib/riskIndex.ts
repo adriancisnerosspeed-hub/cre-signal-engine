@@ -10,6 +10,7 @@
  */
 
 import type { DealScanAssumptions } from "./dealScanContract";
+import { validateAndSanitizeForRiskIndex } from "./assumptionValidation";
 
 export type RiskIndexBand = "Low" | "Moderate" | "Elevated" | "High";
 
@@ -25,8 +26,20 @@ export type RiskIndexBreakdown = {
   contribution_pct?: { driver: string; pct: number }[];
   /** Top 3 risk drivers by absolute points. */
   top_drivers?: string[];
-  /** True when overall confidence is low (e.g. < 0.70). */
+  /** True when overall confidence is low (e.g. < 0.70) or validation/edge flags. */
   review_flag?: boolean;
+  /** Reason codes when tier floor overrides applied (e.g. FORCED_ELEVATED_DSCR). */
+  tier_drivers?: string[];
+  /** Input validation messages from validateAndSanitizeForRiskIndex. */
+  validation_errors?: string[];
+  /** Edge-case flags (e.g. EDGE_EXIT_CAP_EXTREME). */
+  edge_flags?: string[];
+  /** Set by API when deal is in top 20% by purchase_price or above threshold. */
+  exposure_bucket?: "High" | "Normal";
+  /** Set by API when Elevated/High band and High exposure (e.g. HIGH_IMPACT_RISK). */
+  alert_tags?: string[];
+  /** Set by API when returning scan: true if scan completed_at > 30 days ago. */
+  stale_scan?: boolean;
 };
 
 export type RiskIndexResult = {
@@ -110,9 +123,16 @@ function computeStabilizers(assumptions: DealScanAssumptions | undefined): numbe
   return Math.min(total, STABILIZER_CAP);
 }
 
+/** Ramp penalty for exit cap compression: linear from 0.5% to 1.5% (0–6 points). Tier override at ≥1.0% remains. */
+function rampCompressionPenalty(compressionPct: number): number {
+  if (compressionPct < 0.5) return 0;
+  if (compressionPct >= 1.5) return 6;
+  return 3 + ((compressionPct - 0.5) / 1) * 3;
+}
+
 /**
  * Exit cap compression: when exit_cap < cap_rate_in, compression = cap_rate_in - exit_cap (% points).
- * Penalty when >= 0.5%; tier override to minimum Elevated when >= 1.0%.
+ * Ramped penalty 0.5%–1.5%; tier override to minimum Elevated when >= 1.0%.
  */
 function getExitCapCompression(
   assumptions: DealScanAssumptions | undefined
@@ -127,14 +147,32 @@ function getExitCapCompression(
     return { compression: 0, penalty: 0 };
   }
   const compression = capRateIn - exitCap;
-  let penalty = 0;
-  if (compression >= 1.0) penalty = 5;
-  else if (compression >= 0.5) penalty = 3;
+  const penalty = rampCompressionPenalty(compression);
   return { compression, penalty };
 }
 
+/** Ramp DSCR penalty: linear from 1.25 (0) to 1.00 (6). Tier override at <1.10 remains. */
+function rampDscrPenalty(dscr: number): number {
+  if (dscr >= 1.25) return 0;
+  if (dscr <= 1) return 6;
+  return ((1.25 - dscr) / 0.25) * 6;
+}
+
 /**
- * LTV + vacancy interaction: add penalty when both elevated; tier overrides at higher thresholds.
+ * LTV + vacancy: scale penalty by distance into risk zone; tier overrides unchanged.
+ */
+function rampLtvVacancyPenalty(ltv: number, vacancy: number): { penalty: number; forceMinBand: RiskIndexBand | null } {
+  if (ltv >= 85 && vacancy >= 35) return { penalty: 8, forceMinBand: "High" };
+  if (ltv >= 80 && vacancy >= 30) return { penalty: 5, forceMinBand: "Elevated" };
+  if (ltv >= 75 && vacancy >= 20) {
+    const dist = Math.min(1, ((ltv - 75) / 10 + (vacancy - 20) / 15) / 2);
+    return { penalty: 2 + Math.round(dist * 2), forceMinBand: null };
+  }
+  return { penalty: 0, forceMinBand: null };
+}
+
+/**
+ * LTV + vacancy interaction: ramped penalty; tier overrides at higher thresholds.
  */
 function getLtvVacancyInteraction(
   assumptions: DealScanAssumptions | undefined
@@ -142,15 +180,11 @@ function getLtvVacancyInteraction(
   const ltv = getAssumptionValue(assumptions, "ltv");
   const vacancy = getAssumptionValue(assumptions, "vacancy");
   if (ltv == null || vacancy == null) return { penalty: 0, forceMinBand: null };
-  if (ltv >= 85 && vacancy >= 35) return { penalty: 8, forceMinBand: "High" };
-  if (ltv >= 80 && vacancy >= 30) return { penalty: 5, forceMinBand: "Elevated" };
-  if (ltv >= 75 && vacancy >= 20) return { penalty: 3, forceMinBand: null };
-  return { penalty: 0, forceMinBand: null };
+  return rampLtvVacancyPenalty(ltv, vacancy);
 }
 
 /**
- * DSCR approximation: debt_amount = LTV * purchase_price, annual_debt_service = debt_amount * debt_rate (%),
- * DSCR = NOI / annual_debt_service. If debt_rate missing, do not compute. If DSCR < 1.25 add penalty; if < 1.10 force Elevated.
+ * DSCR: ramped penalty 1.25→1.00; if DSCR < 1.10 force Elevated.
  */
 function getDscrPenalty(
   assumptions: DealScanAssumptions | undefined
@@ -172,9 +206,9 @@ function getDscrPenalty(
   const annualDebtService = debtAmount * (debtRate / 100);
   if (annualDebtService <= 0) return { penalty: 0, forceMinBand: null };
   const dscr = noi / annualDebtService;
-  if (dscr >= 1.25) return { penalty: 0, forceMinBand: null };
-  if (dscr < 1.1) return { penalty: 6, forceMinBand: "Elevated" };
-  return { penalty: 3, forceMinBand: null };
+  const penalty = rampDscrPenalty(dscr);
+  const forceMinBand: RiskIndexBand | null = dscr < 1.1 ? "Elevated" : null;
+  return { penalty, forceMinBand };
 }
 
 /**
@@ -291,7 +325,7 @@ export function computeRiskIndex(
   _promptVersion?: string | null
 ): RiskIndexResult {
   const risks = Array.isArray(params) ? params : params.risks;
-  const assumptions =
+  const rawAssumptions =
     Array.isArray(params) ? undefined : (params as ComputeRiskIndexParams).assumptions;
   const macroLinkedCount = Array.isArray(params)
     ? 0
@@ -299,6 +333,13 @@ export function computeRiskIndex(
   const macroDecayedWeight = Array.isArray(params)
     ? undefined
     : (params as ComputeRiskIndexParams).macroDecayedWeight;
+
+  const { sanitizedAssumptions, validation_errors, severe: validationSevere } =
+    validateAndSanitizeForRiskIndex(rawAssumptions);
+  const assumptions = sanitizedAssumptions;
+
+  const tier_drivers: string[] = [];
+  const edge_flags: string[] = [];
 
   const stabilizerBenefit = computeStabilizers(assumptions);
   const {
@@ -311,16 +352,13 @@ export function computeRiskIndex(
     hasStructuralHighSeverity,
   } = computePenalties(risks, assumptions);
 
-  const macroPenalty = Math.min(
-    macroDecayedWeight != null ? macroDecayedWeight : macroLinkedCount * 1,
-    MACRO_PENALTY_CAP
-  );
-
-  // Structural/market rebalance: market contribution capped at 35% of total risk contribution
+  let macroPenalty = macroDecayedWeight != null ? macroDecayedWeight : macroLinkedCount * 1;
   const totalRaw = structuralTotal + marketTotal;
   const marketCapped =
     totalRaw > 0 ? Math.min(marketTotal, 0.35 * totalRaw) : marketTotal;
   const effectivePenalty = structuralTotal + marketCapped;
+  const macroCap = Math.min(MACRO_PENALTY_CAP, 0.35 * Math.max(effectivePenalty, 1));
+  macroPenalty = Math.min(macroPenalty, macroCap);
 
   let effectivePenaltyForScore = effectivePenalty;
   if (
@@ -337,6 +375,7 @@ export function computeRiskIndex(
     rawScore > 49
   ) {
     rawScore = 49;
+    tier_drivers.push("MISSING_DATA_CAP_APPLIED");
   }
 
   const totalConfidence = risks.reduce(
@@ -345,12 +384,15 @@ export function computeRiskIndex(
   );
   const count = risks.length || 1;
   const overallConfidence = count > 0 ? totalConfidence / count : 0.5;
-  let review_flag = false;
+  let review_flag = validation_errors.length > 0;
   if (overallConfidence < 0.7) {
     review_flag = true;
     rawScore += 3;
   } else if (overallConfidence >= 0.9) {
     rawScore -= 1;
+  }
+  if (validation_errors.length > 0) {
+    rawScore += 3;
   }
 
   const { compression: exitCompression, penalty: compressionPenalty } =
@@ -365,25 +407,58 @@ export function computeRiskIndex(
     getDscrPenalty(assumptions);
   rawScore += dscrPenalty;
 
+  const ltv = getAssumptionValue(assumptions, "ltv");
+  const vacancy = getAssumptionValue(assumptions, "vacancy");
+  const exitCap = getAssumptionValue(assumptions, "exit_cap");
+  const rentGrowth = getAssumptionValue(assumptions, "rent_growth");
+
+  if (exitCap != null && (exitCap < 2 || exitCap > 15)) {
+    edge_flags.push("EDGE_EXIT_CAP_EXTREME");
+    review_flag = true;
+  }
+  if (rentGrowth != null && rentGrowth > 8 && overallConfidence < 0.9) {
+    edge_flags.push("EDGE_PRO_FORMA_AGGRESSIVE");
+    review_flag = true;
+  }
+  if (vacancy != null && vacancy > 40) {
+    edge_flags.push("EDGE_VACANCY_EXTREME");
+    rawScore += 2;
+  }
+
   const score = Math.max(0, Math.min(100, Math.round(rawScore)));
   let band = scoreToBand(score);
+
+  if (ltv != null && ltv > 90) {
+    tier_drivers.push("FORCED_HIGH_LTV_90");
+    band = "High";
+  }
   if (exitCompression >= 1.0) {
+    tier_drivers.push("FORCED_ELEVATED_EXIT_CAP_COMPRESSION");
     const order: RiskIndexBand[] = ["Low", "Moderate", "Elevated", "High"];
     const bandIdx = order.indexOf(band);
     const elevatedIdx = order.indexOf("Elevated");
     if (bandIdx < elevatedIdx) band = "Elevated";
   }
   if (ltvVacancyMinBand) {
+    tier_drivers.push(ltvVacancyMinBand === "High" ? "FORCED_HIGH_LTV_VACANCY" : "FORCED_ELEVATED_LTV_VACANCY");
     const order: RiskIndexBand[] = ["Low", "Moderate", "Elevated", "High"];
     const bandIdx = order.indexOf(band);
     const minIdx = order.indexOf(ltvVacancyMinBand);
     if (bandIdx < minIdx) band = ltvVacancyMinBand;
   }
   if (dscrMinBand) {
+    tier_drivers.push("FORCED_ELEVATED_DSCR");
     const order: RiskIndexBand[] = ["Low", "Moderate", "Elevated", "High"];
     const bandIdx = order.indexOf(band);
     const minIdx = order.indexOf(dscrMinBand);
     if (bandIdx < minIdx) band = dscrMinBand;
+  }
+  if (validationSevere) {
+    tier_drivers.push("FORCED_MODERATE_SEVERE_VALIDATION");
+    const order: RiskIndexBand[] = ["Low", "Moderate", "Elevated", "High"];
+    const bandIdx = order.indexOf(band);
+    const modIdx = order.indexOf("Moderate");
+    if (bandIdx < modIdx) band = "Moderate";
   }
 
   // Breakdown: structural/market as % of effective contribution; structural floor 10% when any risks
@@ -454,6 +529,9 @@ export function computeRiskIndex(
       contribution_pct,
       top_drivers,
       review_flag,
+      ...(tier_drivers.length > 0 && { tier_drivers }),
+      ...(validation_errors.length > 0 && { validation_errors }),
+      ...(edge_flags.length > 0 && { edge_flags }),
     },
   };
 }

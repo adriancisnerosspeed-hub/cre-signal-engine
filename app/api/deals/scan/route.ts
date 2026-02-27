@@ -288,6 +288,23 @@ export async function POST(request: Request) {
     macroDecayedWeight,
   });
 
+  const purchasePrice = assumptionsForScoring.purchase_price?.value;
+  let breakdown = riskIndex.breakdown;
+  try {
+    const { getPortfolioPurchasePriceP80 } = await import("@/lib/portfolioSummary");
+    const p80 = await getPortfolioPurchasePriceP80(service, orgId);
+    if (p80 != null && typeof purchasePrice === "number" && purchasePrice >= p80) {
+      breakdown = { ...breakdown, exposure_bucket: "High" as const };
+      if ((riskIndex.band === "Elevated" || riskIndex.band === "High") && breakdown.exposure_bucket === "High") {
+        breakdown = { ...breakdown, alert_tags: ["HIGH_IMPACT_RISK"] };
+      }
+    } else if (breakdown.exposure_bucket !== "High") {
+      breakdown = { ...breakdown, exposure_bucket: "Normal" as const };
+    }
+  } catch {
+    // optional: leave exposure_bucket unset if portfolio query fails
+  }
+
   // Enforce scan invariants: score 0–100, band in allowed set
   const score = Math.max(0, Math.min(100, riskIndex.score));
   const band = ["Low", "Moderate", "Elevated", "High"].includes(riskIndex.band) ? riskIndex.band : "Moderate";
@@ -299,7 +316,7 @@ export async function POST(request: Request) {
     .update({
       risk_index_score: score,
       risk_index_band: band,
-      risk_index_breakdown: riskIndex.breakdown,
+      risk_index_breakdown: breakdown,
       risk_index_version: RISK_INDEX_VERSION,
       macro_linked_count: macroLinkedCount,
     })

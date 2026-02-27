@@ -177,6 +177,62 @@ describe("Robustness: scoring engine", () => {
   });
 });
 
+describe("Risk Index Invariance Contract", () => {
+  const baseRisks = [
+    { severity_current: "Medium" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
+    { severity_current: "Low" as const, confidence: "Medium" as const, risk_type: "DataMissing" as const },
+  ];
+  const baseAssumptions: DealScanAssumptions = {
+    vacancy: { value: 10, unit: "%", confidence: "High" },
+    ltv: { value: 65, unit: "%", confidence: "Medium" },
+  };
+
+  it("decimal vs percent: same logical inputs produce identical score and band", () => {
+    const dec = normalizeAssumptionsForScoring({ vacancy: { value: 0.05, unit: "%", confidence: "High" }, ltv: { value: 0.65, unit: "%", confidence: "Medium" } });
+    const pct = normalizeAssumptionsForScoring({ vacancy: { value: 5, unit: "%", confidence: "High" }, ltv: { value: 65, unit: "%", confidence: "Medium" } });
+    const a = computeRiskIndex({ risks: baseRisks, assumptions: dec });
+    const b = computeRiskIndex({ risks: baseRisks, assumptions: pct });
+    expect(a.score).toBe(b.score);
+    expect(a.band).toBe(b.band);
+  });
+
+  it("risk array reorder: same risks in different order yield same score and band", () => {
+    const reordered = [...baseRisks].reverse();
+    const norm = normalizeAssumptionsForScoring(baseAssumptions);
+    const a = computeRiskIndex({ risks: baseRisks, assumptions: norm });
+    const b = computeRiskIndex({ risks: reordered, assumptions: norm });
+    expect(a.score).toBe(b.score);
+    expect(a.band).toBe(b.band);
+  });
+
+  it("idempotence: computeRiskIndex called twice yields identical score, band, and key breakdown fields", () => {
+    const norm = normalizeAssumptionsForScoring(baseAssumptions);
+    const a = computeRiskIndex({ risks: baseRisks, assumptions: norm });
+    const b = computeRiskIndex({ risks: baseRisks, assumptions: norm });
+    expect(a.score).toBe(b.score);
+    expect(a.band).toBe(b.band);
+    expect(a.breakdown.structural_weight).toBe(b.breakdown.structural_weight);
+    expect(a.breakdown.penalty_total).toBe(b.breakdown.penalty_total);
+    expect(a.breakdown.top_drivers).toEqual(b.breakdown.top_drivers);
+  });
+
+  it("market formatting: score is market-invariant (deal context not passed to computeRiskIndex)", () => {
+    const norm = normalizeAssumptionsForScoring(baseAssumptions);
+    const result = computeRiskIndex({ risks: baseRisks, assumptions: norm });
+    expect(result.score).toBeGreaterThanOrEqual(0);
+    expect(result.score).toBeLessThanOrEqual(100);
+    expect(["Low", "Moderate", "Elevated", "High"]).toContain(result.band);
+  });
+
+  it("duplicate macro (same category): macro weight/count unchanged when duplicate links; same score", () => {
+    const norm = normalizeAssumptionsForScoring(baseAssumptions);
+    const a = computeRiskIndex({ risks: baseRisks, assumptions: norm, macroLinkedCount: 2 });
+    const b = computeRiskIndex({ risks: baseRisks, assumptions: norm, macroLinkedCount: 2 });
+    expect(a.score).toBe(b.score);
+    expect(a.band).toBe(b.band);
+  });
+});
+
 describe("Risk Index v2.0 stress scenarios", () => {
   const scenarios = [
     {

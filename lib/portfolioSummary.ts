@@ -54,7 +54,7 @@ export type RecurringRisk = {
 };
 
 export type AlertItem = {
-  type: "tier_change" | "score_increase" | "stale_scan" | "missing_input" | "unscanned_count";
+  type: "tier_change" | "score_increase" | "stale_scan" | "missing_input" | "unscanned_count" | "high_impact_risk" | "version_drift";
   dealId?: string;
   dealName?: string;
   message: string;
@@ -70,6 +70,13 @@ export type WeightedMetrics = {
   pctElevatedPlusByWeight: number;
   weightedAvgScore: number;
   hasWeightData: boolean;
+};
+
+export type PortfolioConcentration = {
+  topMarketPct: number;
+  topAssetTypePct: number;
+  elevatedPlusByMarket: { market_key: string; elevatedPlusCount: number }[];
+  highImpactDeteriorations: { dealId: string; dealName: string; delta: number; latestScore: number; previousScore: number }[];
 };
 
 export type PortfolioSummary = {
@@ -90,6 +97,8 @@ export type PortfolioSummary = {
   dealBadges: Map<string, Badge[]>;
   dealExplainability: Map<string, DealExplainability>;
   weightedMetrics: WeightedMetrics;
+  versionDrift?: boolean;
+  concentration?: PortfolioConcentration;
 };
 
 const ELEVATED_PLUS_BANDS = new Set<string>(["Elevated", "High"]);
@@ -113,6 +122,39 @@ function getExposureWeight(scanExtraction: unknown): number {
   if (!assumptions?.purchase_price) return 1;
   const v = assumptions.purchase_price.value;
   return typeof v === "number" && v > 0 ? v : 1;
+}
+
+/**
+ * 80th percentile of purchase_price from latest scans in org (for exposure_bucket).
+ */
+export async function getPortfolioPurchasePriceP80(
+  service: SupabaseClient,
+  orgId: string
+): Promise<number | null> {
+  const { data: deals } = await service
+    .from("deals")
+    .select("id, latest_scan_id")
+    .eq("organization_id", orgId);
+  const scanIds = (deals ?? [])
+    .map((d: { latest_scan_id?: string | null }) => d.latest_scan_id)
+    .filter((id): id is string => !!id);
+  if (scanIds.length === 0) return null;
+  const { data: scans } = await service
+    .from("deal_scans")
+    .select("id, extraction")
+    .in("id", scanIds)
+    .eq("status", "completed");
+  const prices: number[] = [];
+  for (const s of scans ?? []) {
+    const ext = (s as { extraction?: unknown }).extraction;
+    const assumptions = parseExtractionAssumptions(ext);
+    const v = assumptions?.purchase_price?.value;
+    if (typeof v === "number" && v > 0) prices.push(v);
+  }
+  if (prices.length === 0) return null;
+  prices.sort((a, b) => a - b);
+  const idx = Math.ceil(prices.length * 0.8) - 1;
+  return prices[Math.max(0, idx)];
 }
 
 /**
@@ -172,6 +214,12 @@ export async function getPortfolioSummary(
         pctElevatedPlusByWeight: 0,
         weightedAvgScore: 0,
         hasWeightData: false,
+      },
+      concentration: {
+        topMarketPct: 0,
+        topAssetTypePct: 0,
+        elevatedPlusByMarket: [],
+        highImpactDeteriorations: [],
       },
     };
   }
@@ -381,10 +429,18 @@ export async function getPortfolioSummary(
       recurringRiskAgg[key] = agg;
     }
 
-    const riskBreakdown = latestScan.risk_index_breakdown as { structural_weight?: number; market_weight?: number } | null;
+    const riskBreakdown = latestScan.risk_index_breakdown as { structural_weight?: number; market_weight?: number; exposure_bucket?: string } | null;
     if (riskBreakdown) {
       structuralTotal += riskBreakdown.structural_weight ?? 0;
       marketTotal += riskBreakdown.market_weight ?? 0;
+      if (ELEVATED_PLUS_BANDS.has(band) && riskBreakdown.exposure_bucket === "High") {
+        alerts.push({
+          type: "high_impact_risk",
+          dealId: d.id,
+          dealName: d.name,
+          message: "High exposure and Elevated/High risk band",
+        });
+      }
     }
 
     for (const link of linkRows) {
@@ -430,6 +486,49 @@ export async function getPortfolioSummary(
     .sort((a, b) => b.dealCount - a.dealCount);
 
   const topDealsByScore = [...withScore].sort((a, b) => b.risk_index_score - a.risk_index_score).slice(0, 5);
+
+  const versions = new Set(withScore.map((d) => d.risk_index_version ?? "").filter(Boolean));
+  const versionDrift = versions.size > 1;
+  if (versionDrift) {
+    alerts.push({ type: "version_drift", message: "Mixed scoring versions in portfolio." });
+  }
+
+  const totalDeals = deals.length || 1;
+  const maxMarketTotal = Math.max(0, ...Object.values(exposureByMarket).map((x) => x.total));
+  const maxAssetTotal = Math.max(0, ...Object.values(exposureByAsset).map((x) => x.total));
+  const elevatedPlusByMarket: { market_key: string; elevatedPlusCount: number }[] = [];
+  const elevatedByMarketAgg = new Map<string, number>();
+  for (const d of withScore) {
+    if (!ELEVATED_PLUS_BANDS.has(d.risk_index_band ?? "")) continue;
+    const mk = d.market_key ?? exposureMarketKey(d);
+    elevatedByMarketAgg.set(mk, (elevatedByMarketAgg.get(mk) ?? 0) + 1);
+  }
+  for (const [market_key, elevatedPlusCount] of elevatedByMarketAgg) {
+    elevatedPlusByMarket.push({ market_key, elevatedPlusCount });
+  }
+  elevatedPlusByMarket.sort((a, b) => b.elevatedPlusCount - a.elevatedPlusCount);
+
+  let highImpactDeteriorations: PortfolioConcentration["highImpactDeteriorations"] = [];
+  try {
+    const p80 = await getPortfolioPurchasePriceP80(service, orgId);
+    if (p80 != null) {
+      for (const det of topDeteriorations) {
+        const scan = dealToLatestScan.get(det.dealId);
+        if (!scan) continue;
+        const weight = getExposureWeight(scan.extraction);
+        if (weight >= p80) highImpactDeteriorations.push(det);
+      }
+    }
+  } catch {
+    // optional
+  }
+
+  const concentration: PortfolioConcentration = {
+    topMarketPct: Math.round((maxMarketTotal / totalDeals) * 100),
+    topAssetTypePct: Math.round((maxAssetTotal / totalDeals) * 100),
+    elevatedPlusByMarket,
+    highImpactDeteriorations,
+  };
 
   let needsReviewCount = 0;
   let staleCount = 0;
@@ -505,5 +604,7 @@ export async function getPortfolioSummary(
     dealBadges,
     dealExplainability,
     weightedMetrics,
+    ...(versionDrift && { versionDrift: true }),
+    concentration,
   };
 }

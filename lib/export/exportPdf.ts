@@ -63,7 +63,15 @@ export type ExportPdfParams = {
     penalty_total?: number;
     contributions?: { driver: string; points: number }[];
     top_drivers?: string[];
+    tier_drivers?: string[];
+    validation_errors?: string[];
+    edge_flags?: string[];
+    exposure_bucket?: string;
+    review_flag?: boolean;
+    stale_scan?: boolean;
   } | null;
+  /** When macro signals are truncated, show "+N more" (optional). */
+  macroSignalsMoreCount?: number;
   /** 2–4 actionable bullets */
   recommendedActions?: string[];
   /** Abbreviated IC memo narrative (max ~1200 chars) or null; deduped before render */
@@ -170,6 +178,7 @@ function normalizeParams(params: ExportPdfParams): ExportPdfParams {
     macroSectionLabel: str(params?.macroSectionLabel) || "Market Signals",
     riskIndexVersion: params?.riskIndexVersion,
     riskBreakdown: params?.riskBreakdown ?? null,
+    macroSignalsMoreCount: typeof params?.macroSignalsMoreCount === "number" ? params.macroSignalsMoreCount : undefined,
     recommendedActions: Array.isArray(params?.recommendedActions) ? params.recommendedActions.filter((b): b is string => typeof b === "string") : [],
     icMemoHighlights: params?.icMemoHighlights != null && typeof params.icMemoHighlights === "string" ? params.icMemoHighlights : null,
     scenarioComparison: params?.scenarioComparison ?? null,
@@ -299,6 +308,9 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   if (p.riskBreakdown?.top_drivers?.length && drawLine(`Top 3 Risk Drivers: ${p.riskBreakdown.top_drivers.join(", ")}`, 7, false, rgb(0.35, 0.35, 0.35))) {
     y -= 6;
   }
+  if (p.riskBreakdown?.tier_drivers?.length && drawLine(`Tier Drivers: [${p.riskBreakdown.tier_drivers.join(", ")}]`, 7, false, rgb(0.35, 0.35, 0.35))) {
+    y -= 6;
+  }
 
   // --- Section 2: Deal Snapshot (Key Assumptions) ---
   if (p.assumptions.length > 0 && drawSectionTitle("Deal Snapshot")) {
@@ -323,11 +335,14 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     y -= 8;
   }
 
-  // --- Section 4: Linked Macro Signals (deduped; fallback if none) ---
+  // --- Section 4: Linked Macro Signals (deduped; max 3 per risk; "+N more" when truncated) ---
   if (drawSectionTitle(p.macroSectionLabel)) {
     if (p.macroSignals.length > 0) {
       for (const m of p.macroSignals) {
         if (!drawLine(m.display_text, 8, false, rgb(0.3, 0.3, 0.3))) break;
+      }
+      if (typeof p.macroSignalsMoreCount === "number" && p.macroSignalsMoreCount > 0) {
+        drawLine(`+${p.macroSignalsMoreCount} more signals`, 7, false, rgb(0.4, 0.4, 0.4));
       }
     } else {
       drawLine(NO_MACRO_SIGNALS_MESSAGE, 8, false, rgb(0.4, 0.4, 0.4));

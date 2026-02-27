@@ -3,6 +3,7 @@ import {
   computeAssumptionCompleteness,
   validateAssumptionRanges,
   hasMissingCriticalInputs,
+  validateAndSanitizeForRiskIndex,
   REQUIRED_ASSUMPTION_KEYS,
 } from "./assumptionValidation";
 import type { DealScanAssumptions } from "./dealScanContract";
@@ -99,5 +100,39 @@ describe("hasMissingCriticalInputs", () => {
       debt_rate: cell(5),
     };
     expect(hasMissingCriticalInputs(assumptions)).toBe(false);
+  });
+});
+
+describe("validateAndSanitizeForRiskIndex", () => {
+  it("returns sanitized copy and no errors for valid assumptions", () => {
+    const assumptions: DealScanAssumptions = {
+      ltv: cell(70),
+      vacancy: cell(10),
+      purchase_price: cell(1e6),
+    };
+    const { sanitizedAssumptions, validation_errors, severe } = validateAndSanitizeForRiskIndex(assumptions);
+    expect(validation_errors).toHaveLength(0);
+    expect(severe).toBe(false);
+    expect(sanitizedAssumptions.ltv?.value).toBe(70);
+  });
+
+  it("sets severe and error when purchase_price <= 0", () => {
+    const assumptions: DealScanAssumptions = { purchase_price: cell(0) };
+    const { validation_errors, severe } = validateAndSanitizeForRiskIndex(assumptions);
+    expect(validation_errors.some((e) => e.includes("purchase_price"))).toBe(true);
+    expect(severe).toBe(true);
+  });
+
+  it("clamps out-of-range percent fields and adds error", () => {
+    const assumptions: DealScanAssumptions = { ltv: cell(150), vacancy: cell(5) };
+    const { sanitizedAssumptions, validation_errors } = validateAndSanitizeForRiskIndex(assumptions);
+    expect(sanitizedAssumptions.ltv?.value).toBe(100);
+    expect(validation_errors.some((e) => e.includes("ltv"))).toBe(true);
+  });
+
+  it("adds error for negative noi_year1", () => {
+    const assumptions: DealScanAssumptions = { noi_year1: cell(-100) };
+    const { validation_errors } = validateAndSanitizeForRiskIndex(assumptions);
+    expect(validation_errors.some((e) => e.includes("noi_year1"))).toBe(true);
   });
 });

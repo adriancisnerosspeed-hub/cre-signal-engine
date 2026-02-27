@@ -193,7 +193,14 @@ export async function POST(request: Request) {
         })()
       : new Date().toISOString().slice(0, 19).replace("T", " ");
 
-  const riskBreakdown = (scan as { risk_index_breakdown?: { structural_weight?: number; market_weight?: number; confidence_factor?: number; stabilizer_benefit?: number; penalty_total?: number } | null }).risk_index_breakdown ?? null;
+  const STALE_DAYS = 30;
+  const completedAtIso = (scan as { completed_at?: string | null }).completed_at;
+  const completedAtMs = completedAtIso ? new Date(completedAtIso).getTime() : 0;
+  const staleScan = completedAtMs > 0 && Date.now() - completedAtMs > STALE_DAYS * 24 * 60 * 60 * 1000;
+  const rawBreakdown = (scan as { risk_index_breakdown?: Record<string, unknown> | null }).risk_index_breakdown ?? null;
+  const riskBreakdown = rawBreakdown
+    ? { ...rawBreakdown, stale_scan: staleScan }
+    : null;
 
   const dealName =
     (deal as { name?: unknown }).name != null && typeof (deal as { name: string }).name === "string"

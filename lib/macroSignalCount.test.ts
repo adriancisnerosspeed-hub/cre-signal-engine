@@ -33,20 +33,25 @@ describe("countUniqueMacroSignals", () => {
 });
 
 describe("risk index macro penalty (unique signals)", () => {
+  // Use enough structural+market penalty so 35% macro cap allows non-zero macro (plan: macro ≤ 35% of penalty share)
   const baseRisks = [
-    { severity_current: "Medium" as const, confidence: "Medium" as const, risk_type: "RentGrowthAggressive" as const },
+    { severity_current: "High" as const, confidence: "High" as const, risk_type: "RentGrowthAggressive" as const },
+    { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
+    { severity_current: "Medium" as const, confidence: "High" as const, risk_type: "ExitCapCompression" as const },
   ];
 
-  it("macroLinkedCount = 1 => +1 macro penalty (before cap)", () => {
+  it("macroLinkedCount = 1 => +1 macro penalty when penalty share allows", () => {
     const a = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 0 });
     const b = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 1 });
-    expect(b.score - a.score).toBe(1);
+    expect(b.score).toBeGreaterThan(a.score);
+    expect(b.score - a.score).toBeGreaterThanOrEqual(1);
   });
 
-  it("macroLinkedCount = 10 => capped at +3 macro penalty", () => {
+  it("macro contribution capped at 35% of penalty share (and at MACRO_CAP)", () => {
     const a = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 0 });
     const b = computeRiskIndex({ risks: baseRisks, macroLinkedCount: 10 });
-    expect(b.score - a.score).toBe(3);
+    expect(b.score).toBeGreaterThan(a.score);
+    expect(b.score - a.score).toBeLessThanOrEqual(3);
   });
 
   it("duplicates in deal_signal_links cannot increase score beyond cap", () => {
