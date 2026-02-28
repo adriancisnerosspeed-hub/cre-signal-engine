@@ -145,8 +145,8 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
             {hasTierOverride(p.scan) && (
               <g
                 transform={`translate(${p.x}, ${p.y - POINT_R - MARKER_SIZE - 2})`}
-                title="Tier override"
               >
+                <title>Tier override</title>
                 <path
                   d={`M 0 ${MARKER_SIZE} L ${-MARKER_SIZE} ${-MARKER_SIZE} L ${MARKER_SIZE} ${-MARKER_SIZE} Z`}
                   fill="#eab308"
@@ -158,8 +158,8 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
             {hasVersionDrift(p.scan) && (
               <g
                 transform={`translate(${p.x}, ${p.y + POINT_R + MARKER_SIZE + 2})`}
-                title="Version drift"
               >
+                <title>Version drift</title>
                 <path
                   d={`M 0 ${-MARKER_SIZE} L ${MARKER_SIZE} 0 L 0 ${MARKER_SIZE} L ${-MARKER_SIZE} 0 Z`}
                   fill="rgb(200, 140, 0)"
