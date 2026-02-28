@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveLatestScanId } from "./portfolioSummary";
+import { resolveLatestScanId, computePRPI, computeVersionDrift } from "./portfolioSummary";
 import { PORTFOLIO_STALE_DAYS } from "./constants";
 
 type ScanRow = {
@@ -55,5 +55,180 @@ describe("resolveLatestScanId (latest-scan invariant)", () => {
 describe("PORTFOLIO_STALE_DAYS constant", () => {
   it("is 30 for stale badge and alerts", () => {
     expect(PORTFOLIO_STALE_DAYS).toBe(30);
+  });
+});
+
+describe("computePRPI", () => {
+  it("returns score 0 and band Low when all inputs are zero", () => {
+    const result = computePRPI({
+      weightedAvgScore: 0,
+      totalWeight: 0,
+      highOnlyWeight: 0,
+      elevatedPlusWeight: 0,
+      deterioratingWeight: 0,
+      topMarketPct: 0,
+      topAssetPct: 0,
+    });
+    expect(result.prpi_score).toBe(0);
+    expect(result.prpi_band).toBe("Low");
+    expect(result.components.pct_exposure_high).toBe(0);
+    expect(result.components.pct_exposure_elevated_plus).toBe(0);
+    expect(result.components.pct_exposure_deteriorating).toBe(0);
+  });
+
+  it("avoids division by zero when totalWeight is 0", () => {
+    const result = computePRPI({
+      weightedAvgScore: 50,
+      totalWeight: 0,
+      highOnlyWeight: 0,
+      elevatedPlusWeight: 0,
+      deterioratingWeight: 0,
+      topMarketPct: 80,
+      topAssetPct: 60,
+    });
+    expect(result.prpi_score).toBeGreaterThanOrEqual(0);
+    expect(result.prpi_score).toBeLessThanOrEqual(100);
+    expect(result.components.pct_exposure_high).toBe(0);
+    expect(result.components.pct_exposure_elevated_plus).toBe(0);
+    expect(result.components.pct_exposure_deteriorating).toBe(0);
+  });
+
+  it("computes bands correctly: 0-30 Low, 31-50 Moderate, 51-70 Elevated, 71+ High", () => {
+    const low = computePRPI({
+      weightedAvgScore: 20,
+      totalWeight: 100,
+      highOnlyWeight: 0,
+      elevatedPlusWeight: 0,
+      deterioratingWeight: 0,
+      topMarketPct: 25,
+      topAssetPct: 25,
+    });
+    expect(low.prpi_band).toBe("Low");
+
+    const moderate = computePRPI({
+      weightedAvgScore: 40,
+      totalWeight: 100,
+      highOnlyWeight: 40,
+      elevatedPlusWeight: 40,
+      deterioratingWeight: 0,
+      topMarketPct: 50,
+      topAssetPct: 50,
+    });
+    expect(moderate.prpi_band).toBe("Moderate");
+
+    const elevated = computePRPI({
+      weightedAvgScore: 60,
+      totalWeight: 100,
+      highOnlyWeight: 50,
+      elevatedPlusWeight: 60,
+      deterioratingWeight: 20,
+      topMarketPct: 60,
+      topAssetPct: 60,
+    });
+    expect(elevated.prpi_band).toBe("Elevated");
+
+    const high = computePRPI({
+      weightedAvgScore: 80,
+      totalWeight: 100,
+      highOnlyWeight: 100,
+      elevatedPlusWeight: 100,
+      deterioratingWeight: 50,
+      topMarketPct: 90,
+      topAssetPct: 90,
+    });
+    expect(high.prpi_band).toBe("High");
+  });
+
+  it("is deterministic: same inputs yield same score and band", () => {
+    const params = {
+      weightedAvgScore: 55,
+      totalWeight: 1000,
+      highOnlyWeight: 200,
+      elevatedPlusWeight: 350,
+      deterioratingWeight: 80,
+      topMarketPct: 45,
+      topAssetPct: 38,
+    };
+    const a = computePRPI(params);
+    const b = computePRPI(params);
+    expect(a.prpi_score).toBe(b.prpi_score);
+    expect(a.prpi_band).toBe(b.prpi_band);
+    expect(a.components.pct_exposure_high).toBe(b.components.pct_exposure_high);
+    expect(a.components.pct_exposure_deteriorating).toBe(b.components.pct_exposure_deteriorating);
+  });
+
+  it("exposes component breakdown with correct pct_exposure_high and pct_exposure_deteriorating", () => {
+    const result = computePRPI({
+      weightedAvgScore: 50,
+      totalWeight: 100,
+      highOnlyWeight: 25,
+      elevatedPlusWeight: 40,
+      deterioratingWeight: 10,
+      topMarketPct: 30,
+      topAssetPct: 20,
+    });
+    expect(result.components.weighted_average_score).toBe(50);
+    expect(result.components.pct_exposure_high).toBe(25);
+    expect(result.components.pct_exposure_elevated_plus).toBe(40);
+    expect(result.components.pct_exposure_deteriorating).toBe(10);
+    expect(result.components.top_market_concentration_pct).toBe(30);
+    expect(result.components.top_asset_concentration_pct).toBe(20);
+  });
+});
+
+describe("computeVersionDrift", () => {
+  it("returns no drift when all versions are null or empty", () => {
+    const deals = [
+      { id: "d1", risk_index_version: null as string | null },
+      { id: "d2", risk_index_version: "" },
+      { id: "d3", risk_index_version: "  " },
+    ];
+    const { versionDrift, versionDriftDealIds } = computeVersionDrift(deals);
+    expect(versionDrift).toBe(false);
+    expect(versionDriftDealIds).toEqual([]);
+  });
+
+  it("returns no drift when only one distinct non-empty version (mixed with nulls)", () => {
+    const deals = [
+      { id: "d1", risk_index_version: "2.0" },
+      { id: "d2", risk_index_version: null as string | null },
+      { id: "d3", risk_index_version: "2.0" },
+    ];
+    const { versionDrift, versionDriftDealIds } = computeVersionDrift(deals);
+    expect(versionDrift).toBe(false);
+    expect(versionDriftDealIds).toEqual([]);
+  });
+
+  it("flags drift when two distinct non-empty versions exist", () => {
+    const deals = [
+      { id: "d1", risk_index_version: "2.0" },
+      { id: "d2", risk_index_version: "1.0" },
+      { id: "d3", risk_index_version: "2.0" },
+    ];
+    const { versionDrift, versionDriftDealIds } = computeVersionDrift(deals);
+    expect(versionDrift).toBe(true);
+    expect(versionDriftDealIds).toContain("d2");
+    expect(versionDriftDealIds).not.toContain("d1");
+    expect(versionDriftDealIds).not.toContain("d3");
+  });
+
+  it("does not flag deals with null/empty version as drift (only non-majority non-empty)", () => {
+    const deals = [
+      { id: "d1", risk_index_version: "2.0" },
+      { id: "d2", risk_index_version: "1.0" },
+      { id: "d3", risk_index_version: null as string | null },
+      { id: "d4", risk_index_version: "" },
+    ];
+    const { versionDrift, versionDriftDealIds } = computeVersionDrift(deals);
+    expect(versionDrift).toBe(true);
+    expect(versionDriftDealIds).toContain("d2");
+    expect(versionDriftDealIds).not.toContain("d3");
+    expect(versionDriftDealIds).not.toContain("d4");
+  });
+
+  it("returns no drift for empty array", () => {
+    const { versionDrift, versionDriftDealIds } = computeVersionDrift([]);
+    expect(versionDrift).toBe(false);
+    expect(versionDriftDealIds).toEqual([]);
   });
 });

@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/service";
-import { getPlanForUser } from "@/lib/entitlements";
+import { getEntitlementsForUser } from "@/lib/entitlements";
 import { RISK_INDEX_VERSION } from "@/lib/riskIndex";
 import { buildMethodologyPdf } from "@/lib/methodology/buildMethodologyPdf";
 import { NextResponse } from "next/server";
@@ -18,10 +17,8 @@ export async function GET() {
       return NextResponse.json({ code: "UNAUTHENTICATED" }, { status: 401 });
     }
 
-    const service = createServiceRoleClient();
-    const plan = await getPlanForUser(service, user.id);
-
-    if (plan === "free") {
+    const entitlements = await getEntitlementsForUser(supabase, user.id);
+    if (!entitlements.scan_export_enabled) {
       return NextResponse.json(
         { code: "PRO_REQUIRED_FOR_EXPORT" },
         { status: 403 }

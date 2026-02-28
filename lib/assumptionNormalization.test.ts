@@ -130,4 +130,12 @@ describe("normalizeAssumptionsForScoringWithFlags", () => {
     });
     expect(u2).toBe(false);
   });
+
+  it("unit missing and value 0.38 for vacancy: normalizes to 38 and sets unitInferred true (for EDGE_UNIT_INFERRED + review_flag)", () => {
+    const { assumptions, unitInferred } = normalizeAssumptionsForScoringWithFlags({
+      vacancy: { value: 0.38, unit: null, confidence: "High" },
+    });
+    expect(assumptions.vacancy?.value).toBe(38);
+    expect(unitInferred).toBe(true);
+  });
 });

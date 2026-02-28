@@ -8,6 +8,9 @@ import { PORTFOLIO_STALE_DAYS } from "./constants";
 import { exposureMarketKey, exposureMarketLabel } from "./normalizeMarket";
 import { computeRiskPenaltyContribution, describeStabilizers } from "./riskIndex";
 import type { DealScanAssumptions } from "./dealScanContract";
+import { computeBacktestMetrics, type BacktestMetrics } from "./backtestEngine";
+
+export type IcStatusValue = "PRE_IC" | "APPROVED" | "APPROVED_WITH_CONDITIONS" | "REJECTED";
 
 export type DealRow = {
   id: string;
@@ -21,7 +24,14 @@ export type DealRow = {
   latest_risk_band: string | null;
   latest_scanned_at: string | null;
   scan_count: number;
+  ic_status: IcStatusValue | null;
   created_at: string;
+};
+
+export type IcPerformanceSummary = {
+  pctHighDealsApproved: number;
+  pctElevatedDealsRejected: number;
+  approvalRateByBand: Record<string, { decided: number; approved: number; ratePct: number }>;
 };
 
 export type ScanRow = {
@@ -79,6 +89,35 @@ export type PortfolioConcentration = {
   highImpactDeteriorations: { dealId: string; dealName: string; delta: number; latestScore: number; previousScore: number }[];
 };
 
+export type PRPIComponents = {
+  weighted_average_score: number;
+  pct_exposure_high: number;
+  pct_exposure_elevated_plus: number;
+  pct_exposure_deteriorating: number;
+  top_market_concentration_pct: number;
+  top_asset_concentration_pct: number;
+};
+
+export type PRPIBand = "Low" | "Moderate" | "Elevated" | "High";
+
+export type PRPIResult = {
+  prpi_score: number;
+  prpi_band: PRPIBand;
+  components: PRPIComponents;
+};
+
+export type RiskMovement = {
+  deteriorated: number;
+  crossed_tiers: number;
+  version_drift: number;
+  total_affected: number;
+  deal_ids?: {
+    deteriorated: string[];
+    crossed_tiers: string[];
+    version_drift: string[];
+  };
+};
+
 export type PortfolioSummary = {
   deals: DealRow[];
   counts: { total: number; scanned: number; unscanned: number; stale: number; needsReview: number };
@@ -99,6 +138,11 @@ export type PortfolioSummary = {
   weightedMetrics: WeightedMetrics;
   versionDrift?: boolean;
   concentration?: PortfolioConcentration;
+  prpi?: PRPIResult;
+  risk_movement?: RiskMovement;
+  backtest_summary?: BacktestMetrics;
+  ic_performance_summary?: IcPerformanceSummary;
+  highImpactDealIds?: string[];
 };
 
 const ELEVATED_PLUS_BANDS = new Set<string>(["Elevated", "High"]);
@@ -108,6 +152,103 @@ function bandWorsened(fromBand: string, toBand: string): boolean {
   const from = BAND_ORDER[fromBand] ?? -1;
   const to = BAND_ORDER[toBand] ?? -1;
   return to > from;
+}
+
+const PRPI_BAND_THRESHOLDS: { max: number; band: PRPIBand }[] = [
+  { max: 30, band: "Low" },
+  { max: 50, band: "Moderate" },
+  { max: 70, band: "Elevated" },
+  { max: 100, band: "High" },
+];
+
+function getPRPIBand(score: number): PRPIBand {
+  const clamped = Math.max(0, Math.min(100, Math.round(score)));
+  for (const { max, band } of PRPI_BAND_THRESHOLDS) {
+    if (clamped <= max) return band;
+  }
+  return "High";
+}
+
+export function computePRPI(params: {
+  weightedAvgScore: number;
+  totalWeight: number;
+  highOnlyWeight: number;
+  elevatedPlusWeight: number;
+  deterioratingWeight: number;
+  topMarketPct: number;
+  topAssetPct: number;
+}): PRPIResult {
+  const {
+    weightedAvgScore,
+    totalWeight,
+    highOnlyWeight,
+    elevatedPlusWeight,
+    deterioratingWeight,
+    topMarketPct,
+    topAssetPct,
+  } = params;
+
+  const pct_exposure_high = totalWeight > 0 ? (highOnlyWeight / totalWeight) * 100 : 0;
+  const pct_exposure_elevated_plus = totalWeight > 0 ? (elevatedPlusWeight / totalWeight) * 100 : 0;
+  const pct_exposure_deteriorating = totalWeight > 0 ? (deterioratingWeight / totalWeight) * 100 : 0;
+
+  const normWeighted = Math.min(1, Math.max(0, weightedAvgScore / 100));
+  const normHigh = Math.min(1, pct_exposure_high / 100);
+  const normDeteriorating = Math.min(1, pct_exposure_deteriorating / 100);
+  const normMarket = Math.min(1, topMarketPct / 100);
+  const normAsset = Math.min(1, topAssetPct / 100);
+
+  const raw =
+    0.3 * normWeighted +
+    0.25 * normHigh +
+    0.15 * normDeteriorating +
+    0.15 * normMarket +
+    0.15 * normAsset;
+  const prpi_score = Math.max(0, Math.min(100, Math.round(raw * 100)));
+
+  return {
+    prpi_score,
+    prpi_band: getPRPIBand(prpi_score),
+    components: {
+      weighted_average_score: weightedAvgScore,
+      pct_exposure_high,
+      pct_exposure_elevated_plus,
+      pct_exposure_deteriorating,
+      top_market_concentration_pct: topMarketPct,
+      top_asset_concentration_pct: topAssetPct,
+    },
+  };
+}
+
+/**
+ * Version drift: treat null/empty as unknown; majority among non-empty only.
+ * Only flag drift when there are at least two distinct non-empty versions.
+ * Deals with null/empty version are not counted as "in drift".
+ */
+export function computeVersionDrift(dealsWithVersion: { id: string; risk_index_version: string | null }[]): {
+  versionDrift: boolean;
+  versionDriftDealIds: string[];
+} {
+  const nonEmptyVersions = new Set(
+    dealsWithVersion.map((d) => (d.risk_index_version ?? "").trim()).filter((v) => v !== "")
+  );
+  const versionDrift = nonEmptyVersions.size >= 2;
+  if (!versionDrift || dealsWithVersion.length === 0) {
+    return { versionDrift: false, versionDriftDealIds: [] };
+  }
+  const versionCounts: Record<string, number> = {};
+  for (const d of dealsWithVersion) {
+    const v = (d.risk_index_version ?? "").trim();
+    if (v === "") continue;
+    versionCounts[v] = (versionCounts[v] ?? 0) + 1;
+  }
+  const majorityVersion = Object.entries(versionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+  const versionDriftDealIds: string[] = [];
+  for (const d of dealsWithVersion) {
+    const v = (d.risk_index_version ?? "").trim();
+    if (v !== "" && v !== majorityVersion) versionDriftDealIds.push(d.id);
+  }
+  return { versionDrift: true, versionDriftDealIds };
 }
 
 function parseExtractionAssumptions(extraction: unknown): DealScanAssumptions | undefined {
@@ -188,7 +329,7 @@ export async function getPortfolioSummary(
   const { data: dealsList } = await service
     .from("deals")
     .select(
-      "id, name, asset_type, market, market_key, market_label, latest_scan_id, latest_risk_score, latest_risk_band, latest_scanned_at, scan_count, created_at"
+      "id, name, asset_type, market, market_key, market_label, latest_scan_id, latest_risk_score, latest_risk_band, latest_scanned_at, scan_count, ic_status, created_at"
     )
     .eq("organization_id", orgId);
 
@@ -221,10 +362,45 @@ export async function getPortfolioSummary(
         elevatedPlusByMarket: [],
         highImpactDeteriorations: [],
       },
+      prpi: {
+        prpi_score: 0,
+        prpi_band: "Low",
+        components: {
+          weighted_average_score: 0,
+          pct_exposure_high: 0,
+          pct_exposure_elevated_plus: 0,
+          pct_exposure_deteriorating: 0,
+          top_market_concentration_pct: 0,
+          top_asset_concentration_pct: 0,
+        },
+      },
+      ic_performance_summary: {
+        pctHighDealsApproved: 0,
+        pctElevatedDealsRejected: 0,
+        approvalRateByBand: {},
+      },
+      risk_movement: {
+        deteriorated: 0,
+        crossed_tiers: 0,
+        version_drift: 0,
+        total_affected: 0,
+        deal_ids: { deteriorated: [], crossed_tiers: [], version_drift: [] },
+      },
+      highImpactDealIds: [],
     };
   }
 
   const dealIds = deals.map((d) => d.id);
+
+  // Backtest: scans with actual outcomes (for calibration metrics when sample >= 20)
+  const { data: backtestRows } = await service
+    .from("deal_scans")
+    .select("deal_id, risk_index_score, risk_index_band, actual_outcome_type, actual_outcome_value")
+    .in("deal_id", dealIds)
+    .not("actual_outcome_type", "is", null)
+    .eq("status", "completed");
+  const backtestScans = (backtestRows ?? []) as { risk_index_score: number | null; risk_index_band: string | null; actual_outcome_type: string | null; actual_outcome_value: number | null }[];
+  const backtestResult = computeBacktestMetrics(backtestScans);
 
   // 2. All scans for these deals (for fallback + previous scan)
   const { data: allScans } = await service
@@ -323,12 +499,15 @@ export async function getPortfolioSummary(
   const macroCategoryDealIds = new Map<string, Set<string>>();
   const deteriorations: PortfolioSummary["trendSummary"]["deteriorations"] = [];
   const bandTransitions: PortfolioSummary["trendSummary"]["bandTransitions"] = [];
+  const deterioratedDealIds = new Set<string>();
+  const highImpactDealIds = new Set<string>();
   const alerts: AlertItem[] = [];
   const withScore: DealWithScore[] = [];
   let sumWeight = 0;
   let sumScoreWeight = 0;
   let elevatedPlusCount = 0;
   let elevatedPlusWeight = 0;
+  let highOnlyWeight = 0;
   let hasWeightData = false;
 
   for (const d of deals) {
@@ -357,6 +536,9 @@ export async function getPortfolioSummary(
       if (ELEVATED_PLUS_BANDS.has(band)) {
         elevatedPlusCount += 1;
         elevatedPlusWeight += weight;
+      }
+      if (band === "High") {
+        highOnlyWeight += weight;
       }
       withScore.push({
         ...d,
@@ -388,14 +570,16 @@ export async function getPortfolioSummary(
         if (delta >= 8) {
           badges.push("needs_review");
           const breakdown = latestScan.risk_index_breakdown as { delta_comparable?: boolean } | null;
+          const deltaComparable = breakdown?.delta_comparable === true;
           deteriorations.push({
             dealId: d.id,
             dealName: d.name,
             delta,
             latestScore: score,
             previousScore: prevScore,
-            deltaComparable: breakdown?.delta_comparable ?? true,
+            deltaComparable,
           });
+          if (deltaComparable) deterioratedDealIds.add(d.id);
         }
       }
     }
@@ -431,7 +615,12 @@ export async function getPortfolioSummary(
       recurringRiskAgg[key] = agg;
     }
 
-    const riskBreakdown = latestScan.risk_index_breakdown as { structural_weight?: number; market_weight?: number; exposure_bucket?: string } | null;
+    const riskBreakdown = latestScan.risk_index_breakdown as {
+      structural_weight?: number;
+      market_weight?: number;
+      exposure_bucket?: string;
+      alert_tags?: string[];
+    } | null;
     if (riskBreakdown) {
       structuralTotal += riskBreakdown.structural_weight ?? 0;
       marketTotal += riskBreakdown.market_weight ?? 0;
@@ -442,6 +631,9 @@ export async function getPortfolioSummary(
           dealName: d.name,
           message: "High exposure and Elevated/High risk band",
         });
+      }
+      if (riskBreakdown.alert_tags?.includes("HIGH_IMPACT_RISK")) {
+        highImpactDealIds.add(d.id);
       }
     }
 
@@ -460,6 +652,14 @@ export async function getPortfolioSummary(
 
   deteriorations.sort((a, b) => b.delta - a.delta);
   const topDeteriorations = deteriorations.slice(0, 5);
+
+  let deterioratingWeight = 0;
+  for (const det of deteriorations) {
+    if (det.deltaComparable !== true) continue;
+    const scan = dealToLatestScan.get(det.dealId);
+    if (!scan) continue;
+    deterioratingWeight += getExposureWeight(scan.extraction);
+  }
 
   const recurringRisks: RecurringRisk[] = Object.entries(recurringRiskAgg).map(([risk_type, { count, totalPenalty }]) => ({
     risk_type,
@@ -489,11 +689,25 @@ export async function getPortfolioSummary(
 
   const topDealsByScore = [...withScore].sort((a, b) => b.risk_index_score - a.risk_index_score).slice(0, 5);
 
-  const versions = new Set(withScore.map((d) => d.risk_index_version ?? "").filter(Boolean));
-  const versionDrift = versions.size > 1;
+  const { versionDrift, versionDriftDealIds: versionDriftDealIdsList } = computeVersionDrift(withScore);
   if (versionDrift) {
     alerts.push({ type: "version_drift", message: "Mixed scoring versions in portfolio." });
   }
+  const versionDriftDealIds = new Set(versionDriftDealIdsList);
+
+  const crossedTierDealIds = new Set(bandTransitions.map((t) => t.dealId));
+  const totalAffected = new Set([...deterioratedDealIds, ...crossedTierDealIds, ...versionDriftDealIds]).size;
+  const risk_movement: RiskMovement = {
+    deteriorated: deterioratedDealIds.size,
+    crossed_tiers: crossedTierDealIds.size,
+    version_drift: versionDriftDealIds.size,
+    total_affected: totalAffected,
+    deal_ids: {
+      deteriorated: [...deterioratedDealIds],
+      crossed_tiers: [...crossedTierDealIds],
+      version_drift: [...versionDriftDealIds],
+    },
+  };
 
   const totalDeals = deals.length || 1;
   const maxMarketTotal = Math.max(0, ...Object.values(exposureByMarket).map((x) => x.total));
@@ -532,13 +746,61 @@ export async function getPortfolioSummary(
     highImpactDeteriorations,
   };
 
+  const prpi = computePRPI({
+    weightedAvgScore: weightedMetrics.weightedAvgScore,
+    totalWeight: sumWeight,
+    highOnlyWeight,
+    elevatedPlusWeight,
+    deterioratingWeight,
+    topMarketPct: concentration.topMarketPct,
+    topAssetPct: concentration.topAssetTypePct,
+  });
+
   let needsReviewCount = 0;
   let staleCount = 0;
   dealBadges.forEach((b) => {
     if (b.includes("needs_review")) needsReviewCount += 1;
     if (b.includes("stale")) staleCount += 1;
   });
-  const unscannedCount = deals.filter((d) => !dealToLatestScan.has(d.id)).length;
+  const   unscannedCount = deals.filter((d) => !dealToLatestScan.has(d.id)).length;
+
+  // IC performance: % High approved, % Elevated rejected, approval rate by band (from deal band + ic_status only)
+  const APPROVED_STATUSES = new Set<IcStatusValue>(["APPROVED", "APPROVED_WITH_CONDITIONS"]);
+  const bandsForIc = ["Low", "Moderate", "Elevated", "High"] as const;
+  const approvalByBand: Record<string, { decided: number; approved: number; ratePct: number }> = {};
+  for (const band of bandsForIc) {
+    approvalByBand[band] = { decided: 0, approved: 0, ratePct: 0 };
+  }
+  let highCount = 0;
+  let highApproved = 0;
+  let elevatedCount = 0;
+  let elevatedRejected = 0;
+  for (const d of deals) {
+    const band = d.latest_risk_band ?? null;
+    if (!band || !bandsForIc.includes(band as (typeof bandsForIc)[number])) continue;
+    const status = d.ic_status;
+    const decided = status != null && status !== "PRE_IC";
+    const approved = status != null && APPROVED_STATUSES.has(status);
+    approvalByBand[band].decided += decided ? 1 : 0;
+    approvalByBand[band].approved += approved ? 1 : 0;
+    if (band === "High") {
+      highCount += 1;
+      if (approved) highApproved += 1;
+    }
+    if (band === "Elevated") {
+      elevatedCount += 1;
+      if (status === "REJECTED") elevatedRejected += 1;
+    }
+  }
+  for (const band of bandsForIc) {
+    const row = approvalByBand[band];
+    row.ratePct = row.decided > 0 ? Math.round((row.approved / row.decided) * 100) : 0;
+  }
+  const ic_performance_summary: IcPerformanceSummary = {
+    pctHighDealsApproved: highCount > 0 ? Math.round((highApproved / highCount) * 100) : 0,
+    pctElevatedDealsRejected: elevatedCount > 0 ? Math.round((elevatedRejected / elevatedCount) * 100) : 0,
+    approvalRateByBand: approvalByBand,
+  };
 
   if (unscannedCount > 0) {
     alerts.push({ type: "unscanned_count", message: `${unscannedCount} deal(s) unscanned` });
@@ -612,5 +874,10 @@ export async function getPortfolioSummary(
     weightedMetrics,
     ...(versionDrift && { versionDrift: true }),
     concentration,
+    prpi,
+    risk_movement,
+    ...(backtestResult.sample_size >= 20 && { backtest_summary: backtestResult }),
+    ic_performance_summary,
+    highImpactDealIds: [...highImpactDealIds],
   };
 }

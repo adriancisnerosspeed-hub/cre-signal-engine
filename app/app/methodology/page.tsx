@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
-import { getPlanForUser, getEntitlementsForUser } from "@/lib/entitlements";
+import { getEntitlementsForUser } from "@/lib/entitlements";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
@@ -47,22 +47,6 @@ export default async function MethodologyPage() {
       <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 24 }}>
         Published: {publishedAt}
       </p>
-
-      {!scanExportEnabled && (
-        <div
-          style={{
-            padding: 12,
-            marginBottom: 24,
-            backgroundColor: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 8,
-            fontSize: 14,
-            color: "#e4e4e7",
-          }}
-        >
-          Pro required for PDF export.
-        </div>
-      )}
 
       <div style={{ marginBottom: 32 }}>
         <MethodologyDownloadButton

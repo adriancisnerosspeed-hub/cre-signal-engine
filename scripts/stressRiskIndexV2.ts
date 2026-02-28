@@ -7,6 +7,7 @@
  */
 
 import { computeRiskIndex, type RiskIndexResult } from "../lib/riskIndex";
+import { getRiskModelMetadata } from "../lib/modelGovernance";
 import { normalizeAssumptionsForScoring } from "../lib/assumptionNormalization";
 import type { DealScanAssumptions } from "../lib/dealScanContract";
 
@@ -185,6 +186,20 @@ function main() {
     min_score: Math.min(...allScores),
     max_score: Math.max(...allScores),
     distribution_by_band: bandPcts,
+  }, null, 2));
+
+  const variance = allScores.reduce((sum, s) => sum + (s - meanScore) ** 2, 0) / totalCount;
+  const stdDev = Math.sqrt(variance);
+  const pctHigh = ((distribution.High ?? 0) / totalCount) * 100;
+  const pctElevated = ((distribution.Elevated ?? 0) / totalCount) * 100;
+  console.log("\n--- Stress harness metadata ---");
+  console.log(JSON.stringify({
+    model_version: getRiskModelMetadata().version,
+    distribution_by_band: bandPcts,
+    mean_score: Math.round(meanScore * 100) / 100,
+    std_dev: Math.round(stdDev * 100) / 100,
+    pct_high: Math.round(pctHigh * 100) / 100,
+    pct_elevated: Math.round(pctElevated * 100) / 100,
   }, null, 2));
 
   // Assertions

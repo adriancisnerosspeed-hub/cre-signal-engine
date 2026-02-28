@@ -6,8 +6,10 @@ import { getDefaultPreferences } from "@/lib/digest";
 import { getEntitlementsForUser } from "@/lib/entitlements";
 import { getUsageToday } from "@/lib/usage";
 import { getCurrentOrg } from "@/lib/org";
+import { version as methodologyVersion } from "@/lib/methodology/methodologyContent";
 import SettingsForm from "./SettingsForm";
 import BillingCard from "./BillingCard";
+import MethodologyDownloadLink from "@/app/components/MethodologyDownloadLink";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -69,6 +71,14 @@ export default async function SettingsPage() {
               <Link href="/app/methodology" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
                 Risk Index Methodology
               </Link>
+              {entitlements.scan_export_enabled && (
+                <>
+                  {" · "}
+                  <MethodologyDownloadLink
+                    defaultFilename={`cre-signal-risk-index-methodology-v${methodologyVersion}.pdf`}
+                  />
+                </>
+              )}
               <span style={{ color: "#71717a", marginLeft: 6 }}>View and download the methodology PDF.</span>
             </li>
           </ul>

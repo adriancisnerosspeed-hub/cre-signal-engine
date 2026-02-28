@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState, useCallback, Fragment } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState, useCallback, Fragment, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import MethodologyDownloadLink from "@/app/components/MethodologyDownloadLink";
+
+const PORTFOLIO_STATE_KEY = "portfolioFilters";
+type RiskMovementFilter = "deteriorated" | "crossed_tiers" | "version_drift" | null;
 import type {
   PortfolioSummary,
   DealRow,
@@ -48,11 +52,72 @@ type SerializedSummary = Omit<PortfolioSummary, "dealBadges" | "dealExplainabili
 type Props = {
   summary: SerializedSummary;
   isFree: boolean;
+  scanExportEnabled?: boolean;
+  methodologyPdfFilename?: string;
   savedViews?: { id: string; name: string; config_json: PortfolioViewConfig }[];
 };
 
-export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
+function parsePortfolioState(params: URLSearchParams): Partial<{
+  search: string;
+  statusFilter: string;
+  assetTypes: string[];
+  markets: string[];
+  tiers: string[];
+  includeUnscanned: boolean;
+  sortField: SortField;
+  sortDir: SortDirection;
+  riskMovement: RiskMovementFilter;
+  highImpact: boolean;
+}> {
+  const get = (k: string) => params.get(k);
+  return {
+    search: get("q") ?? undefined,
+    statusFilter: get("status") ?? undefined,
+    assetTypes: get("assetTypes")?.split(",").filter(Boolean),
+    markets: get("markets")?.split(",").filter(Boolean),
+    tiers: get("tiers")?.split(",").filter(Boolean),
+    includeUnscanned: get("unscanned") !== "0",
+    sortField: (get("sort")?.split("-")[0] as SortField | undefined) ?? undefined,
+    sortDir: (get("sort")?.split("-")[1] as SortDirection | undefined) ?? undefined,
+    riskMovement: (get("risk") as RiskMovementFilter) ?? undefined,
+    highImpact: get("highImpact") === "1",
+  };
+}
+
+function buildPortfolioParams(state: {
+  search: string;
+  statusFilter: string;
+  assetTypes: Set<string>;
+  markets: Set<string>;
+  tiers: Set<string>;
+  includeUnscanned: boolean;
+  sortField: string;
+  sortDir: string;
+  riskMovement: RiskMovementFilter;
+  highImpact: boolean;
+}): URLSearchParams {
+  const p = new URLSearchParams();
+  if (state.search) p.set("q", state.search);
+  if (state.statusFilter && state.statusFilter !== "all") p.set("status", state.statusFilter);
+  if (state.assetTypes.size) p.set("assetTypes", [...state.assetTypes].join(","));
+  if (state.markets.size) p.set("markets", [...state.markets].join(","));
+  if (state.tiers.size) p.set("tiers", [...state.tiers].join(","));
+  if (!state.includeUnscanned) p.set("unscanned", "0");
+  if (state.sortField !== "score" || state.sortDir !== "desc") p.set("sort", `${state.sortField}-${state.sortDir}`);
+  if (state.riskMovement) p.set("risk", state.riskMovement);
+  if (state.highImpact) p.set("highImpact", "1");
+  return p;
+}
+
+export function PortfolioClient({
+  summary,
+  isFree,
+  scanExportEnabled = false,
+  methodologyPdfFilename = "cre-signal-risk-index-methodology.pdf",
+  savedViews = [],
+}: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "scanned" | "unscanned" | "stale" | "needs_review">("all");
   const [assetTypes, setAssetTypes] = useState<Set<string>>(new Set());
@@ -61,7 +126,85 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
   const [includeUnscanned, setIncludeUnscanned] = useState(true);
   const [sortField, setSortField] = useState<SortField>("score");
   const [sortDir, setSortDir] = useState<SortDirection>("desc");
+  const [riskMovementFilter, setRiskMovementFilter] = useState<RiskMovementFilter>(null);
+  const [highImpactFilter, setHighImpactFilter] = useState(false);
   const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    const fromUrl = searchParams.toString();
+    const parsed = fromUrl ? parsePortfolioState(searchParams) : null;
+    if (parsed && (parsed.search !== undefined || parsed.statusFilter !== undefined || parsed.riskMovement !== undefined || parsed.highImpact !== undefined || parsed.sortField !== undefined)) {
+      if (parsed.search != null) setSearch(parsed.search);
+      if (parsed.statusFilter != null) setStatusFilter(parsed.statusFilter as typeof statusFilter);
+      if (parsed.assetTypes) setAssetTypes(new Set(parsed.assetTypes));
+      if (parsed.markets) setMarkets(new Set(parsed.markets));
+      if (parsed.tiers) setTiers(new Set(parsed.tiers));
+      if (parsed.includeUnscanned !== undefined) setIncludeUnscanned(parsed.includeUnscanned);
+      if (parsed.sortField) setSortField(parsed.sortField);
+      if (parsed.sortDir) setSortDir(parsed.sortDir);
+      if (parsed.riskMovement != null) setRiskMovementFilter(parsed.riskMovement);
+      if (parsed.highImpact != null) setHighImpactFilter(parsed.highImpact);
+    } else {
+      try {
+        const raw = sessionStorage.getItem(PORTFOLIO_STATE_KEY);
+        if (raw) {
+          const s = JSON.parse(raw) as Record<string, unknown>;
+          if (s.search != null) setSearch(String(s.search));
+          if (s.statusFilter != null) setStatusFilter(s.statusFilter as typeof statusFilter);
+          if (Array.isArray(s.assetTypes)) setAssetTypes(new Set(s.assetTypes as string[]));
+          if (Array.isArray(s.markets)) setMarkets(new Set(s.markets as string[]));
+          if (Array.isArray(s.tiers)) setTiers(new Set(s.tiers as string[]));
+          if (typeof s.includeUnscanned === "boolean") setIncludeUnscanned(s.includeUnscanned);
+          if (s.sortField) setSortField(s.sortField as SortField);
+          if (s.sortDir) setSortDir(s.sortDir as SortDirection);
+          if (s.riskMovement) setRiskMovementFilter(s.riskMovement as RiskMovementFilter);
+          if (s.highImpact === true) setHighImpactFilter(true);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const params = buildPortfolioParams({
+      search,
+      statusFilter,
+      assetTypes,
+      markets,
+      tiers,
+      includeUnscanned,
+      sortField,
+      sortDir,
+      riskMovementFilter,
+      highImpactFilter,
+    });
+    const qs = params.toString();
+    const url = qs ? `/app/portfolio?${qs}` : "/app/portfolio";
+    router.replace(url, { scroll: false });
+    try {
+      sessionStorage.setItem(
+        PORTFOLIO_STATE_KEY,
+        JSON.stringify({
+          search,
+          statusFilter,
+          assetTypes: [...assetTypes],
+          markets: [...markets],
+          tiers: [...tiers],
+          includeUnscanned,
+          sortField,
+          sortDir,
+          riskMovement: riskMovementFilter,
+          highImpact: highImpactFilter,
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }, [hydrated, search, statusFilter, assetTypes, markets, tiers, includeUnscanned, sortField, sortDir, riskMovementFilter, highImpactFilter, router]);
 
   const dealToScore = useMemo(() => {
     const m = new Map<string, DealWithScore>();
@@ -120,6 +263,14 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
         return tiers.has(band);
       });
     }
+    if (riskMovementFilter) {
+      const ids = summary.risk_movement?.deal_ids?.[riskMovementFilter];
+      if (ids?.length) list = list.filter((d) => ids.includes(d.id));
+    }
+    if (highImpactFilter && (summary.highImpactDealIds?.length ?? 0) > 0) {
+      const set = new Set(summary.highImpactDealIds);
+      list = list.filter((d) => set.has(d.id));
+    }
     list = [...list].sort((a, b) => {
       const aScore = dealToScore.get(a.id)?.risk_index_score ?? -1;
       const bScore = dealToScore.get(b.id)?.risk_index_score ?? -1;
@@ -153,12 +304,16 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
   }, [
     summary.deals,
     summary.dealBadges,
+    summary.risk_movement?.deal_ids,
+    summary.highImpactDealIds,
     search,
     statusFilter,
     includeUnscanned,
     assetTypes,
     markets,
     tiers,
+    riskMovementFilter,
+    highImpactFilter,
     sortField,
     sortDir,
     dealToScore,
@@ -223,6 +378,9 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
   }, [assetTypes, markets, tiers, statusFilter, sortField, sortDir, includeUnscanned, router]);
 
   const wm: WeightedMetrics = summary.weightedMetrics;
+  const rm = summary.risk_movement ?? { deteriorated: 0, crossed_tiers: 0, version_drift: 0, total_affected: 0, deal_ids: { deteriorated: [], crossed_tiers: [], version_drift: [] } };
+  const hasRiskMovement = rm.deteriorated > 0 || rm.crossed_tiers > 0 || rm.version_drift > 0;
+  const highImpactSet = useMemo(() => new Set(summary.highImpactDealIds ?? []), [summary.highImpactDealIds]);
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", padding: 24 }}>
@@ -239,6 +397,12 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
         <Link href="/app/methodology" style={{ color: "#a1a1aa", fontSize: 14 }}>
           Risk Index Methodology
         </Link>
+        {scanExportEnabled && (
+          <>
+            {" · "}
+            <MethodologyDownloadLink defaultFilename={methodologyPdfFilename} />
+          </>
+        )}
       </p>
 
       {isFree && (
@@ -376,6 +540,50 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
           >
             Save View
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSearch("");
+              setStatusFilter("all");
+              setAssetTypes(new Set());
+              setMarkets(new Set());
+              setTiers(new Set());
+              setIncludeUnscanned(true);
+              setSortField("score");
+              setSortDir("desc");
+              setRiskMovementFilter(null);
+              setHighImpactFilter(false);
+            }}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 6,
+              border: "1px solid rgba(255,255,255,0.15)",
+              background: "rgba(255,255,255,0.06)",
+              color: "#a1a1aa",
+              cursor: "pointer",
+              fontSize: 13,
+            }}
+          >
+            Reset filters
+          </button>
+          {((summary.highImpactDealIds?.length ?? 0) > 0) && (
+            <button
+              type="button"
+              onClick={() => setHighImpactFilter((v) => !v)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 6,
+                border: highImpactFilter ? "1px solid rgba(239,68,68,0.5)" : "1px solid rgba(255,255,255,0.2)",
+                background: highImpactFilter ? "rgba(239,68,68,0.2)" : "rgba(0,0,0,0.2)",
+                color: highImpactFilter ? "#f87171" : "#a1a1aa",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              High impact ({summary.highImpactDealIds?.length ?? 0})
+            </button>
+          )}
         </div>
 
         {/* Risk Profile / Weighted metrics */}
@@ -416,8 +624,156 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
                 )}
               </>
             )}
+            {summary.prpi != null && (
+              <div
+                style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}
+                title={
+                  [
+                    "PRPI = weighted sum of components (0–100). Weights:",
+                    `• Weighted avg score: ${summary.prpi.components.weighted_average_score.toFixed(1)} (weight 30%)`,
+                    `• % exposure High: ${summary.prpi.components.pct_exposure_high.toFixed(1)}% (weight 25%)`,
+                    `• % exposure deteriorating: ${summary.prpi.components.pct_exposure_deteriorating.toFixed(1)}% (weight 15%)`,
+                    `• Top market concentration: ${summary.prpi.components.top_market_concentration_pct.toFixed(0)}% (weight 15%)`,
+                    `• Top asset concentration: ${summary.prpi.components.top_asset_concentration_pct.toFixed(0)}% (weight 15%)`,
+                  ].join("\n")
+                }
+              >
+                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                  Portfolio Risk Pressure
+                  <span style={{ cursor: "help", opacity: 0.8 }} aria-label="Component breakdown">ⓘ</span>
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
+                  {summary.prpi.prpi_band} ({summary.prpi.prpi_score})
+                </div>
+              </div>
+            )}
           </div>
         </section>
+
+        {/* Risk Movement */}
+        <section style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            Risk Movement
+            {hasRiskMovement && (
+              <span
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  background: "rgba(245,158,11,0.2)",
+                  color: "#fbbf24",
+                }}
+              >
+                Attention
+              </span>
+            )}
+          </h2>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+            <button
+              type="button"
+              onClick={() => setRiskMovementFilter((v) => (v === "deteriorated" ? null : "deteriorated"))}
+              style={{
+                padding: 12,
+                background: riskMovementFilter === "deteriorated" ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)",
+                borderRadius: 8,
+                minWidth: 140,
+                border: riskMovementFilter === "deteriorated" ? "1px solid rgba(245,158,11,0.4)" : "1px solid transparent",
+                cursor: rm.deteriorated > 0 ? "pointer" : "default",
+                textAlign: "left",
+              }}
+              disabled={rm.deteriorated === 0}
+              title={rm.deteriorated > 0 ? "Filter table to deals with comparable delta and score increase ≥8" : undefined}
+            >
+              <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>Deteriorated</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>{rm.deteriorated}</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRiskMovementFilter((v) => (v === "crossed_tiers" ? null : "crossed_tiers"))}
+              style={{
+                padding: 12,
+                background: riskMovementFilter === "crossed_tiers" ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)",
+                borderRadius: 8,
+                minWidth: 140,
+                border: riskMovementFilter === "crossed_tiers" ? "1px solid rgba(245,158,11,0.4)" : "1px solid transparent",
+                cursor: rm.crossed_tiers > 0 ? "pointer" : "default",
+                textAlign: "left",
+              }}
+              disabled={rm.crossed_tiers === 0}
+              title={rm.crossed_tiers > 0 ? "Filter table to deals with band transitions" : undefined}
+            >
+              <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>Crossed tiers</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>{rm.crossed_tiers}</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRiskMovementFilter((v) => (v === "version_drift" ? null : "version_drift"))}
+              style={{
+                padding: 12,
+                background: riskMovementFilter === "version_drift" ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)",
+                borderRadius: 8,
+                minWidth: 140,
+                border: riskMovementFilter === "version_drift" ? "1px solid rgba(245,158,11,0.4)" : "1px solid transparent",
+                cursor: rm.version_drift > 0 ? "pointer" : "default",
+                textAlign: "left",
+              }}
+              disabled={rm.version_drift === 0}
+              title={rm.version_drift > 0 ? "Filter table to deals flagged for version drift" : undefined}
+            >
+              <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>Version drift</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>{rm.version_drift}</div>
+            </button>
+          </div>
+        </section>
+
+        {/* IC Performance Summary */}
+        {summary.ic_performance_summary && (
+          <section style={{ marginBottom: 32 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+              IC Performance
+            </h2>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 12 }}>
+              <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}>
+                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>% High deals approved</div>
+                <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
+                  {summary.ic_performance_summary.pctHighDealsApproved}%
+                </div>
+              </div>
+              <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}>
+                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>% Elevated deals rejected</div>
+                <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
+                  {summary.ic_performance_summary.pctElevatedDealsRejected}%
+                </div>
+              </div>
+            </div>
+            {Object.keys(summary.ic_performance_summary.approvalRateByBand).length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                {Object.entries(summary.ic_performance_summary.approvalRateByBand)
+                  .filter(([, v]) => v.decided > 0)
+                  .map(([band, v]) => (
+                    <div
+                      key={band}
+                      style={{
+                        padding: "8px 12px",
+                        background: "rgba(255,255,255,0.05)",
+                        borderRadius: 6,
+                        fontSize: 13,
+                        color: "#e4e4e7",
+                      }}
+                    >
+                      <span style={{ fontWeight: 600 }}>{band}</span>
+                      {" "}
+                      approval: {v.ratePct}%
+                      <span style={{ color: "#a1a1aa", marginLeft: 4 }}>
+                        ({v.approved}/{v.decided})
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Alerts */}
         {summary.alerts.length > 0 && (
@@ -526,25 +882,38 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
                           </Link>
                         </td>
                         <td style={{ padding: "8px 12px" }}>
-                          {badges.length > 0 ? (
-                            badges.map((b) => (
+                          <span style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                            {highImpactSet.has(d.id) && (
                               <span
-                                key={b}
                                 style={{
-                                  marginRight: 4,
                                   padding: "2px 8px",
                                   borderRadius: 4,
                                   fontSize: 11,
-                                  background: BADGE_STYLE[b].bg,
-                                  color: BADGE_STYLE[b].text,
+                                  fontWeight: 600,
+                                  background: "rgba(239,68,68,0.25)",
+                                  color: "#f87171",
                                 }}
                               >
-                                {b.replace("_", " ")}
+                                High impact
                               </span>
-                            ))
-                          ) : (
-                            "—"
-                          )}
+                            )}
+                            {badges.length > 0 ? (
+                              badges.map((b) => (
+                                <span
+                                  key={b}
+                                  style={{
+                                    padding: "2px 8px",
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    background: BADGE_STYLE[b].bg,
+                                    color: BADGE_STYLE[b].text,
+                                  }}
+                                >
+                                  {b.replace("_", " ")}
+                                </span>
+                              ))
+                            ) : !highImpactSet.has(d.id) ? "—" : null}
+                          </span>
                         </td>
                         <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
                           {withScore?.risk_index_score ?? "—"}

@@ -1,9 +1,10 @@
 /**
  * Methodology PDF export using pdf-lib (same pipeline as deal export).
- * 2–3 pages, footer on every page, section-heading pagination to avoid widows.
+ * Page 1: title + Table of Contents. Then body with section headings; footer on every page.
+ * Headings never orphan (page break before heading if &lt; MIN_SECTION_SPACE remains).
  */
 
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import {
   sections,
   disclaimerLines,
@@ -17,8 +18,8 @@ const FOOTER_BLOCK_HEIGHT = 72;
 const MIN_Y = MARGIN + FOOTER_BLOCK_HEIGHT;
 const BULLET_INDENT = 14;
 
-/** Minimum vertical space required before starting a new section (avoid orphan heading). */
-const MIN_SECTION_SPACE = 40;
+/** Minimum vertical space before starting a new section (avoid orphan heading at bottom). */
+const MIN_SECTION_SPACE = 48;
 
 function sanitizeForPdf(s: string | null | undefined): string {
   if (s == null || typeof s !== "string") return "";
@@ -88,24 +89,20 @@ export async function buildMethodologyPdf(
   const contentWidth = PAGE_WIDTH - MARGIN * 2;
   const bulletContentWidth = contentWidth - BULLET_INDENT;
 
-  let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  let y = PAGE_HEIGHT - MARGIN;
-
   const lineHeight = (size: number) => size * 1.25;
-  const headingSize = 11;
-  const bodySize = 9;
-  const headingTotalHeight = lineHeight(headingSize) + 4;
+  const headingSize = 12;
+  const bodySize = 10;
 
+  /** Footer on every page: version, generated timestamp, disclaimer. */
   function drawFooter(
-    p: { getY: () => number },
-    currentPage: typeof page
+    currentPage: PDFPage,
+    versionLabel: string,
+    generatedLabel: string
   ): void {
     const footerY = MARGIN + 50;
     const disclaimerY = MARGIN + 32;
     currentPage.drawText(
-      sanitizeForPdf(
-        `CRE Signal Engine — Risk Index Methodology v${version} · ${generatedAt}`
-      ),
+      sanitizeForPdf(`Version ${versionLabel} · Generated ${generatedLabel}`),
       {
         x: MARGIN,
         y: footerY,
@@ -115,7 +112,9 @@ export async function buildMethodologyPdf(
         maxWidth: contentWidth,
       }
     );
-    const disclaimerText = disclaimerLines[0] ?? "Underwriting support tool; not investment advice.";
+    const disclaimerText =
+      disclaimerLines[0] ??
+      "Underwriting support tool; not investment advice.";
     currentPage.drawText(sanitizeForPdf(disclaimerText), {
       x: MARGIN,
       y: disclaimerY,
@@ -126,10 +125,16 @@ export async function buildMethodologyPdf(
     });
   }
 
+  let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  let y = PAGE_HEIGHT - MARGIN;
+  let pageIndex = 0;
+  const tocEntries: { title: string; pageIndex: number }[] = [];
+
   function ensureSpace(required: number): void {
     if (y - required < MIN_Y) {
-      drawFooter({ getY: () => y }, page);
+      drawFooter(page, version, generatedAt);
       page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      pageIndex = doc.getPages().length - 1;
       y = PAGE_HEIGHT - MARGIN;
     }
   }
@@ -163,6 +168,7 @@ export async function buildMethodologyPdf(
   function drawSectionTitle(heading: string): boolean {
     ensureSpace(MIN_SECTION_SPACE);
     if (y < MIN_Y) return false;
+    tocEntries.push({ title: heading, pageIndex });
     page.drawText(sanitizeForPdf(heading), {
       x: MARGIN,
       y,
@@ -174,28 +180,8 @@ export async function buildMethodologyPdf(
     return true;
   }
 
-  // Title and subtitle
-  ensureSpace(60);
-  page.drawText(sanitizeForPdf("CRE Signal Risk Index™ — Methodology"), {
-    x: MARGIN,
-    y,
-    size: 18,
-    font: fontBold,
-    color: rgb(0, 0, 0),
-  });
-  y -= 22;
-  page.drawText(
-    sanitizeForPdf(`Version ${version} · Generated ${generatedAt}`),
-    {
-      x: MARGIN,
-      y,
-      size: 10,
-      font,
-      color: rgb(0.4, 0.4, 0.4),
-    }
-  );
-  y -= 20;
-
+  // --- Body content (sections only; title + TOC added on first page after) ---
+  ensureSpace(80);
   for (const section of sections as MethodologySection[]) {
     if (!drawSectionTitle(section.heading)) continue;
 
@@ -209,7 +195,12 @@ export async function buildMethodologyPdf(
 
     if ("bullets" in section && section.bullets?.length) {
       for (const bullet of section.bullets) {
-        const wrapped = wrapText(bullet, bulletContentWidth, bodySize, font);
+        const wrapped = wrapText(
+          bullet,
+          bulletContentWidth,
+          bodySize,
+          font
+        );
         if (wrapped.length === 0) {
           y -= 2;
           continue;
@@ -249,6 +240,66 @@ export async function buildMethodologyPdf(
     }
   }
 
-  drawFooter({ getY: () => y }, page);
+  drawFooter(page, version, generatedAt);
+
+  // --- Insert page 0: title + Table of Contents ---
+  const tocPage = doc.insertPage(0, [PAGE_WIDTH, PAGE_HEIGHT]);
+  let tocY = PAGE_HEIGHT - MARGIN;
+
+  tocPage.drawText(sanitizeForPdf("CRE Signal Risk Index™ — Methodology"), {
+    x: MARGIN,
+    y: tocY,
+    size: 18,
+    font: fontBold,
+    color: rgb(0, 0, 0),
+  });
+  tocY -= 22;
+  tocPage.drawText(
+    sanitizeForPdf(`Version ${version} · Generated ${generatedAt}`),
+    {
+      x: MARGIN,
+      y: tocY,
+      size: bodySize,
+      font,
+      color: rgb(0.4, 0.4, 0.4),
+    }
+  );
+  tocY -= 20;
+
+  tocPage.drawText("Table of Contents", {
+    x: MARGIN,
+    y: tocY,
+    size: headingSize,
+    font: fontBold,
+    color: rgb(0, 0, 0),
+  });
+  tocY -= lineHeight(headingSize) + 8;
+
+  const tocFontSize = 10;
+  for (const entry of tocEntries) {
+    const pageNum = entry.pageIndex + 2; // 1-based; +1 for TOC page
+    const titleSafe = sanitizeForPdf(entry.title);
+    const numStr = String(pageNum);
+    const numWidth = font.widthOfTextAtSize(numStr, tocFontSize);
+    tocPage.drawText(titleSafe, {
+      x: MARGIN,
+      y: tocY,
+      size: tocFontSize,
+      font,
+      color: rgb(0.2, 0.2, 0.2),
+      maxWidth: contentWidth - 24 - numWidth,
+    });
+    tocPage.drawText(numStr, {
+      x: PAGE_WIDTH - MARGIN - numWidth,
+      y: tocY,
+      size: tocFontSize,
+      font,
+      color: rgb(0.2, 0.2, 0.2),
+    });
+    tocY -= lineHeight(tocFontSize);
+  }
+
+  drawFooter(tocPage, version, generatedAt);
+
   return doc.save();
 }

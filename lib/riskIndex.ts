@@ -93,10 +93,44 @@ export const CONFIDENCE_FACTOR: Record<string, number> = {
 const BASE_SCORE = 40;
 const STABILIZER_CAP = 20;
 /** +1 per unique macro signal/category; cap so macro amplifies risk slightly, not dominates. */
-const MACRO_PENALTY_CAP = 3;
+export const MACRO_PENALTY_CAP = 3;
+
+/** Structural weight floor as % of effective contribution when any risks present. */
+export const STRUCTURAL_WEIGHT_FLOOR_PCT = 10;
+/** Market weight cap as % of total raw penalty (0.35 = 35%). */
+export const MARKET_WEIGHT_CAP_PCT = 35;
+
+/** Compression ramp: start (0 pts), end (max pts), tier override to Elevated. */
+export const RAMP_COMPRESSION_START_PCT = 0.5;
+export const RAMP_COMPRESSION_END_PCT = 1.5;
+export const RAMP_COMPRESSION_TIER_OVERRIDE_PCT = 1.0;
+/** DSCR ramp: safe (0 pts), floor (max pts), tier override to Elevated. */
+export const RAMP_DSCR_SAFE = 1.25;
+export const RAMP_DSCR_FLOOR = 1;
+export const RAMP_DSCR_TIER_OVERRIDE = 1.1;
+/** LTV thresholds for LTV+vacancy ramp (low/mid/high). */
+export const RAMP_LTV_LOW = 75;
+export const RAMP_LTV_MID = 80;
+export const RAMP_LTV_HIGH = 85;
+/** Vacancy thresholds for LTV+vacancy ramp (low/mid/high). */
+export const RAMP_VACANCY_LOW = 20;
+export const RAMP_VACANCY_MID = 30;
+export const RAMP_VACANCY_HIGH = 35;
+
+/** v2.0 institutional baseline lock date (ISO). */
+export const RISK_INDEX_V2_LOCKED_AT = "2025-01-01";
 
 /** Scoring logic version; stored on each scan for defensibility (e.g. older scans used older logic). */
-export const RISK_INDEX_VERSION = "2.0";
+export const RISK_INDEX_VERSION = "2.0 (Institutional Stable)";
+
+/**
+ * MODEL GOVERNANCE:
+ * v2.0 (Institutional Stable) is locked.
+ * Any scoring weight, ramp, or override change requires:
+ * - Version bump
+ * - Migration note
+ * - Updated stress harness output
+ */
 
 /** Severity bands (v2.0: Low 0–34, Moderate 35–54, Elevated 55–69, High 70+). */
 export function scoreToBand(score: number): RiskIndexBand {
@@ -138,11 +172,11 @@ function computeStabilizers(assumptions: DealScanAssumptions | undefined): numbe
   return Math.min(total, STABILIZER_CAP);
 }
 
-/** Ramp penalty for exit cap compression: linear from 0.5% to 1.5% (0–6 points). Tier override at ≥1.0% remains. */
+/** Ramp penalty for exit cap compression: linear from start to end % (0–6 points). Tier override at RAMP_COMPRESSION_TIER_OVERRIDE_PCT. */
 function rampCompressionPenalty(compressionPct: number): number {
-  if (compressionPct < 0.5) return 0;
-  if (compressionPct >= 1.5) return 6;
-  return 3 + ((compressionPct - 0.5) / 1) * 3;
+  if (compressionPct < RAMP_COMPRESSION_START_PCT) return 0;
+  if (compressionPct >= RAMP_COMPRESSION_END_PCT) return 6;
+  return 3 + ((compressionPct - RAMP_COMPRESSION_START_PCT) / (RAMP_COMPRESSION_END_PCT - RAMP_COMPRESSION_START_PCT)) * 3;
 }
 
 /**
@@ -166,21 +200,21 @@ function getExitCapCompression(
   return { compression, penalty };
 }
 
-/** Ramp DSCR penalty: linear from 1.25 (0) to 1.00 (6). Tier override at <1.10 remains. */
+/** Ramp DSCR penalty: linear from RAMP_DSCR_SAFE (0) to RAMP_DSCR_FLOOR (6). Tier override at RAMP_DSCR_TIER_OVERRIDE. */
 function rampDscrPenalty(dscr: number): number {
-  if (dscr >= 1.25) return 0;
-  if (dscr <= 1) return 6;
-  return ((1.25 - dscr) / 0.25) * 6;
+  if (dscr >= RAMP_DSCR_SAFE) return 0;
+  if (dscr <= RAMP_DSCR_FLOOR) return 6;
+  return ((RAMP_DSCR_SAFE - dscr) / (RAMP_DSCR_SAFE - RAMP_DSCR_FLOOR)) * 6;
 }
 
 /**
  * LTV + vacancy: scale penalty by distance into risk zone; tier overrides unchanged.
  */
 function rampLtvVacancyPenalty(ltv: number, vacancy: number): { penalty: number; forceMinBand: RiskIndexBand | null } {
-  if (ltv >= 85 && vacancy >= 35) return { penalty: 8, forceMinBand: "High" };
-  if (ltv >= 80 && vacancy >= 30) return { penalty: 5, forceMinBand: "Elevated" };
-  if (ltv >= 75 && vacancy >= 20) {
-    const dist = Math.min(1, ((ltv - 75) / 10 + (vacancy - 20) / 15) / 2);
+  if (ltv >= RAMP_LTV_HIGH && vacancy >= RAMP_VACANCY_HIGH) return { penalty: 8, forceMinBand: "High" };
+  if (ltv >= RAMP_LTV_MID && vacancy >= RAMP_VACANCY_MID) return { penalty: 5, forceMinBand: "Elevated" };
+  if (ltv >= RAMP_LTV_LOW && vacancy >= RAMP_VACANCY_LOW) {
+    const dist = Math.min(1, ((ltv - RAMP_LTV_LOW) / 10 + (vacancy - RAMP_VACANCY_LOW) / 15) / 2);
     return { penalty: 2 + Math.round(dist * 2), forceMinBand: null };
   }
   return { penalty: 0, forceMinBand: null };
@@ -222,7 +256,7 @@ function getDscrPenalty(
   if (annualDebtService <= 0) return { penalty: 0, forceMinBand: null };
   const dscr = noi / annualDebtService;
   const penalty = rampDscrPenalty(dscr);
-  const forceMinBand: RiskIndexBand | null = dscr < 1.1 ? "Elevated" : null;
+  const forceMinBand: RiskIndexBand | null = dscr < RAMP_DSCR_TIER_OVERRIDE ? "Elevated" : null;
   return { penalty, forceMinBand };
 }
 
@@ -378,10 +412,11 @@ export function computeRiskIndex(
 
   let macroPenalty = macroDecayedWeight != null ? macroDecayedWeight : macroLinkedCount * 1;
   const totalRaw = structuralTotal + marketTotal;
+  const marketCapRatio = MARKET_WEIGHT_CAP_PCT / 100;
   const marketCapped =
-    totalRaw > 0 ? Math.min(marketTotal, 0.35 * totalRaw) : marketTotal;
+    totalRaw > 0 ? Math.min(marketTotal, marketCapRatio * totalRaw) : marketTotal;
   const effectivePenalty = structuralTotal + marketCapped;
-  const macroCap = Math.min(MACRO_PENALTY_CAP, 0.35 * Math.max(effectivePenalty, 1));
+  const macroCap = Math.min(MACRO_PENALTY_CAP, marketCapRatio * Math.max(effectivePenalty, 1));
   macroPenalty = Math.min(macroPenalty, macroCap);
 
   let effectivePenaltyForScore = effectivePenalty;
@@ -456,7 +491,7 @@ export function computeRiskIndex(
     tier_drivers.push("FORCED_HIGH_LTV_90");
     band = "High";
   }
-  if (exitCompression >= 1.0) {
+  if (exitCompression >= RAMP_COMPRESSION_TIER_OVERRIDE_PCT) {
     tier_drivers.push("FORCED_ELEVATED_EXIT_CAP_COMPRESSION");
     const order: RiskIndexBand[] = ["Low", "Moderate", "Elevated", "High"];
     const bandIdx = order.indexOf(band);
@@ -491,8 +526,8 @@ export function computeRiskIndex(
     effectiveTotal > 0 ? (structuralTotal / effectiveTotal) * 100 : 0;
   let marketWeightPct =
     effectiveTotal > 0 ? (marketCapped / effectiveTotal) * 100 : 0;
-  if (count > 0 && structuralWeightPct < 10) {
-    structuralWeightPct = 10;
+  if (count > 0 && structuralWeightPct < STRUCTURAL_WEIGHT_FLOOR_PCT) {
+    structuralWeightPct = STRUCTURAL_WEIGHT_FLOOR_PCT;
     marketWeightPct = 100 - structuralWeightPct;
   }
 

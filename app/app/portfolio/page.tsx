@@ -2,8 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
-import { getPlanForUser } from "@/lib/entitlements";
+import { getPlanForUser, getEntitlementsForUser } from "@/lib/entitlements";
 import { getPortfolioSummary } from "@/lib/portfolioSummary";
+import { version as methodologyVersion } from "@/lib/methodology/methodologyContent";
 import { redirect } from "next/navigation";
 import { PortfolioClient } from "./PortfolioClient";
 
@@ -26,7 +27,10 @@ export default async function PortfolioPage() {
     );
   }
 
-  const plan = await getPlanForUser(service, user.id);
+  const [plan, entitlements] = await Promise.all([
+    getPlanForUser(service, user.id),
+    getEntitlementsForUser(supabase, user.id),
+  ]);
   const summary = await getPortfolioSummary(service, orgId);
 
   const dealBadges: Record<string, ("unscanned" | "stale" | "needs_review")[]> = {};
@@ -68,6 +72,8 @@ export default async function PortfolioPage() {
       <PortfolioClient
         summary={serializedSummary}
         isFree={plan === "free"}
+        scanExportEnabled={entitlements.scan_export_enabled}
+        methodologyPdfFilename={`cre-signal-risk-index-methodology-v${methodologyVersion}.pdf`}
         savedViews={savedViews}
       />
     </main>

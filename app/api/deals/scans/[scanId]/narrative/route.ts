@@ -8,6 +8,7 @@ import {
   IC_MEMO_PROMPT_VERSION,
   buildIcMemoUserPrompt,
 } from "@/lib/prompts/icMemoNarrative";
+import { checkBandConsistency } from "@/lib/bandConsistency";
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 
@@ -19,6 +20,7 @@ type ScanRow = {
   extraction: Record<string, unknown>;
   risk_index_score: number | null;
   risk_index_band: string | null;
+  risk_index_version: string | null;
 };
 
 type RiskRow = {
@@ -101,7 +103,7 @@ export async function POST(
 
   const { data: scan, error: scanError } = await supabase
     .from("deal_scans")
-    .select("id, deal_id, extraction, risk_index_score, risk_index_band")
+    .select("id, deal_id, extraction, risk_index_score, risk_index_band, risk_index_version")
     .eq("id", scanId)
     .single();
   if (scanError || !scan) {
@@ -150,9 +152,25 @@ export async function POST(
     ],
   });
 
-  const content =
+  let content =
     completion.choices?.[0]?.message?.content?.trim() ?? "";
   const model = completion.model ?? "gpt-4o-mini";
+
+  const bandCheck = checkBandConsistency(
+    s.risk_index_score,
+    s.risk_index_band,
+    s.risk_index_version
+  );
+  if (bandCheck.mismatch && bandCheck.expectedBand) {
+    console.warn("[band_consistency] Band mismatch detected in IC narrative", {
+      scan_id: scanId,
+      deal_id: s.deal_id,
+      score: s.risk_index_score,
+      stored_band: s.risk_index_band,
+      expected_band: bandCheck.expectedBand,
+    });
+    content = `${content}\n\n[Band mismatch detected: expected band for this score is ${bandCheck.expectedBand}.]`;
+  }
 
   const { error: upsertError } = await service
     .from("deal_scan_narratives")

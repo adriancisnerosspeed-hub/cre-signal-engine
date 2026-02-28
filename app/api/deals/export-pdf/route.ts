@@ -10,6 +10,7 @@ import {
 import type { DealScanAssumptions } from "@/lib/dealScanContract";
 import { computeAssumptionCompleteness } from "@/lib/assumptionValidation";
 import { getRecommendedActions } from "@/lib/icRecommendedActions";
+import { checkBandConsistency } from "@/lib/bandConsistency";
 import { NextResponse } from "next/server";
 
 const DEBUG_PDF_EXPORT = process.env.DEBUG_PDF_EXPORT === "true";
@@ -210,7 +211,21 @@ export async function POST(request: Request) {
     pct: completeness.pct,
   };
   const overallConfidence = (riskBreakdown as { confidence_factor?: number } | null)?.confidence_factor;
-  const reviewFlag = (riskBreakdown as { review_flag?: boolean } | null)?.review_flag;
+  const baseReviewFlag = (riskBreakdown as { review_flag?: boolean } | null)?.review_flag;
+  const riskIndexScore = (scan as { risk_index_score?: number | null }).risk_index_score ?? null;
+  const riskIndexBand = (scan as { risk_index_band?: string | null }).risk_index_band ?? null;
+  const riskIndexVersion = (scan as { risk_index_version?: string | null }).risk_index_version ?? null;
+  const bandCheck = checkBandConsistency(riskIndexScore, riskIndexBand, riskIndexVersion);
+  if (bandCheck.mismatch && bandCheck.expectedBand) {
+    console.warn("[band_consistency] Band mismatch detected", {
+      scan_id: scanId,
+      deal_id: (deal as { id: string }).id,
+      score: riskIndexScore,
+      stored_band: riskIndexBand,
+      expected_band: bandCheck.expectedBand,
+    });
+  }
+  const reviewFlag = baseReviewFlag ?? bandCheck.mismatch ?? false;
 
   const dealName =
     (deal as { name?: unknown }).name != null && typeof (deal as { name: string }).name === "string"
@@ -221,9 +236,9 @@ export async function POST(request: Request) {
     dealName,
     assetType,
     market,
-    riskIndexScore: (scan as { risk_index_score?: number | null }).risk_index_score ?? null,
-    riskIndexBand: (scan as { risk_index_band?: string | null }).risk_index_band ?? null,
-    riskIndexVersion: (scan as { risk_index_version?: string | null }).risk_index_version ?? null,
+    riskIndexScore,
+    riskIndexBand,
+    riskIndexVersion,
     riskBreakdown,
     promptVersion: (scan as { prompt_version?: string | null }).prompt_version ?? null,
     scanTimestamp: scanTimestampStr,
@@ -238,6 +253,8 @@ export async function POST(request: Request) {
     dataCoverage,
     overallConfidence: overallConfidence ?? undefined,
     reviewFlag: reviewFlag ?? undefined,
+    bandMismatch: bandCheck.mismatch ? true : undefined,
+    bandMismatchExpectedBand: bandCheck.expectedBand,
   };
   if (DEBUG_PDF_EXPORT) {
     console.info("[DEBUG_PDF_EXPORT] payload", JSON.stringify(payload, null, 2));

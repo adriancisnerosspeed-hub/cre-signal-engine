@@ -306,7 +306,7 @@ export async function POST(request: Request) {
     assumptions: assumptionsForScoring,
     macroLinkedCount,
     macroDecayedWeight,
-    ...(deltaComparable && previousScore != null && {
+    ...(previousScore != null && {
       previous_score: previousScore,
       previous_risk_index_version: previousVersion,
     }),
@@ -365,6 +365,22 @@ export async function POST(request: Request) {
       macro_linked_count: macroLinkedCount,
     })
     .eq("id", scan.id);
+
+  const auditInsert = await service.from("risk_audit_log").insert({
+    deal_id: dealId,
+    scan_id: scan.id,
+    previous_score: previousScore ?? null,
+    new_score: score,
+    delta: breakdown.delta_score ?? null,
+    band_change: breakdown.delta_band ?? null,
+    model_version: RISK_INDEX_VERSION,
+    created_at: completedAt,
+  });
+  if (auditInsert.error && (auditInsert.error as { code?: string }).code === "23505") {
+    console.warn("[deal_scan] risk_audit_log duplicate scan_id (idempotent skip)", { scan_id: scan.id });
+  } else if (auditInsert.error) {
+    console.error("[deal_scan] risk_audit_log insert error:", auditInsert.error);
+  }
 
   const { data: dealRow } = await service
     .from("deals")

@@ -4,25 +4,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PaywallModal from "@/app/components/PaywallModal";
 
-export default function MethodologyDownloadButton({
-  scanExportEnabled,
+/**
+ * Small "Download PDF" link for methodology export. Used in Portfolio header and Settings.
+ * On 403 PRO_REQUIRED_FOR_EXPORT, opens PaywallModal.
+ */
+export default function MethodologyDownloadLink({
   defaultFilename,
 }: {
-  scanExportEnabled: boolean;
   defaultFilename: string;
 }) {
   const [loading, setLoading] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  async function handleDownload() {
-    if (!scanExportEnabled) {
-      setPaywallOpen(true);
-      return;
-    }
+  async function handleClick(e: React.MouseEvent) {
+    e.preventDefault();
     setLoading(true);
-    setError(null);
     try {
       const res = await fetch("/api/methodology/export-pdf", { method: "GET" });
       if (!res.ok) {
@@ -41,28 +38,24 @@ export default function MethodologyDownloadButton({
           setPaywallOpen(true);
           return;
         }
-        setError(res.status === 401 ? "Sign in required." : `Export failed (${res.status}).`);
         return;
       }
       const contentType = res.headers.get("Content-Type") ?? "";
-      if (!contentType.includes("application/pdf")) {
-        setError("Server did not return a PDF.");
-        return;
-      }
+      if (!contentType.includes("application/pdf")) return;
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       const disposition = res.headers.get("Content-Disposition");
-      const filenameMatch = disposition?.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)["']?/i);
+      const filenameMatch = disposition?.match(
+        /filename\*?=(?:UTF-8'')?["']?([^"';\n]+)["']?/i
+      );
       a.download = filenameMatch?.[1]?.trim() ?? defaultFilename;
       a.rel = "noopener noreferrer";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Export failed.");
     } finally {
       setLoading(false);
     }
@@ -70,28 +63,23 @@ export default function MethodologyDownloadButton({
 
   return (
     <>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
-        <button
-          type="button"
-          onClick={handleDownload}
-          disabled={loading}
-          style={{
-            padding: "8px 16px",
-            fontSize: 14,
-            backgroundColor: "transparent",
-            color: "#a1a1aa",
-            border: "1px solid rgba(255,255,255,0.2)",
-            borderRadius: 6,
-            cursor: loading ? "wait" : "pointer",
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? "Generating…" : scanExportEnabled ? "Download PDF" : "Download PDF (Pro required)"}
-        </button>
-        {error && (
-          <span style={{ fontSize: 12, color: "#f87171" }}>{error}</span>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={loading}
+        style={{
+          background: "none",
+          border: "none",
+          padding: 0,
+          font: "inherit",
+          color: "#3b82f6",
+          cursor: loading ? "wait" : "pointer",
+          textDecoration: "none",
+          fontSize: 13,
+        }}
+      >
+        {loading ? "Generating…" : "Download PDF"}
+      </button>
       <PaywallModal
         open={paywallOpen}
         onClose={() => setPaywallOpen(false)}

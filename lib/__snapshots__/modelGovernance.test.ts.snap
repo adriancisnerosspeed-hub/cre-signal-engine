@@ -1,0 +1,34 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`modelGovernance > getRiskModelMetadata returns stable snapshot; changing any ramp constant fails this test 1`] = `
+{
+  "created_at": "2025-01-01",
+  "driver_share_cap": 40,
+  "macro_cap": 3,
+  "market_weight": 35,
+  "ramp_thresholds": {
+    "compression": {
+      "end_pct": 1.5,
+      "start_pct": 0.5,
+      "tier_override_pct": 1,
+    },
+    "dscr": {
+      "floor": 1,
+      "safe": 1.25,
+      "tier_override": 1.1,
+    },
+    "ltv": {
+      "high": 85,
+      "low": 75,
+      "mid": 80,
+    },
+    "vacancy": {
+      "high": 35,
+      "low": 20,
+      "mid": 30,
+    },
+  },
+  "structural_weight": 10,
+  "version": "2.0 (Institutional Stable)",
+}
+`;

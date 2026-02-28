@@ -3,13 +3,16 @@ import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
 import { getEntitlementsForUser } from "@/lib/entitlements";
 import { getRecommendedActions } from "@/lib/icRecommendedActions";
+import { checkBandConsistency } from "@/lib/bandConsistency";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import DealDetailClient from "./DealDetailClient";
 import ExportPdfButton from "./ExportPdfButton";
 import IcNarrativeBlock from "./IcNarrativeBlock";
+import IcStatusBlock from "./IcStatusBlock";
 import PercentileBlock from "./PercentileBlock";
 import ScenarioComparisonBlock from "./ScenarioComparisonBlock";
+import RiskTrajectoryChart from "./RiskTrajectoryChart";
 
 type Deal = {
   id: string;
@@ -17,6 +20,9 @@ type Deal = {
   asset_type: string | null;
   market: string | null;
   latest_scan_id: string | null;
+  ic_status: "PRE_IC" | "APPROVED" | "APPROVED_WITH_CONDITIONS" | "REJECTED" | null;
+  ic_decision_date: string | null;
+  ic_notes: string | null;
   created_at: string;
 };
 
@@ -34,6 +40,7 @@ type DealScan = {
   hold_period_years: number | null;
   risk_index_score: number | null;
   risk_index_band: string | null;
+  risk_index_version?: string | null;
 };
 
 type DealRisk = {
@@ -83,7 +90,7 @@ export default async function DealPage({
 
   const { data: deal, error: dealError } = await supabase
     .from("deals")
-    .select("id, name, asset_type, market, latest_scan_id, created_at")
+    .select("id, name, asset_type, market, latest_scan_id, ic_status, ic_decision_date, ic_notes, created_at")
     .eq("id", dealId)
     .eq("organization_id", orgId)
     .single();
@@ -112,7 +119,7 @@ export default async function DealPage({
   if (d.latest_scan_id) {
     const { data: scanRow } = await supabase
       .from("deal_scans")
-      .select("id, extraction, status, created_at, model, prompt_version, cap_rate_in, exit_cap, noi_year1, ltv, hold_period_years, risk_index_score, risk_index_band")
+      .select("id, extraction, status, created_at, model, prompt_version, cap_rate_in, exit_cap, noi_year1, ltv, hold_period_years, risk_index_score, risk_index_band, risk_index_version")
       .eq("id", d.latest_scan_id)
       .single();
 
@@ -183,18 +190,25 @@ export default async function DealPage({
 
   const { data: recentScans } = await supabase
     .from("deal_scans")
-    .select("id, created_at, model, risk_index_score, risk_index_band")
+    .select("id, created_at, model, risk_index_score, risk_index_band, risk_index_breakdown")
     .eq("deal_id", dealId)
     .eq("status", "completed")
     .order("created_at", { ascending: false })
-    .limit(3);
-  const last3Scans = (recentScans ?? []) as {
+    .limit(5);
+  const last5Scans = (recentScans ?? []) as {
     id: string;
     created_at: string;
     model: string | null;
     risk_index_score: number | null;
     risk_index_band: string | null;
+    risk_index_breakdown?: { delta_comparable?: boolean; tier_drivers?: string[] } | null;
   }[];
+
+  const bandConsistency = scan
+    ? checkBandConsistency(scan.risk_index_score, scan.risk_index_band, scan.risk_index_version ?? null)
+    : null;
+  const bandMismatch = bandConsistency?.mismatch ?? false;
+  const bandMismatchExpectedBand = bandConsistency?.expectedBand;
 
   return (
     <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
@@ -225,6 +239,13 @@ export default async function DealPage({
           <DealDetailClient dealId={d.id} hasScan={!!scan} />
         </div>
       </div>
+
+      <IcStatusBlock
+        dealId={d.id}
+        icStatus={d.ic_status}
+        icDecisionDate={d.ic_decision_date}
+        icNotes={d.ic_notes}
+      />
 
       {!scan && (
         <section style={{ marginBottom: 32 }}>
@@ -269,14 +290,31 @@ export default async function DealPage({
 
           {activeTab === "overview" && (
           <>
-          {last3Scans.length > 0 && (
+          {last5Scans.length > 0 && (
+            <section style={{ marginBottom: 32 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+                Risk trajectory
+              </h2>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 8,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                }}
+              >
+                <RiskTrajectoryChart scans={last5Scans} />
+              </div>
+            </section>
+          )}
+          {last5Scans.length > 0 && (
             <section style={{ marginBottom: 32 }}>
               <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
                 Recent scans
               </h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {last3Scans.map((s, i) => {
-                  const prevScore = last3Scans[i + 1]?.risk_index_score ?? null;
+                {last5Scans.map((s, i) => {
+                  const prevScore = last5Scans[i + 1]?.risk_index_score ?? null;
                   const currScore = s.risk_index_score ?? null;
                   const trend =
                     currScore != null && prevScore != null
@@ -314,7 +352,7 @@ export default async function DealPage({
 
           <ScenarioComparisonBlock
             dealId={dealId}
-            scans={last3Scans.map((s) => ({ id: s.id, created_at: s.created_at, risk_index_band: s.risk_index_band }))}
+            scans={last5Scans.map((s) => ({ id: s.id, created_at: s.created_at, risk_index_band: s.risk_index_band }))}
             plan={plan}
           />
 
@@ -438,6 +476,11 @@ export default async function DealPage({
                     <div style={{ fontSize: 20, fontWeight: 700, color: "#fafafa" }}>
                       {scan.risk_index_score} — {scan.risk_index_band ?? "—"}
                     </div>
+                    {bandMismatch && bandMismatchExpectedBand && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: "#f59e0b" }} title="Stored band does not match score for current model version.">
+                        Band mismatch detected (expected: {bandMismatchExpectedBand})
+                      </div>
+                    )}
                   </div>
                   <p style={{ marginTop: 8, fontSize: 13 }}>
                     <Link href="/app/methodology" style={{ color: "#a1a1aa" }}>
