@@ -54,15 +54,25 @@ export default async function SettingsPage() {
         <p style={{ color: "#a1a1aa", marginTop: 4 }}>
           Signed in as <strong style={{ color: "#e4e4e7" }}>{user.email}</strong>
         </p>
-        <p style={{ marginTop: 8, fontSize: 14 }}>
-          <Link href="/settings/workspace" style={{ color: "#a1a1aa" }}>
-            Workspace
-          </Link>
-          {" · "}
-          <Link href="/app/methodology" style={{ color: "#a1a1aa" }}>
-            Risk Index Methodology
-          </Link>
-        </p>
+        <div style={{ marginTop: 16, padding: "16px 20px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, maxWidth: 480 }}>
+          <p style={{ fontSize: 12, color: "#71717a", marginBottom: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Quick links
+          </p>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 14 }}>
+            <li style={{ marginBottom: 10 }}>
+              <Link href="/settings/workspace" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+                Workspace — members &amp; invites
+              </Link>
+              <span style={{ color: "#71717a", marginLeft: 6 }}>Manage your workspace and invite team members.</span>
+            </li>
+            <li>
+              <Link href="/app/methodology" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+                Risk Index Methodology
+              </Link>
+              <span style={{ color: "#71717a", marginLeft: 6 }}>View and download the methodology PDF.</span>
+            </li>
+          </ul>
+        </div>
       </div>
 
       <BillingCard
