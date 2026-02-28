@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getEntitlementsForUser } from "@/lib/entitlements";
 import { redirect } from "next/navigation";
@@ -23,8 +22,6 @@ export default async function MethodologyPage() {
   if (!user) redirect("/login");
   await ensureProfile(supabase, user);
 
-  const service = createServiceRoleClient();
-  const plan = await getPlanForUser(service, user.id);
   const entitlements = await getEntitlementsForUser(supabase, user.id);
   const scanExportEnabled = entitlements.scan_export_enabled;
 
