@@ -179,8 +179,8 @@ export function PortfolioClient({
       includeUnscanned,
       sortField,
       sortDir,
-      riskMovementFilter,
-      highImpactFilter,
+      riskMovement: riskMovementFilter,
+      highImpact: highImpactFilter,
     });
     const qs = params.toString();
     const url = qs ? `/app/portfolio?${qs}` : "/app/portfolio";
