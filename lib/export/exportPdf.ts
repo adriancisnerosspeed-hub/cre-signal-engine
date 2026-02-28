@@ -93,6 +93,10 @@ export type ExportPdfParams = {
   overallConfidence?: number;
   /** Optional: review flag for Data Coverage line */
   reviewFlag?: boolean;
+  /** When true, stored band does not match scoreToBand(score); show warning and set Review Yes */
+  bandMismatch?: boolean;
+  /** Expected band from scoreToBand(score) when bandMismatch is true */
+  bandMismatchExpectedBand?: string;
 };
 
 const PAGE_WIDTH = 612;
@@ -162,8 +166,41 @@ function buildDataCoverageLine(p: ExportPdfParams): string {
   const required = p.dataCoverage?.required ?? 0;
   const pct = p.dataCoverage?.pct ?? 0;
   const conf = p.overallConfidence ?? p.riskBreakdown?.confidence_factor ?? 0.5;
-  const review = p.reviewFlag ?? p.riskBreakdown?.review_flag ?? false;
-  return `Data Coverage: ${present}/${required} (${pct}%) · Confidence: ${conf.toFixed(2)} (${confidenceLabel(conf)}) · Review: ${review ? "Yes" : "No"}`;
+  const review = p.reviewFlag ?? p.bandMismatch ?? p.riskBreakdown?.review_flag ?? false;
+  const confidence = confidenceLabel(conf);
+  return `Data Coverage: ${present}/${required} (${pct}%) · Confidence: ${confidence} · Review: ${review ? "Yes" : "No"}`;
+}
+
+/** For tests: returns the Data Coverage line string for given params. */
+export function getDataCoverageLineForTest(p: ExportPdfParams): string {
+  return buildDataCoverageLine(normalizeParams(p));
+}
+
+/** For tests: returns the band-mismatch line and whether Review is Yes when building PDF with given params. */
+export function getBandMismatchPdfBehavior(params: {
+  bandMismatch?: boolean;
+  bandMismatchExpectedBand?: string;
+  reviewFlag?: boolean;
+  riskBreakdown?: { review_flag?: boolean };
+}): { mismatchLine: string | null; reviewYes: boolean } {
+  const p = params as ExportPdfParams;
+  const reviewYes = p.reviewFlag ?? p.bandMismatch ?? p.riskBreakdown?.review_flag ?? false;
+  const mismatchLine =
+    p.bandMismatch && p.bandMismatchExpectedBand
+      ? `Band mismatch detected (expected band: ${p.bandMismatchExpectedBand}).`
+      : null;
+  return { mismatchLine, reviewYes };
+}
+
+const VERSION_DRIFT_LINE = "Version drift — delta not comparable";
+
+/** For tests: returns the version-drift line when riskBreakdown has previous_score and delta_comparable === false. */
+export function getVersionDriftLineForTest(params: {
+  riskBreakdown?: { previous_score?: number; delta_comparable?: boolean } | null;
+}): string | null {
+  const b = params.riskBreakdown;
+  if (b?.previous_score != null && b?.delta_comparable === false) return VERSION_DRIFT_LINE;
+  return null;
 }
 
 /** Normalize payload so one deal's bad/missing data never throws. */
@@ -213,6 +250,8 @@ function normalizeParams(params: ExportPdfParams): ExportPdfParams {
     dataCoverage: params?.dataCoverage,
     overallConfidence: params?.overallConfidence,
     reviewFlag: params?.reviewFlag,
+    bandMismatch: params?.bandMismatch,
+    bandMismatchExpectedBand: params?.bandMismatchExpectedBand,
   };
 }
 
@@ -325,6 +364,10 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
     // skip if no space
   }
   y -= 10;
+  if (p.bandMismatch && p.bandMismatchExpectedBand) {
+    drawLine(`Band mismatch detected (expected band: ${p.bandMismatchExpectedBand}).`, 8, false, rgb(0.6, 0.35, 0));
+    y -= 8;
+  }
 
   const breakdownLine = p.riskBreakdown ? buildBreakdownLine(p.riskBreakdown, p.riskIndexVersion) : "";
   if (breakdownLine && drawLine(breakdownLine, 8, false, rgb(0.3, 0.3, 0.3))) {
@@ -342,7 +385,7 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   if (p.riskBreakdown?.tier_drivers?.length && drawLine(`Tier Drivers: [${p.riskBreakdown.tier_drivers.join(", ")}]`, 7, false, rgb(0.35, 0.35, 0.35))) {
     y -= 6;
   }
-  if (p.riskBreakdown?.previous_score != null && p.riskBreakdown?.delta_comparable === false && drawLine("Version drift — delta not comparable", 7, false, rgb(0.5, 0.35, 0))) {
+  if (p.riskBreakdown?.previous_score != null && p.riskBreakdown?.delta_comparable === false && drawLine(VERSION_DRIFT_LINE, 7, false, rgb(0.5, 0.35, 0))) {
     y -= 6;
   }
   const dataCoverageLine = buildDataCoverageLine(p);

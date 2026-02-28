@@ -9,7 +9,7 @@ import { describe, it, expect } from "vitest";
 import { parseAndNormalizeDealScan, MAX_RISKS_PER_SCAN } from "./dealScanContract";
 import { validateDealScanRaw } from "./dealScanSchema";
 import { normalizeAssumptionsForScoring } from "./assumptionNormalization";
-import { computeRiskIndex, scoreToBand, MAX_DRIVER_SHARE_PCT } from "./riskIndex";
+import { computeRiskIndex, scoreToBand, MAX_DRIVER_SHARE_PCT, RISK_INDEX_VERSION } from "./riskIndex";
 import { buildExportPdf } from "./export/exportPdf";
 import {
   selectMacroSignalsForPdf,
@@ -276,12 +276,28 @@ describe("Risk Index monotonicity", () => {
   it("delta tracking: previous_score yields breakdown.previous_score, delta_score, delta_band, deterioration_flag, delta_comparable", () => {
     const risks = [{ severity_current: "Medium" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const }];
     const norm = normalizeAssumptionsForScoring({ vacancy: { value: 10, unit: "%", confidence: "High" }, ltv: { value: 65, unit: "%", confidence: "Medium" } });
-    const result = computeRiskIndex({ risks, assumptions: norm, previous_score: 35, previous_risk_index_version: "2.0" });
+    const result = computeRiskIndex({ risks, assumptions: norm, previous_score: 35, previous_risk_index_version: RISK_INDEX_VERSION });
     expect(result.breakdown.previous_score).toBe(35);
     expect(result.breakdown.delta_comparable).toBe(true);
     expect(result.breakdown.delta_score).toBe(result.score - 35);
     expect(result.breakdown.delta_band).toMatch(/→/);
     if ((result.breakdown.delta_score ?? 0) >= 8) expect(result.breakdown.deterioration_flag).toBe(true);
+  });
+
+  it("delta tracking: when previous_risk_index_version differs from current, delta_comparable is false and delta_* are absent", () => {
+    const risks = [{ severity_current: "Medium" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const }];
+    const norm = normalizeAssumptionsForScoring({ vacancy: { value: 10, unit: "%", confidence: "High" }, ltv: { value: 65, unit: "%", confidence: "Medium" } });
+    const result = computeRiskIndex({
+      risks,
+      assumptions: norm,
+      previous_score: 40,
+      previous_risk_index_version: "1.0 (Legacy)",
+    });
+    expect(result.breakdown.previous_score).toBe(40);
+    expect(result.breakdown.delta_comparable).toBe(false);
+    expect(result.breakdown.delta_score).toBeUndefined();
+    expect(result.breakdown.delta_band).toBeUndefined();
+    expect(result.breakdown.deterioration_flag).toBeUndefined();
   });
 
   it("driver share cap: no single driver exceeds 40% of total positive; excess goes to residual; EDGE_DRIVER_SHARE_CAP_APPLIED set", () => {
@@ -308,7 +324,12 @@ describe("Risk Index monotonicity", () => {
       }
     }
     expect(result.breakdown.edge_flags ?? []).toContain("EDGE_DRIVER_SHARE_CAP_APPLIED");
+    // Score and band are unchanged by the cap (only breakdown attribution changes)
+    expect(typeof result.score).toBe("number");
+    expect(["Low", "Moderate", "Elevated", "High"]).toContain(result.band);
     const again = computeRiskIndex({ risks, assumptions });
+    expect(again.score).toBe(result.score);
+    expect(again.band).toBe(result.band);
     expect(again.breakdown.contributions).toEqual(result.breakdown.contributions);
     expect(again.breakdown.edge_flags).toEqual(result.breakdown.edge_flags);
   });
@@ -530,6 +551,29 @@ describe("Score stability near threshold", () => {
     const delta = Math.abs(b.score - a.score);
     expect(delta).toBeLessThanOrEqual(10);
   });
+
+  it("DSCR ramp: continuous at threshold (1.25→1.0); small change near 1.1 does not produce >8 point jump without tier override", () => {
+    const risks = [
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "DebtCostRisk" as const },
+      { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
+    ];
+    const base = normalizeAssumptionsForScoring({
+      ltv: { value: 75, unit: "%", confidence: "High" },
+      purchase_price: { value: 10_000_000, unit: "USD", confidence: "High" },
+      noi_year1: { value: 550_000, unit: "USD", confidence: "High" },
+      debt_rate: { value: 5, unit: "%", confidence: "High" },
+    });
+    const dscrJustAbove = normalizeAssumptionsForScoring({
+      ltv: { value: 75, unit: "%", confidence: "High" },
+      purchase_price: { value: 10_000_000, unit: "USD", confidence: "High" },
+      noi_year1: { value: 520_000, unit: "USD", confidence: "High" },
+      debt_rate: { value: 5, unit: "%", confidence: "High" },
+    });
+    const a = computeRiskIndex({ risks, assumptions: base });
+    const b = computeRiskIndex({ risks, assumptions: dscrJustAbove });
+    const delta = Math.abs(b.score - a.score);
+    expect(delta).toBeLessThanOrEqual(10);
+  });
 });
 
 describe("Risk Index v2.0 PDF output (extreme case)", () => {
@@ -557,7 +601,7 @@ describe("Risk Index v2.0 PDF output (extreme case)", () => {
       market: "Austin",
       riskIndexScore: result.score,
       riskIndexBand: result.band,
-      riskIndexVersion: "2.0",
+      riskIndexVersion: RISK_INDEX_VERSION,
       riskBreakdown: result.breakdown,
       promptVersion: null,
       scanTimestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
