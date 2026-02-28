@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type {
@@ -511,9 +511,8 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
                   const expl = summary.dealExplainability[d.id];
                   const isExpanded = expandedDealId === d.id;
                   return (
-                    <tbody key={d.id}>
+                    <Fragment key={d.id}>
                       <tr
-                        key={d.id}
                         style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}
                         onClick={() => setExpandedDealId(isExpanded ? null : d.id)}
                       >
@@ -527,21 +526,25 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
                           </Link>
                         </td>
                         <td style={{ padding: "8px 12px" }}>
-                          {badges.map((b) => (
-                            <span
-                              key={b}
-                              style={{
-                                marginRight: 4,
-                                padding: "2px 8px",
-                                borderRadius: 4,
-                                fontSize: 11,
-                                background: BADGE_STYLE[b].bg,
-                                color: BADGE_STYLE[b].text,
-                              }}
-                            >
-                              {b.replace("_", " ")}
-                            </span>
-                          ))}
+                          {badges.length > 0 ? (
+                            badges.map((b) => (
+                              <span
+                                key={b}
+                                style={{
+                                  marginRight: 4,
+                                  padding: "2px 8px",
+                                  borderRadius: 4,
+                                  fontSize: 11,
+                                  background: BADGE_STYLE[b].bg,
+                                  color: BADGE_STYLE[b].text,
+                                }}
+                              >
+                                {b.replace("_", " ")}
+                              </span>
+                            ))
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
                           {withScore?.risk_index_score ?? "—"}
@@ -576,7 +579,7 @@ export function PortfolioClient({ summary, isFree, savedViews = [] }: Props) {
                           </td>
                         </tr>
                       )}
-                    </tbody>
+                    </Fragment>
                   );
                 })}
               </tbody>
