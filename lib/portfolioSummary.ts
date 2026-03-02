@@ -496,12 +496,28 @@ export async function getPortfolioSummary(
       })(),
     };
     if (options?.benchmarkEnabled) {
-      const emptySummary = {
+      const emptySummary: SummaryForClassification = {
         counts: { total: 0 },
-        prpi: { prpi_score: 0, components: { pct_exposure_high: 0 } },
-        concentration: { topMarketPct: 0 },
+        prpi: {
+          prpi_score: 0,
+          prpi_band: "Low",
+          components: {
+            weighted_average_score: 0,
+            pct_exposure_high: 0,
+            pct_exposure_elevated_plus: 0,
+            pct_exposure_deteriorating: 0,
+            top_market_concentration_pct: 0,
+            top_asset_concentration_pct: 0,
+          },
+        },
+        concentration: { topMarketPct: 0, topAssetTypePct: 0, elevatedPlusByMarket: [], highImpactDeteriorations: [] },
         trendSummary: { deteriorations: [] },
-        weightedMetrics: { pctElevatedPlusByWeight: 0 },
+        weightedMetrics: {
+          pctElevatedPlusByCount: 0,
+          pctElevatedPlusByWeight: 0,
+          weightedAvgScore: 0,
+          hasWeightData: false,
+        },
       };
       emptyResult.benchmark = {
         percentile_rank: 50,
