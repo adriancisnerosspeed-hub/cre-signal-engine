@@ -532,7 +532,7 @@ export default async function DealPage({
                 </section>
               )}
 
-              <PercentileBlock scanId={scan.id} plan={plan} />
+              <PercentileBlock dealId={d.id} scanId={scan.id} plan={plan} />
 
               <section style={{ marginBottom: 32 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>

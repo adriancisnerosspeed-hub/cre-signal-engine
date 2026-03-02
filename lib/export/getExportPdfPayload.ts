@@ -13,10 +13,16 @@ import type { DealScanAssumptions } from "@/lib/dealScanContract";
 import { computeAssumptionCompleteness } from "@/lib/assumptionValidation";
 import { getRecommendedActions } from "@/lib/icRecommendedActions";
 import { checkBandConsistency } from "@/lib/bandConsistency";
+import { getOrComputeDealBenchmark } from "@/lib/benchmark/compute";
+
+export type GetExportPdfPayloadOptions = {
+  snapshotId?: string;
+};
 
 export async function getExportPdfPayload(
   service: SupabaseClient,
-  scanId: string
+  scanId: string,
+  options?: GetExportPdfPayloadOptions
 ): Promise<ExportPdfParams | null> {
   const { data: scan, error: scanError } = await service
     .from("deal_scans")
@@ -29,7 +35,7 @@ export async function getExportPdfPayload(
 
   const { data: deal, error: dealError } = await service
     .from("deals")
-    .select("id, name, asset_type, market")
+    .select("id, name, asset_type, market, organization_id")
     .eq("id", (scan as { deal_id: string }).deal_id)
     .single();
 
@@ -168,7 +174,32 @@ export async function getExportPdfPayload(
       ? (deal as { name: string }).name
       : "Deal";
 
-  return {
+  let policyNotes: string | null = null;
+  try {
+    const orgId = (deal as { organization_id?: string }).organization_id;
+    const dealId = (deal as { id: string }).id;
+    if (orgId && dealId) {
+      const { data: evalRows } = await service
+        .from("risk_policy_evaluations")
+        .select("results_json")
+        .eq("organization_id", orgId)
+        .order("evaluated_at", { ascending: false })
+        .limit(1);
+      const latest = Array.isArray(evalRows) && evalRows.length > 0 ? evalRows[0] : null;
+      const results = latest?.results_json as { violations?: { message?: string; affected_deal_ids?: string[] }[] } | undefined;
+      if (results?.violations?.length) {
+        const messages: string[] = [];
+        for (const v of results.violations) {
+          if (v.affected_deal_ids?.includes(dealId) && v.message) messages.push(v.message);
+        }
+        if (messages.length) policyNotes = messages.slice(0, 2).join("; ");
+      }
+    }
+  } catch {
+    // omit policy notes if unavailable
+  }
+
+  const payload: ExportPdfParams = {
     dealName,
     assetType,
     market,
@@ -191,5 +222,44 @@ export async function getExportPdfPayload(
     reviewFlag: reviewFlag ?? undefined,
     bandMismatch: bandCheck.mismatch ? true : undefined,
     bandMismatchExpectedBand: bandCheck.expectedBand ?? undefined,
+    policyNotes: policyNotes ?? undefined,
   };
+
+  if (options?.snapshotId) {
+    const dealId = (deal as { id: string }).id;
+    const benchmarkResult = await getOrComputeDealBenchmark(service, {
+      dealId,
+      snapshotId: options.snapshotId,
+      metricKey: "risk_index_v2",
+    });
+    if (benchmarkResult) {
+      const { data: snapshotRow } = await service
+        .from("benchmark_cohort_snapshots")
+        .select("cohort_id, as_of_timestamp, method_version")
+        .eq("id", options.snapshotId)
+        .single();
+      const cohortId = snapshotRow ? (snapshotRow as { cohort_id: string }).cohort_id : null;
+      const asOfTimestamp = snapshotRow ? (snapshotRow as { as_of_timestamp: string }).as_of_timestamp : "";
+      const methodVersion = snapshotRow ? (snapshotRow as { method_version: string }).method_version : "midrank_v1";
+      let cohortKey: string | null = null;
+      if (cohortId) {
+        const { data: cohortRow } = await service
+          .from("benchmark_cohorts")
+          .select("key")
+          .eq("id", cohortId)
+          .single();
+        cohortKey = cohortRow ? (cohortRow as { key: string }).key : null;
+      }
+      payload.benchmark = {
+        benchmark_cohort_key: cohortKey,
+        benchmark_snapshot_id: options.snapshotId,
+        risk_percentile: benchmarkResult.direction_adjusted_percentile,
+        risk_band: benchmarkResult.classification_band,
+        benchmark_method: methodVersion,
+        as_of_timestamp: asOfTimestamp,
+      };
+    }
+  }
+
+  return payload;
 }

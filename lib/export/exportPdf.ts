@@ -97,6 +97,17 @@ export type ExportPdfParams = {
   bandMismatch?: boolean;
   /** Expected band from scoreToBand(score) when bandMismatch is true */
   bandMismatchExpectedBand?: string;
+  /** Optional: policy violation note when deal is in active policy violation affected_deal_ids */
+  policyNotes?: string | null;
+  /** Optional: benchmark layer (cohort snapshot) for institutional export */
+  benchmark?: {
+    benchmark_cohort_key: string | null;
+    benchmark_snapshot_id: string;
+    risk_percentile: number;
+    risk_band: string;
+    benchmark_method: string;
+    as_of_timestamp: string;
+  };
 };
 
 const PAGE_WIDTH = 612;
@@ -252,6 +263,7 @@ function normalizeParams(params: ExportPdfParams): ExportPdfParams {
     reviewFlag: params?.reviewFlag,
     bandMismatch: params?.bandMismatch,
     bandMismatchExpectedBand: params?.bandMismatchExpectedBand,
+    policyNotes: params?.policyNotes != null && typeof params.policyNotes === "string" ? params.policyNotes : null,
   };
 }
 
@@ -367,6 +379,17 @@ export async function buildExportPdf(params: ExportPdfParams): Promise<Uint8Arra
   if (p.bandMismatch && p.bandMismatchExpectedBand) {
     drawLine(`Band mismatch detected (expected band: ${p.bandMismatchExpectedBand}).`, 8, false, rgb(0.6, 0.35, 0));
     y -= 8;
+  }
+  if (p.policyNotes && p.policyNotes.trim()) {
+    drawLine(`Policy: ${sanitizeForPdf(p.policyNotes.trim().slice(0, 120))}${(p.policyNotes.trim().length > 120 ? "…" : "")}`, 7, false, rgb(0.45, 0.4, 0.35));
+    y -= 6;
+  }
+  if (p.benchmark) {
+    const b = p.benchmark;
+    const cohortKey = sanitizeForPdf(b.benchmark_cohort_key ?? "—");
+    const asOfShort = b.as_of_timestamp.slice(0, 10);
+    drawLine(`Benchmark: ${cohortKey} | Snapshot ${b.benchmark_snapshot_id.slice(0, 8)}… | Risk percentile ${b.risk_percentile.toFixed(1)} (${b.risk_band}) | ${b.benchmark_method} | as_of ${asOfShort}`, 7, false, rgb(0.35, 0.35, 0.35));
+    y -= 6;
   }
 
   const breakdownLine = p.riskBreakdown ? buildBreakdownLine(p.riskBreakdown, p.riskIndexVersion) : "";

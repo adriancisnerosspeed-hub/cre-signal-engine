@@ -85,6 +85,20 @@ export const sections: MethodologySection[] = [
     ],
   },
   {
+    heading: "Benchmarking",
+    body: `Benchmark percentiles and risk bands are computed against a frozen cohort snapshot for determinism and auditability. No changes are made to the core risk score; the benchmark layer consumes score outputs only.
+
+Cohort definition: A cohort is an institutional comparison set (e.g., by asset type, geography, vintage) defined by versioned, immutable rules. Eligibility uses only stable deal and scan fields.
+
+Snapshot semantics: Percentiles are computed against a snapshot—a frozen materialization at an as-of timestamp. For each eligible deal, the metric value is taken from the most recent completed scan with completed_at ≤ as_of_timestamp. The snapshot stores the sorted distribution and metadata; once built, results are deterministic.
+
+Percentile method: Midrank (method_version: midrank_v1). For value x in sorted distribution D of size N: count_lt = number of values < x, count_eq = number of values = x; rank = count_lt + 0.5 × count_eq; percentile = 100 × rank / N. Tie handling is deterministic; values are quantized for consistency.
+
+Classification bands (risk_band_v1, higher percentile = riskier): P90–P100: SEVERE; P75–P90: ELEVATED; P40–P75: TYPICAL; P10–P40: LOW; P0–P10: VERY_LOW.
+
+Determinism and auditability: Every benchmark result references a cohort snapshot id and methodology version. Snapshot hash is computed over cohort id, version, as_of_timestamp, method, quantization, and ordered metric arrays. Exports and support bundles include snapshot metadata and method identifiers.`,
+  },
+  {
     heading: "Limitations",
     body:
       "Risk Index™ is not a substitute for underwriting, sponsor diligence, third-party reports, or investment committee judgment. It summarizes risk signals present in the provided context and should be interpreted alongside primary documents.",
