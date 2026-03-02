@@ -67,17 +67,32 @@ export default function BillingCard({
 
   const dealScansPercent = dealScansLimit > 0 ? Math.round((dealScansToday / dealScansLimit) * 100) : 0;
 
+  const planLabel = plan === "pro" || plan === "owner" ? "PRO — Institutional Workspace" : plan;
+
   return (
     <div style={blockStyle}>
       <h2 style={{ fontSize: 14, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
-        Billing & usage
+        Billing &amp; Usage
       </h2>
       <p style={{ color: "#71717a", fontSize: 12, marginBottom: 12 }}>
-        Designed for institutional underwriting teams.
+        Workspace Governance Plan
       </p>
       <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
-        Plan: <strong style={{ color: "#e4e4e7" }}>{plan}</strong>
+        Plan: <strong style={{ color: "#e4e4e7" }}>{planLabel}</strong>
       </p>
+      {(plan === "pro" || plan === "owner") && (
+        <>
+          <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
+            Active Policy: 1 / 1
+          </p>
+          <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
+            Snapshot Consumption: Enabled
+          </p>
+          <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
+            Cohort Creation: Enterprise Required
+          </p>
+        </>
+      )}
       <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
         You&apos;ve used {dealScansToday} of {dealScansLimit} daily deal scans
         {dealScansLimit > 0 && ` (${dealScansPercent}% of limit)`}.
@@ -86,7 +101,7 @@ export default function BillingCard({
         Analyzes today: {analyzeCallsToday} / {analyzeLimit}
       </p>
       <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
-        Scheduled digest: {digestScheduledEnabled ? "Enabled" : "Pro only"}
+        Scheduled Risk Brief: {digestScheduledEnabled ? "Enabled" : "Pro only"}
       </p>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         {plan === "pro" || plan === "owner" ? (
@@ -122,7 +137,7 @@ export default function BillingCard({
                 cursor: loading ? "not-allowed" : "pointer",
               }}
             >
-              {loading === "checkout" ? "Redirecting…" : "Upgrade to Pro"}
+              {loading === "checkout" ? "Redirecting…" : "Start Institutional Plan"}
             </button>
             <Link
               href="/pricing"

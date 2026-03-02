@@ -213,7 +213,7 @@ export function PolicyClient({ initialPolicies }: Props) {
             ← Portfolio
           </Link>
         </div>
-        <h1 style={{ fontSize: 22, fontWeight: 600, color: "#fafafa", marginBottom: 16 }}>Risk Policy</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 600, color: "#fafafa", marginBottom: 16 }}>Governance</h1>
         <p style={{ fontSize: 13, color: "#a1a1aa", marginBottom: 16 }}>
           Define rules and run evaluations against your portfolio.
         </p>

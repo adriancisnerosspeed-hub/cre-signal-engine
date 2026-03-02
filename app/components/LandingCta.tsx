@@ -34,10 +34,10 @@ export default function LandingCta() {
     return (
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
         <Link href="/app" className="landing-cta primary">
-          Dashboard
+          Go to Dashboard
         </Link>
-        <Link href="/pricing" className="landing-cta secondary">
-          Upgrade to Pro
+        <Link href="/app/methodology" className="landing-cta secondary">
+          View Methodology
         </Link>
       </div>
     );

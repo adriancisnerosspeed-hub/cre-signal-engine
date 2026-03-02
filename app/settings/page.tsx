@@ -83,9 +83,9 @@ export default async function SettingsPage() {
             </li>
             <li>
               <Link href="/app/policy" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
-                Risk Policy
+                Governance
               </Link>
-              <span style={{ color: "#71717a", marginLeft: 6 }}>Create and manage risk policy rules and run evaluations.</span>
+              <span style={{ color: "#71717a", marginLeft: 6 }}>Create and manage governance policies and run evaluations.</span>
             </li>
           </ul>
         </div>

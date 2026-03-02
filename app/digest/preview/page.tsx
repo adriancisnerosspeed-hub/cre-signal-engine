@@ -68,7 +68,7 @@ export default async function DigestPreviewPage() {
     <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>
-          Digest preview
+          Risk Brief
         </h1>
         <p style={{ color: "#a1a1aa", marginTop: 4 }}>
           Last 24 hours · {rangeStr}

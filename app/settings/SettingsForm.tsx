@@ -94,7 +94,7 @@ export default function SettingsForm({
       const res = await fetch("/api/digest/send-now", { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Send failed");
-      setSendMessage(data.message || "Digest sent.");
+      setSendMessage(data.message || "Risk Brief sent.");
     } catch (e) {
       setSendMessage(e instanceof Error ? e.message : "Send failed");
     } finally {
@@ -213,7 +213,7 @@ export default function SettingsForm({
             checked={prefs.digest_enabled}
             onChange={(e) => setPrefs((p) => ({ ...p, digest_enabled: e.target.checked }))}
           />
-          Digest enabled (receive scheduled daily digest)
+          Risk Brief enabled (receive scheduled daily Risk Brief)
         </label>
       </div>
 
@@ -268,7 +268,7 @@ export default function SettingsForm({
             Preview digest
           </Link>
           {sendMessage && (
-            <span style={{ color: sendMessage.startsWith("Digest") || sendMessage.includes("24 hours") ? "#86efac" : "#fca5a5", fontSize: 14 }}>
+            <span style={{ color: sendMessage.startsWith("Risk Brief") || sendMessage.includes("24 hours") ? "#86efac" : "#fca5a5", fontSize: 14 }}>
               {sendMessage}
             </span>
           )}

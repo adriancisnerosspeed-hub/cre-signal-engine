@@ -90,12 +90,11 @@ export default function AppNav() {
       <Link href="/" style={pathname === "/" ? activeLinkStyle : linkStyle}>Home</Link>
       <Link href="/app" style={pathname === "/app" ? activeLinkStyle : linkStyle}>Dashboard</Link>
       <Link href="/app/deals" style={pathname?.startsWith("/app/deals") ? activeLinkStyle : linkStyle}>Deals</Link>
-      <Link href="/analyze" style={pathname === "/analyze" ? activeLinkStyle : linkStyle}>Analyze</Link>
-      <Link href="/pricing" style={pathname === "/pricing" ? activeLinkStyle : linkStyle}>Pricing</Link>
-      <Link href="/digest/preview" style={pathname === "/digest/preview" ? activeLinkStyle : linkStyle}>Digest</Link>
       <Link href="/app/portfolio" style={pathname === "/app/portfolio" ? activeLinkStyle : linkStyle}>Portfolio</Link>
+      <Link href="/app/policy" style={pathname === "/app/policy" ? activeLinkStyle : linkStyle}>Governance</Link>
       <Link href="/app/methodology" style={pathname === "/app/methodology" ? activeLinkStyle : linkStyle}>Methodology</Link>
-      <Link href="/app/policy" style={pathname === "/app/policy" ? activeLinkStyle : linkStyle}>Risk Policy</Link>
+      <Link href="/pricing" style={pathname === "/pricing" ? activeLinkStyle : linkStyle}>Pricing</Link>
+      <Link href="/digest/preview" style={pathname === "/digest/preview" ? activeLinkStyle : linkStyle}>Risk Brief</Link>
       <Link href="/settings" style={pathname === "/settings" ? activeLinkStyle : linkStyle}>Settings</Link>
       {currentOrg && (
         <span style={{ fontSize: 13, opacity: 0.85, marginLeft: "auto", marginRight: 12 }}>

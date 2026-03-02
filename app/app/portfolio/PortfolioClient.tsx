@@ -410,14 +410,16 @@ export function PortfolioClient({
 
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa", marginBottom: 8 }}>Portfolio</h1>
       <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 24 }}>
-        Exposure overview for your workspace.
+        Portfolio Risk Governance Overview
+        <br />
+        <span style={{ fontSize: 13 }}>Snapshot-based percentile positioning and active policy enforcement.</span>
         {" "}
         <Link href="/app/methodology" style={{ color: "#a1a1aa", fontSize: 14 }}>
           Risk Index Methodology
         </Link>
         {" · "}
         <Link href="/app/policy" style={{ color: "#a1a1aa", fontSize: 14 }}>
-          Risk Policy
+          Governance
         </Link>
         {scanExportEnabled && (
           <>
@@ -702,7 +704,7 @@ export function PortfolioClient({
             )}
             {summary.policy_status != null && (
               <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 180, maxWidth: 280 }}>
-                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>Risk Policy</div>
+                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>Governance</div>
                 <div style={{ fontSize: 13, color: "#fafafa", marginBottom: 4 }}>
                   {summary.policy_status.active_policy?.name ?? "Policy"}
                 </div>

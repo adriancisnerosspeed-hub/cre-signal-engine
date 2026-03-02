@@ -87,7 +87,7 @@ export default function PricingClient({ plan, workspaceId }: { plan: Plan; works
         cursor: loading ? "not-allowed" : "pointer",
       }}
     >
-      {loading === "checkout" ? "Redirecting…" : "Upgrade to Pro"}
+      {loading === "checkout" ? "Redirecting…" : "Start Institutional Plan"}
     </button>
   );
 }

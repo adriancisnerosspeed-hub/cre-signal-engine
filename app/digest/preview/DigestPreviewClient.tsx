@@ -13,7 +13,7 @@ export default function DigestPreviewClient() {
       const res = await fetch("/api/digest/send-now", { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Send failed");
-      setMessage(data.message || "Digest sent.");
+      setMessage(data.message || "Risk Brief sent.");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Send failed");
     } finally {
@@ -48,7 +48,7 @@ export default function DigestPreviewClient() {
         {sending ? "Sending…" : "Send test digest now"}
       </button>
       {message && (
-        <span style={{ marginLeft: 12, color: message.startsWith("Digest") || message.includes("24 hours") ? "#86efac" : "#fca5a5", fontSize: 14 }}>
+        <span style={{ marginLeft: 12, color: message.startsWith("Risk Brief") || message.includes("24 hours") ? "#86efac" : "#fca5a5", fontSize: 14 }}>
           {message}
         </span>
       )}

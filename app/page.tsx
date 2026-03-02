@@ -8,70 +8,120 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="landing-hero">
         <h1 className="landing-hero-title">
-          Turn raw CRE inputs into structured, actionable signals
+          Institutional Risk Governance for Commercial Real Estate.
         </h1>
         <p className="landing-hero-tagline">
-          CRE Signal Engine turns raw commercial real estate inputs into structured actionable signals.
+          CRE Signal Engine transforms deal assumptions into deterministic risk scores, frozen benchmark percentiles, and enforceable portfolio policies — versioned, auditable, and IC-ready.
         </p>
         <LandingCta />
       </section>
 
-      {/* How it works */}
+      {/* What This Is */}
       <section className="landing-section">
-        <h2 className="landing-section-title">How it works</h2>
+        <h2 className="landing-section-title">A Risk Governance Layer — Not a Scoring Gadget.</h2>
+        <p className="landing-section-intro" style={{ marginBottom: 16 }}>
+          CRE Signal Engine is designed for underwriting teams and capital allocators who require defensibility, consistency, and auditability.
+        </p>
+        <p style={{ marginBottom: 8, color: "var(--muted-foreground, #a1a1aa)", fontSize: 15, lineHeight: 1.6 }}>
+          It provides:
+        </p>
+        <ul className="landing-bullets" style={{ marginBottom: 16, paddingLeft: 20, lineHeight: 1.7 }}>
+          <li>A deterministic Risk Index™ (Institutional Stable)</li>
+          <li>Snapshot-based cohort benchmarking</li>
+          <li>Portfolio-level governance policies</li>
+          <li>Versioned exports and audit-ready documentation</li>
+        </ul>
+        <p style={{ color: "var(--muted-foreground, #a1a1aa)", fontSize: 14, lineHeight: 1.6, fontStyle: "italic" }}>
+          Every score references a methodology version.
+          <br />
+          Every percentile references a frozen cohort snapshot.
+          <br />
+          Every export includes reproducible metadata.
+        </p>
+      </section>
+
+      {/* What This Is Not */}
+      <section className="landing-section">
+        <h2 className="landing-section-title">What This Is Not</h2>
+        <ul className="landing-bullets" style={{ marginBottom: 12, paddingLeft: 20, lineHeight: 1.7 }}>
+          <li>Not an AI opinion engine</li>
+          <li>Not a black-box model</li>
+          <li>Not a replacement for underwriting judgment</li>
+        </ul>
+        <p style={{ color: "var(--muted-foreground, #a1a1aa)", fontSize: 15, lineHeight: 1.6 }}>
+          Final investment decisions remain human.
+          <br />
+          CRE Signal Engine structures and governs the risk conversation.
+        </p>
+      </section>
+
+      {/* How It Works */}
+      <section className="landing-section">
+        <h2 className="landing-section-title">How It Works</h2>
         <div className="landing-steps">
           <div className="landing-step">
             <span className="landing-step-num">1</span>
-            <h3 className="landing-step-title">Analyze</h3>
+            <h3 className="landing-step-title">Standardize</h3>
             <p className="landing-step-desc">
-              Paste your CRE notes, emails, or updates. We extract structured signals with action, confidence, and impact.
+              Upload or input deal assumptions. Normalize percent fields. Lock scoring version.
             </p>
           </div>
           <div className="landing-step">
             <span className="landing-step-num">2</span>
-            <h3 className="landing-step-title">Signals</h3>
+            <h3 className="landing-step-title">Score</h3>
             <p className="landing-step-desc">
-              Each signal is tagged (Act / Monitor / Track), with &quot;What changed,&quot; &quot;Why it matters,&quot; and &quot;Who this affects.&quot;
+              Compute deterministic Risk Index™ with explainability and tier controls.
             </p>
           </div>
           <div className="landing-step">
             <span className="landing-step-num">3</span>
-            <h3 className="landing-step-title">Digest</h3>
+            <h3 className="landing-step-title">Benchmark</h3>
             <p className="landing-step-desc">
-              Build a manual digest or schedule a recurring email so you never miss what matters.
+              Compare against frozen cohort snapshots using midrank percentile methodology.
+            </p>
+          </div>
+          <div className="landing-step">
+            <span className="landing-step-num">4</span>
+            <h3 className="landing-step-title">Govern</h3>
+            <p className="landing-step-desc">
+              Apply portfolio-level risk policies and monitor violations over time.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Example signal card mock */}
+      {/* Institutional Output Example */}
       <section className="landing-section">
-        <h2 className="landing-section-title">Example signal</h2>
+        <h2 className="landing-section-title">Institutional Output Example</h2>
         <div className="landing-signal-mock">
-          <div className="landing-signal-mock-tags">
-            <span className="landing-signal-tag type">Lease / Deal</span>
-            <span className="landing-signal-tag act">Act</span>
-            <span className="landing-signal-tag conf">High</span>
+          <div className="landing-signal-mock-block">
+            <div className="landing-signal-mock-label">Risk Index</div>
+            <p className="landing-signal-mock-text">62 (Elevated)</p>
           </div>
           <div className="landing-signal-mock-block">
-            <div className="landing-signal-mock-label">What changed</div>
-            <p className="landing-signal-mock-text">
-              Anchor tenant signed 10-year renewal; landlord agreed to cap annual escalations at 2.5%.
-            </p>
+            <div className="landing-signal-mock-label">Cohort Snapshot</div>
+            <p className="landing-signal-mock-text">US_OFFICE_V2_2026Q1</p>
           </div>
           <div className="landing-signal-mock-block">
-            <div className="landing-signal-mock-label">Why it matters</div>
-            <p className="landing-signal-mock-text">
-              Stabilizes NOI and reduces re-leasing risk for the next cycle. Comparable deals may follow.
-            </p>
+            <div className="landing-signal-mock-label">Percentile</div>
+            <p className="landing-signal-mock-text">78th</p>
           </div>
           <div className="landing-signal-mock-block">
-            <div className="landing-signal-mock-label">Who this affects</div>
-            <p className="landing-signal-mock-text">
-              Asset managers, lenders, and tenants in the same submarket.
-            </p>
+            <div className="landing-signal-mock-label">Risk Band</div>
+            <p className="landing-signal-mock-text">ELEVATED</p>
+          </div>
+          <div className="landing-signal-mock-block">
+            <div className="landing-signal-mock-label">Delta Comparable</div>
+            <p className="landing-signal-mock-text">Yes</p>
+          </div>
+          <div className="landing-signal-mock-block">
+            <div className="landing-signal-mock-label">Policy Status</div>
+            <p className="landing-signal-mock-text">WARN (1 violation)</p>
           </div>
         </div>
+        <p style={{ marginTop: 12, color: "var(--muted-foreground, #71717a)", fontSize: 13 }}>
+          This shows governance, not AI tagging.
+        </p>
       </section>
 
       {/* Pricing preview */}
@@ -81,14 +131,14 @@ export default function LandingPage() {
           <div className="landing-plan">
             <h3 className="landing-plan-name">Free</h3>
             <p className="landing-plan-desc">
-              10 signal analyzes per day · 2 deal scans per day · Manual digest (up to 6 signals) · No scheduled digest · Single user
+              Evaluation and academic use · 3 lifetime full scans · Risk Index™ preview · Limited macro signals · Redacted IC memo
             </p>
             <Link href="/login" className="landing-plan-cta secondary">Get started</Link>
           </div>
           <div className="landing-plan featured">
             <h3 className="landing-plan-name">Pro</h3>
             <p className="landing-plan-desc">
-              200 signal analyzes per day · 50 deal scans per day · Manual + scheduled digest (up to 12 signals) · IC memorandum narrative · Export · Invite team &amp; workspaces
+              Institutional Workspace · Unlimited scans · Full Risk Index™ · Snapshot benchmarking · Portfolio dashboard · 1 governance policy · IC-ready export
             </p>
             <Link href="/login" className="landing-plan-cta primary">
               Get started
