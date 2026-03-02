@@ -26,21 +26,46 @@ const selectMock = vi.fn();
 const updateMock = vi.fn();
 const insertMock = vi.fn();
 
-function makeServiceMock(overrides: { invite?: Record<string, unknown>; lookupBy?: "hash" | "token" } = {}) {
-  const invite = overrides.invite ?? mockInvitePending;
-  const lookupBy = overrides.lookupBy ?? "hash";
+function makeServiceMock(overrides: { invite?: Record<string, unknown> } = {}) {
+  const invite = (overrides.invite ?? mockInvitePending) as {
+    id: string;
+    org_id: string;
+    email: string;
+    role: string;
+    status: string;
+    expires_at: string;
+  };
   return {
     from: (table: string) => {
       if (table === "organization_invites") {
         return {
           select: () => ({
             eq: (col: string, val: unknown) => ({
+              in: (col2: string, vals: unknown[]) => ({
+                gt: (col3: string, val3: unknown) => ({
+                  maybeSingle: () => {
+                    selectMock(col, val, "acceptable");
+                    const ok =
+                      (col === "token_hash" && val === tokenHash) || (col === "token" && val === rawToken);
+                    if (
+                      ok &&
+                      col2 === "status" &&
+                      col3 === "expires_at" &&
+                      (invite.status === "pending" || invite.status === "sent") &&
+                      invite.expires_at > (val3 as string)
+                    ) {
+                      return Promise.resolve({ data: invite, error: null });
+                    }
+                    return Promise.resolve({ data: null, error: null });
+                  },
+                }),
+              }),
               maybeSingle: () => {
-                selectMock(col, val);
-                if (lookupBy === "hash" && col === "token_hash" && val === tokenHash) {
+                selectMock(col, val, "any");
+                if (col === "token_hash" && val === tokenHash) {
                   return Promise.resolve({ data: invite, error: null });
                 }
-                if (lookupBy === "token" && col === "token" && val === rawToken) {
+                if (col === "token" && val === rawToken) {
                   return Promise.resolve({ data: invite, error: null });
                 }
                 return Promise.resolve({ data: null, error: null });
@@ -177,6 +202,29 @@ describe("POST /api/invite/accept", () => {
     const data = await res.json();
     expect(data.success).toBe(true);
     expect(data.org_id).toBe("org-1");
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for revoked invite (rejected at query level, no acceptable row)", async () => {
+    const service = await import("@/lib/supabase/service");
+    vi.mocked(service.createServiceRoleClient).mockImplementation(() =>
+      makeServiceMock({
+        invite: { ...mockInvitePending, status: "revoked", expires_at: futureExpiry },
+      }) as never
+    );
+
+    const { POST } = await import("./route");
+    const res = await POST(
+      new Request("http://localhost/api/invite/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: rawToken }),
+      })
+    );
+
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.code).toBe("INVALID_INVITE");
     expect(insertMock).not.toHaveBeenCalled();
   });
 });

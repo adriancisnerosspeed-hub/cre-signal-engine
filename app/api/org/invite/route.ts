@@ -101,7 +101,6 @@ export async function POST(request: Request) {
       organization_id: orgId,
       org_name: (org as { name: string }).name,
       inviter_name: inviterName,
-      raw_token: rawToken,
     },
     dedupe_key: `org_invite:${inviteId}:v1`,
     status: "QUEUED",

@@ -38,24 +38,79 @@ export async function POST(request: Request) {
   type InviteRow = { id: string; org_id: string; email: string; role: string; status: string; expires_at: string };
   let invite: InviteRow | null = null;
 
-  const { data: byHash, error: errHash } = await service
+  const { data: acceptable } = await service
     .from("organization_invites")
     .select("id, org_id, email, role, status, expires_at")
     .eq("token_hash", tokenHash)
+    .in("status", ["pending", "sent"])
+    .gt("expires_at", now)
     .maybeSingle();
 
-  if (!errHash && byHash) invite = byHash as InviteRow;
+  if (acceptable) {
+    invite = acceptable as InviteRow;
+  }
 
   if (!invite) {
     const { data: byToken } = await service
       .from("organization_invites")
       .select("id, org_id, email, role, status, expires_at")
       .eq("token", token)
+      .in("status", ["pending", "sent"])
+      .gt("expires_at", now)
       .maybeSingle();
     if (byToken) invite = byToken as InviteRow;
   }
 
   if (!invite) {
+    const { data: anyByHash } = await service
+      .from("organization_invites")
+      .select("id, org_id, email, role, status, expires_at")
+      .eq("token_hash", tokenHash)
+      .maybeSingle();
+    if (anyByHash) {
+      const row = anyByHash as InviteRow;
+      if (row.expires_at <= now) {
+        if (row.status !== "expired") {
+          await service.from("organization_invites").update({ status: "expired" }).eq("id", row.id);
+        }
+        return NextResponse.json(
+          { error: "This invite has expired", code: "EXPIRED_INVITE" },
+          { status: 410 }
+        );
+      }
+      if (row.status === "accepted") {
+        const inviteEmail = row.email.trim().toLowerCase();
+        const userEmail = (user.email ?? "").trim().toLowerCase();
+        if (userEmail === inviteEmail) {
+          return NextResponse.json({ success: true, org_id: row.org_id });
+        }
+      }
+    } else {
+      const { data: anyByToken } = await service
+        .from("organization_invites")
+        .select("id, org_id, email, role, status, expires_at")
+        .eq("token", token)
+        .maybeSingle();
+      if (anyByToken) {
+        const row = anyByToken as InviteRow;
+        if (row.expires_at <= now) {
+          if (row.status !== "expired") {
+            await service.from("organization_invites").update({ status: "expired" }).eq("id", row.id);
+          }
+          return NextResponse.json(
+            { error: "This invite has expired", code: "EXPIRED_INVITE" },
+            { status: 410 }
+          );
+        }
+        if (row.status === "accepted") {
+          const inviteEmail = row.email.trim().toLowerCase();
+          const userEmail = (user.email ?? "").trim().toLowerCase();
+          if (userEmail === inviteEmail) {
+            return NextResponse.json({ success: true, org_id: row.org_id });
+          }
+        }
+      }
+    }
     return NextResponse.json({ error: "Invalid or expired invite", code: "INVALID_INVITE" }, { status: 404 });
   }
 
@@ -67,24 +122,6 @@ export async function POST(request: Request) {
       { error: "This invite was sent to a different email address" },
       { status: 403 }
     );
-  }
-
-  if (inv.expires_at <= now) {
-    if (inv.status !== "expired") {
-      await service.from("organization_invites").update({ status: "expired" }).eq("id", inv.id);
-    }
-    return NextResponse.json(
-      { error: "This invite has expired", code: "EXPIRED_INVITE" },
-      { status: 410 }
-    );
-  }
-
-  if (inv.status === "accepted") {
-    return NextResponse.json({ success: true, org_id: inv.org_id });
-  }
-
-  if (inv.status !== "pending" && inv.status !== "sent") {
-    return NextResponse.json({ error: "Invalid or expired invite", code: "INVALID_INVITE" }, { status: 404 });
   }
 
   const { error: insertError } = await service.from("organization_members").insert({

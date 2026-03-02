@@ -1,11 +1,13 @@
 /**
- * Process email_outbox: claim QUEUED rows, send via Resend, update status and invite sent_at.
- * Called by cron; never call from the invite creation path.
+ * Process email_outbox: claim eligible rows, send via Resend, update status and invite sent_at.
+ * No raw token in DB: processor generates token per send and updates invite token_hash.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 import { sendWorkspaceInviteEmail } from "@/lib/email";
 
 const RPC_NAME = "get_and_claim_outbox_rows";
+const DEFAULT_MAX_ATTEMPTS = 5;
 
 type OutboxRow = {
   id: string;
@@ -14,6 +16,7 @@ type OutboxRow = {
   payload_json: Record<string, unknown>;
   status: string;
   attempt_count: number;
+  max_attempts: number;
 };
 
 function getBaseUrl(): string {
@@ -21,6 +24,17 @@ function getBaseUrl(): string {
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
   );
+}
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token, "utf8").digest("hex");
+}
+
+function nextAttemptAt(attemptCount: number): string {
+  const minutes = Math.min(15 * Math.pow(2, attemptCount), 1440);
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + minutes);
+  return d.toISOString();
 }
 
 export interface ProcessOutboxResult {
@@ -48,13 +62,20 @@ export async function processOutbox(
         organization_id?: string;
         org_name?: string;
         inviter_name?: string;
-        raw_token?: string;
       };
       const inviteId = payload.invite_id;
-      const rawToken = payload.raw_token;
       const orgName = payload.org_name ?? "";
       const inviterName = payload.inviter_name ?? "A team member";
-      const inviteLink = `${getBaseUrl()}/invite/accept?token=${rawToken ?? ""}`;
+
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = hashToken(rawToken);
+      if (inviteId) {
+        await service
+          .from("organization_invites")
+          .update({ token_hash: tokenHash })
+          .eq("id", inviteId);
+      }
+      const inviteLink = `${getBaseUrl()}/invite/accept?token=${rawToken}`;
 
       const result = await sendWorkspaceInviteEmail({
         to: row.recipient,
@@ -62,6 +83,9 @@ export async function processOutbox(
         inviterName,
         inviteLink,
       });
+
+      const maxAttempts = row.max_attempts ?? DEFAULT_MAX_ATTEMPTS;
+      const newAttemptCount = row.attempt_count + 1;
 
       if (result.success) {
         await service.from("email_outbox").update({
@@ -82,20 +106,24 @@ export async function processOutbox(
           .from("email_outbox")
           .update({
             status: "FAILED",
-            attempt_count: row.attempt_count + 1,
+            attempt_count: newAttemptCount,
             last_error: result.error ?? "Unknown error",
+            next_attempt_at: newAttemptCount < maxAttempts ? nextAttemptAt(newAttemptCount) : null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", row.id);
         failed++;
       }
     } else {
+      const newAttemptCount = row.attempt_count + 1;
+      const maxAttempts = row.max_attempts ?? DEFAULT_MAX_ATTEMPTS;
       await service
         .from("email_outbox")
         .update({
           status: "FAILED",
-          attempt_count: row.attempt_count + 1,
+          attempt_count: newAttemptCount,
           last_error: `Unknown type: ${row.type}`,
+          next_attempt_at: newAttemptCount < maxAttempts ? nextAttemptAt(newAttemptCount) : null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", row.id);

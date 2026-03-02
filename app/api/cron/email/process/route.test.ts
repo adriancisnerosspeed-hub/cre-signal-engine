@@ -19,6 +19,7 @@ describe("GET /api/cron/email/process", () => {
 
   beforeEach(() => {
     process.env.CRON_SECRET = CRON_SECRET;
+    mockProcessOutbox.mockClear();
     mockProcessOutbox.mockResolvedValue({ processed: 0, sent: 0, failed: 0 });
   });
 
@@ -34,7 +35,7 @@ describe("GET /api/cron/email/process", () => {
     expect(mockProcessOutbox).not.toHaveBeenCalled();
   });
 
-  it("returns 200 with counts when authorized", async () => {
+  it("returns 200 with counts when authorized via Bearer only", async () => {
     mockProcessOutbox.mockResolvedValueOnce({ processed: 2, sent: 2, failed: 0 });
     const { GET } = await import("./route");
     const res = await GET(
@@ -46,5 +47,14 @@ describe("GET /api/cron/email/process", () => {
     const data = await res.json();
     expect(data).toEqual({ processed: 2, sent: 2, failed: 0 });
     expect(mockProcessOutbox).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 401 when using ?secret= (query param not accepted)", async () => {
+    const { GET } = await import("./route");
+    const res = await GET(
+      new Request(`http://localhost/api/cron/email/process?secret=${CRON_SECRET}`)
+    );
+    expect(res.status).toBe(401);
+    expect(mockProcessOutbox).not.toHaveBeenCalled();
   });
 });

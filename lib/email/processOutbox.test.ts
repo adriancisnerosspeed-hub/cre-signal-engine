@@ -49,7 +49,15 @@ describe("processOutbox", () => {
     mockSendWorkspaceInviteEmail.mockClear();
   });
 
-  it("sends ORG_INVITE email and updates outbox to SENT and invite sent_at/status", async () => {
+  it("processes only rows returned by RPC (retry selection honors next_attempt_at and attempt_count in DB)", async () => {
+    const service = makeServiceMock([]);
+    const result = await processOutbox(service, 10);
+    expect(result).toEqual({ processed: 0, sent: 0, failed: 0 });
+    expect(mockRpc).toHaveBeenCalledWith("get_and_claim_outbox_rows", { lim: 10 });
+    expect(mockSendWorkspaceInviteEmail).not.toHaveBeenCalled();
+  });
+
+  it("sends ORG_INVITE email and updates outbox to SENT and invite sent_at/status (no raw_token in payload)", async () => {
     mockSendWorkspaceInviteEmail.mockResolvedValue({ success: true });
 
     const row = {
@@ -61,9 +69,9 @@ describe("processOutbox", () => {
         organization_id: "org-1",
         org_name: "Test Org",
         inviter_name: "Admin",
-        raw_token: "abc123",
       },
       attempt_count: 0,
+      max_attempts: 5,
     };
     const service = makeServiceMock([row]);
 
@@ -76,16 +84,23 @@ describe("processOutbox", () => {
         to: "user@example.com",
         orgName: "Test Org",
         inviterName: "Admin",
-        inviteLink: expect.stringContaining("token=abc123"),
       })
     );
+    const sendCall = mockSendWorkspaceInviteEmail.mock.calls[0]?.[0] as { inviteLink?: string };
+    expect(sendCall?.inviteLink).toMatch(/\/invite\/accept\?token=[a-f0-9]{64}$/);
     expect(mockOutboxUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "SENT",
         sent_at: expect.any(String),
       })
     );
-    expect(mockInviteUpdate).toHaveBeenCalledWith(
+    expect(mockInviteUpdate).toHaveBeenCalledTimes(2);
+    expect(mockInviteUpdate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ token_hash: expect.any(String) })
+    );
+    expect(mockInviteUpdate).toHaveBeenNthCalledWith(
+      2,
       expect.objectContaining({
         status: "sent",
         sent_at: expect.any(String),
@@ -93,7 +108,7 @@ describe("processOutbox", () => {
     );
   });
 
-  it("on send failure marks outbox FAILED and sets last_error", async () => {
+  it("on send failure marks outbox FAILED and sets last_error and next_attempt_at", async () => {
     mockSendWorkspaceInviteEmail.mockResolvedValue({ success: false, error: "Resend rate limit" });
 
     const row = {
@@ -105,9 +120,9 @@ describe("processOutbox", () => {
         organization_id: "org-1",
         org_name: "Test",
         inviter_name: "Admin",
-        raw_token: "xyz",
       },
       attempt_count: 0,
+      max_attempts: 5,
     };
     const service = makeServiceMock([row]);
 
@@ -119,8 +134,10 @@ describe("processOutbox", () => {
         status: "FAILED",
         attempt_count: 1,
         last_error: "Resend rate limit",
+        next_attempt_at: expect.any(String),
       })
     );
-    expect(mockInviteUpdate).not.toHaveBeenCalled();
+    expect(mockInviteUpdate).toHaveBeenCalledTimes(1);
+    expect(mockInviteUpdate).toHaveBeenCalledWith(expect.objectContaining({ token_hash: expect.any(String) }));
   });
 });

@@ -8,10 +8,7 @@ function authorize(request: Request): boolean {
   const expected = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
   const bearerSecret = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  const { searchParams } = new URL(request.url);
-  const querySecret = searchParams.get("secret");
-  const provided = bearerSecret || querySecret;
-  return Boolean(expected && provided === expected);
+  return Boolean(expected && bearerSecret === expected);
 }
 
 export async function GET(request: Request) {

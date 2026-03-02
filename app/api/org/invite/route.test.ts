@@ -180,8 +180,7 @@ describe("POST /api/org/invite", () => {
       org_name: "Test Org",
       inviter_name: "Test Inviter",
     });
-    expect(outboxPayload.payload_json).toHaveProperty("raw_token");
-    expect(typeof (outboxPayload.payload_json as { raw_token: string }).raw_token).toBe("string");
+    expect(outboxPayload.payload_json).not.toHaveProperty("raw_token");
 
     const data = await res.json();
     expect(data.invite_id).toBe("invite-1");
