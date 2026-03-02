@@ -232,6 +232,28 @@ export async function POST(request: Request) {
       ? (deal as { name: string }).name
       : "Deal";
 
+  let policyNotes: string | null = null;
+  try {
+    const { data: evalRows } = await service
+      .from("risk_policy_evaluations")
+      .select("results_json")
+      .eq("organization_id", orgId)
+      .order("evaluated_at", { ascending: false })
+      .limit(1);
+    const latest = Array.isArray(evalRows) && evalRows.length > 0 ? evalRows[0] : null;
+    const results = latest?.results_json as { violations?: { message?: string; affected_deal_ids?: string[] }[] } | undefined;
+    const dealId = (deal as { id: string }).id;
+    if (results?.violations?.length) {
+      const messages: string[] = [];
+      for (const v of results.violations) {
+        if (v.affected_deal_ids?.includes(dealId) && v.message) messages.push(v.message);
+      }
+      if (messages.length) policyNotes = messages.slice(0, 2).join("; ");
+    }
+  } catch {
+    // omit policy notes if unavailable
+  }
+
   const payload = {
     dealName,
     assetType,
@@ -255,6 +277,7 @@ export async function POST(request: Request) {
     reviewFlag: reviewFlag ?? undefined,
     bandMismatch: bandCheck.mismatch ? true : undefined,
     bandMismatchExpectedBand: bandCheck.expectedBand,
+    policyNotes: policyNotes ?? undefined,
   };
   if (DEBUG_PDF_EXPORT) {
     console.info("[DEBUG_PDF_EXPORT] payload", JSON.stringify(payload, null, 2));

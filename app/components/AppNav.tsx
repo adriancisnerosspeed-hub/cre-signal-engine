@@ -95,6 +95,7 @@ export default function AppNav() {
       <Link href="/digest/preview" style={pathname === "/digest/preview" ? activeLinkStyle : linkStyle}>Digest</Link>
       <Link href="/app/portfolio" style={pathname === "/app/portfolio" ? activeLinkStyle : linkStyle}>Portfolio</Link>
       <Link href="/app/methodology" style={pathname === "/app/methodology" ? activeLinkStyle : linkStyle}>Methodology</Link>
+      <Link href="/app/policy" style={pathname === "/app/policy" ? activeLinkStyle : linkStyle}>Risk Policy</Link>
       <Link href="/settings" style={pathname === "/settings" ? activeLinkStyle : linkStyle}>Settings</Link>
       {currentOrg && (
         <span style={{ fontSize: 13, opacity: 0.85, marginLeft: "auto", marginRight: 12 }}>

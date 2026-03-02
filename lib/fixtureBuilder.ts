@@ -10,7 +10,10 @@ export type FixtureType =
   | "EXTREME_LEVERAGE"
   | "VERSION_DRIFT"
   | "DRIVER_CAP"
-  | "DETERIORATION";
+  | "DETERIORATION"
+  | "POLICY_VIOLATION_CONCENTRATION"
+  | "POLICY_VIOLATION_LTV"
+  | "POLICY_VIOLATION_STALE";
 
 /** Single scenario: assumptions + risks in scan extraction shape. */
 export type FixtureScenario = {
@@ -159,6 +162,54 @@ export function buildFixtureScenarios(type: FixtureType): FixtureScenario[] {
             { ...baseRisk, risk_type: "VacancyUnderstated", severity: "High", confidence: "High" },
             { ...baseRisk, risk_type: "DebtCostRisk", severity: "Medium", confidence: "High" },
           ],
+        },
+      ];
+    }
+
+    case "POLICY_VIOLATION_CONCENTRATION": {
+      return [
+        {
+          assumptions: {
+            ltv: { value: 70, unit: "%", confidence: "High" },
+            vacancy: { value: 10, unit: "%", confidence: "High" },
+            cap_rate_in: { value: 5, unit: "%", confidence: "High" },
+            purchase_price: { value: 10_000_000, unit: null, confidence: "High" },
+            noi_year1: { value: 500_000, unit: null, confidence: "High" },
+            debt_rate: { value: 5, unit: "%", confidence: "High" },
+          },
+          risks: [{ ...baseRisk, risk_type: "DebtCostRisk", severity: "Medium", confidence: "High" }],
+        },
+      ];
+    }
+
+    case "POLICY_VIOLATION_LTV": {
+      return [
+        {
+          assumptions: {
+            ltv: { value: 85, unit: "%", confidence: "High" },
+            vacancy: { value: 15, unit: "%", confidence: "High" },
+            cap_rate_in: { value: 5, unit: "%", confidence: "High" },
+            purchase_price: { value: 12_000_000, unit: null, confidence: "High" },
+            noi_year1: { value: 600_000, unit: null, confidence: "High" },
+            debt_rate: { value: 5.5, unit: "%", confidence: "High" },
+          },
+          risks: [{ ...baseRisk, risk_type: "RefiRisk", severity: "High", confidence: "High" }],
+        },
+      ];
+    }
+
+    case "POLICY_VIOLATION_STALE": {
+      return [
+        {
+          assumptions: {
+            ltv: { value: 65, unit: "%", confidence: "High" },
+            vacancy: { value: 12, unit: "%", confidence: "High" },
+            cap_rate_in: { value: 5, unit: "%", confidence: "High" },
+            purchase_price: { value: 8_000_000, unit: null, confidence: "High" },
+            noi_year1: { value: 400_000, unit: null, confidence: "High" },
+            debt_rate: { value: 5, unit: "%", confidence: "High" },
+          },
+          risks: [{ ...baseRisk, risk_type: "DebtCostRisk", severity: "Low", confidence: "High" }],
         },
       ];
     }

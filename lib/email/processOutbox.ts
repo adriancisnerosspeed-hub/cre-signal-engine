@@ -1,0 +1,107 @@
+/**
+ * Process email_outbox: claim QUEUED rows, send via Resend, update status and invite sent_at.
+ * Called by cron; never call from the invite creation path.
+ */
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { sendWorkspaceInviteEmail } from "@/lib/email";
+
+const RPC_NAME = "get_and_claim_outbox_rows";
+
+type OutboxRow = {
+  id: string;
+  type: string;
+  recipient: string;
+  payload_json: Record<string, unknown>;
+  status: string;
+  attempt_count: number;
+};
+
+function getBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  );
+}
+
+export interface ProcessOutboxResult {
+  processed: number;
+  sent: number;
+  failed: number;
+}
+
+export async function processOutbox(
+  service: SupabaseClient,
+  limit: number
+): Promise<ProcessOutboxResult> {
+  const { data: rows, error: rpcError } = await service.rpc(RPC_NAME, { lim: limit });
+  if (rpcError) {
+    throw new Error(`outbox claim failed: ${rpcError.message}`);
+  }
+  const list = (rows ?? []) as OutboxRow[];
+  let sent = 0;
+  let failed = 0;
+
+  for (const row of list) {
+    if (row.type === "ORG_INVITE") {
+      const payload = row.payload_json as {
+        invite_id?: string;
+        organization_id?: string;
+        org_name?: string;
+        inviter_name?: string;
+        raw_token?: string;
+      };
+      const inviteId = payload.invite_id;
+      const rawToken = payload.raw_token;
+      const orgName = payload.org_name ?? "";
+      const inviterName = payload.inviter_name ?? "A team member";
+      const inviteLink = `${getBaseUrl()}/invite/accept?token=${rawToken ?? ""}`;
+
+      const result = await sendWorkspaceInviteEmail({
+        to: row.recipient,
+        orgName,
+        inviterName,
+        inviteLink,
+      });
+
+      if (result.success) {
+        await service.from("email_outbox").update({
+          status: "SENT",
+          sent_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("id", row.id);
+
+        if (inviteId) {
+          await service
+            .from("organization_invites")
+            .update({ sent_at: new Date().toISOString(), status: "sent" })
+            .eq("id", inviteId);
+        }
+        sent++;
+      } else {
+        await service
+          .from("email_outbox")
+          .update({
+            status: "FAILED",
+            attempt_count: row.attempt_count + 1,
+            last_error: result.error ?? "Unknown error",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id);
+        failed++;
+      }
+    } else {
+      await service
+        .from("email_outbox")
+        .update({
+          status: "FAILED",
+          attempt_count: row.attempt_count + 1,
+          last_error: `Unknown type: ${row.type}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+      failed++;
+    }
+  }
+
+  return { processed: list.length, sent, failed };
+}

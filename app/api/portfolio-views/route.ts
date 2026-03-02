@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getCurrentOrgId } from "@/lib/org";
+import { getWorkspacePlanAndEntitlements } from "@/lib/entitlements/workspace";
+import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -56,6 +59,25 @@ export async function POST(request: Request) {
   const name = typeof body.name === "string" ? body.name.trim() : "Untitled view";
   const config_json = body.config_json && typeof body.config_json === "object" ? body.config_json : {};
   const is_shared = Boolean(body.is_shared);
+
+  const service = createServiceRoleClient();
+  const { entitlements } = await getWorkspacePlanAndEntitlements(service, orgId);
+  if (entitlements.maxPortfolios != null) {
+    const { count } = await service
+      .from("portfolio_views")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId);
+    if ((count ?? 0) >= entitlements.maxPortfolios) {
+      return NextResponse.json(
+        {
+          code: ENTITLEMENT_ERROR_CODES.PORTFOLIO_LIMIT_REACHED,
+          message: "Portfolio limit reached for this plan.",
+          required_plan: "PRO",
+        },
+        { status: 403 }
+      );
+    }
+  }
 
   const { data: view, error } = await supabase
     .from("portfolio_views")

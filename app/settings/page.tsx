@@ -67,7 +67,7 @@ export default async function SettingsPage() {
               </Link>
               <span style={{ color: "#71717a", marginLeft: 6 }}>Manage your workspace and invite team members.</span>
             </li>
-            <li>
+            <li style={{ marginBottom: 10 }}>
               <Link href="/app/methodology" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
                 Risk Index Methodology
               </Link>
@@ -80,6 +80,12 @@ export default async function SettingsPage() {
                 </>
               )}
               <span style={{ color: "#71717a", marginLeft: 6 }}>View and download the methodology PDF.</span>
+            </li>
+            <li>
+              <Link href="/app/policy" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+                Risk Policy
+              </Link>
+              <span style={{ color: "#71717a", marginLeft: 6 }}>Create and manage risk policy rules and run evaluations.</span>
             </li>
           </ul>
         </div>

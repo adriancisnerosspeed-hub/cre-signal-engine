@@ -2,8 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
-import { getPlanForUser, getEntitlementsForUser } from "@/lib/entitlements";
-import { getDealScansToday, getTotalFullScansUsed, incrementDealScanUsage, incrementTotalFullScans } from "@/lib/usage";
+import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
 import { parseAndNormalizeDealScan } from "@/lib/dealScanContract";
 import { normalizeAssumptionsForScoringWithFlags } from "@/lib/assumptionNormalization";
 import { DEAL_SCAN_SYSTEM_PROMPT, DEAL_SCAN_PROMPT_VERSION } from "@/lib/prompts/dealScanPrompt";
@@ -59,43 +58,6 @@ export async function POST(request: Request) {
   }
 
   const service = createServiceRoleClient();
-  const plan = await getPlanForUser(service, user.id);
-  const entitlements = await getEntitlementsForUser(service, user.id);
-
-  // Free: lifetime cap only. Block before any OpenAI calls.
-  if (plan === "free" && entitlements.lifetime_full_scan_limit != null) {
-    const used = await getTotalFullScansUsed(service, user.id);
-    const limit = entitlements.lifetime_full_scan_limit;
-    if (used >= limit) {
-      return NextResponse.json(
-        {
-          code: "LIFETIME_LIMIT_REACHED",
-          used,
-          limit,
-          message: "Institutional features require Pro access.",
-        },
-        { status: 429 }
-      );
-    }
-  }
-
-  // Pro/Owner: daily cap only.
-  if (plan !== "free") {
-    const limit = entitlements.deal_scans_per_day;
-    const used = await getDealScansToday(service, user.id);
-    if (used >= limit) {
-      return NextResponse.json(
-        {
-          code: "DAILY_LIMIT_REACHED",
-          limit,
-          used,
-          plan,
-          upgrade_url: "/pricing",
-        },
-        { status: 429 }
-      );
-    }
-  }
 
   const { data: inputs } = await supabase
     .from("deal_inputs")
@@ -174,54 +136,77 @@ export async function POST(request: Request) {
   }
 
   const { assumptions: assumptionsForScoring, unitInferred } = normalizeAssumptionsForScoringWithFlags(normalized.assumptions);
-  const extraction = normalized as unknown as Record<string, unknown>;
-  const { data: scan, error: scanError } = await service
-    .from("deal_scans")
-    .insert({
-      deal_id: dealId,
-      deal_input_id: dealInputId,
-      input_text_hash: rawText ? inputTextHash(rawText) : null,
-      extraction,
-      status: "completed",
-      completed_at: new Date().toISOString(),
-      model,
-      prompt_version: DEAL_SCAN_PROMPT_VERSION,
-      cap_rate_in: normalized.assumptions.cap_rate_in?.value ?? null,
-      exit_cap: normalized.assumptions.exit_cap?.value ?? null,
-      noi_year1: normalized.assumptions.noi_year1?.value ?? null,
-      ltv: normalized.assumptions.ltv?.value ?? null,
-      hold_period_years: normalized.assumptions.hold_period_years?.value ?? null,
-      asset_type: (deal as { asset_type?: string | null }).asset_type ?? null,
-      market: (deal as { market?: string | null }).market ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (scanError || !scan) {
-    console.error("deal_scans insert error:", scanError);
-    return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
-  }
-
   const { applySeverityOverride } = await import("@/lib/riskSeverityOverrides");
   const stabilizedRisks = normalized.risks.map((r) => ({
     ...r,
     severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring),
   }));
 
-  for (const r of stabilizedRisks) {
-    await service.from("deal_risks").insert({
-      deal_scan_id: scan.id,
-      risk_type: r.risk_type,
-      severity_original: r.severity,
-      severity_current: r.severity_current,
-      what_changed_or_trigger: r.what_changed_or_trigger,
-      why_it_matters: r.why_it_matters,
-      who_this_affects: r.who_this_affects,
-      recommended_action: r.recommended_action,
-      confidence: r.confidence,
-      evidence_snippets: r.evidence_snippets,
-    });
+  const completedAt = new Date().toISOString();
+  const p_scan_row = {
+    deal_input_id: dealInputId,
+    input_text_hash: rawText ? inputTextHash(rawText) : null,
+    extraction: normalized as unknown as Record<string, unknown>,
+    status: "completed",
+    completed_at: completedAt,
+    model,
+    prompt_version: DEAL_SCAN_PROMPT_VERSION,
+    cap_rate_in: normalized.assumptions.cap_rate_in?.value ?? null,
+    exit_cap: normalized.assumptions.exit_cap?.value ?? null,
+    noi_year1: normalized.assumptions.noi_year1?.value ?? null,
+    ltv: normalized.assumptions.ltv?.value ?? null,
+    hold_period_years: normalized.assumptions.hold_period_years?.value ?? null,
+    asset_type: (deal as { asset_type?: string | null }).asset_type ?? null,
+    market: (deal as { market?: string | null }).market ?? null,
+  };
+  const p_risks = stabilizedRisks.map((r) => ({
+    risk_type: r.risk_type,
+    severity_original: r.severity,
+    severity_current: r.severity_current,
+    what_changed_or_trigger: r.what_changed_or_trigger,
+    why_it_matters: r.why_it_matters,
+    who_this_affects: r.who_this_affects,
+    recommended_action: r.recommended_action,
+    confidence: r.confidence,
+    evidence_snippets: r.evidence_snippets,
+  }));
+
+  const { data: rpcRows, error: rpcError } = await service.rpc("create_deal_scan_with_usage_check", {
+    p_workspace_id: (deal as { organization_id: string }).organization_id,
+    p_deal_id: dealId,
+    p_scan_row,
+    p_risks,
+  });
+  if (rpcError) {
+    console.error("create_deal_scan_with_usage_check error:", rpcError);
+    return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
   }
+  const row = Array.isArray(rpcRows) && rpcRows.length > 0 ? rpcRows[0] : null;
+  if (!row || typeof row.ok !== "boolean") {
+    return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
+  }
+  if (!row.ok && row.code === "PLAN_LIMIT_REACHED") {
+    return NextResponse.json(
+      {
+        code: ENTITLEMENT_ERROR_CODES.PLAN_LIMIT_REACHED,
+        message: "Workspace has reached the free plan scan limit.",
+        required_plan: "PRO",
+      },
+      { status: 403 }
+    );
+  }
+  if (!row.ok && row.code === "ORGANIZATION_NOT_FOUND") {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+  }
+  if (!row.ok) {
+    return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
+  }
+  const scanId = row.scan_id as string;
+  if (!scanId) {
+    return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
+  }
+
+  const scan = { id: scanId };
 
   const { runOverlay } = await import("@/lib/crossReferenceOverlay");
   await runOverlay(service, scan.id, deal.created_by, {
@@ -353,8 +338,6 @@ export async function POST(request: Request) {
   const score = Math.max(0, Math.min(100, riskIndex.score));
   const band = ["Low", "Moderate", "Elevated", "High"].includes(riskIndex.band) ? riskIndex.band : "Moderate";
 
-  const completedAt = new Date().toISOString();
-
   await service
     .from("deal_scans")
     .update({
@@ -412,12 +395,6 @@ export async function POST(request: Request) {
     tier: band,
     macro_linked_count: macroLinkedCount,
   });
-
-  if (plan === "free") {
-    await incrementTotalFullScans(service, user.id);
-  } else {
-    await incrementDealScanUsage(service, user.id, orgId);
-  }
 
   return NextResponse.json({ scan_id: scan.id, deal_id: dealId });
 }

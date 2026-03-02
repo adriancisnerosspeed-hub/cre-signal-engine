@@ -69,10 +69,18 @@ vi.mock("@/lib/org", () => ({
   getCurrentOrgId: () => Promise.resolve("org-1"),
 }));
 
-vi.mock("@/lib/entitlements", () => ({
-  getEntitlementsForUser: () =>
+vi.mock("@/lib/entitlements/errors", () => ({
+  ENTITLEMENT_ERROR_CODES: {
+    ENTERPRISE_REQUIRED: "ENTERPRISE_REQUIRED",
+    FEATURE_NOT_AVAILABLE: "FEATURE_NOT_AVAILABLE",
+  },
+}));
+
+vi.mock("@/lib/entitlements/workspace", () => ({
+  getWorkspacePlanAndEntitlements: () =>
     Promise.resolve({
-      workspace_invites_enabled: true,
+      plan: "ENTERPRISE",
+      entitlements: { canInviteMembers: true },
     }),
 }));
 

@@ -22,6 +22,9 @@ const FIXTURE_TYPES: FixtureType[] = [
   "VERSION_DRIFT",
   "DRIVER_CAP",
   "DETERIORATION",
+  "POLICY_VIOLATION_CONCENTRATION",
+  "POLICY_VIOLATION_LTV",
+  "POLICY_VIOLATION_STALE",
 ];
 
 function isAllowedType(t: string): t is FixtureType {
@@ -67,6 +70,119 @@ export async function POST(request: Request) {
   const service = createServiceRoleClient();
   const scenarios = buildFixtureScenarios(type);
 
+  if (type === "POLICY_VIOLATION_CONCENTRATION" && scenarios.length > 0) {
+    const concentrationNorm = normalizeMarket({ city: null, state: null, market: "New York, NY" });
+    const scenario = scenarios[0];
+    const { assumptions: assumptionsForScoring } = normalizeAssumptionsForScoringWithFlags(scenario.assumptions);
+    const extraction = { assumptions: scenario.assumptions, risks: scenario.risks } as Record<string, unknown>;
+    const stabilizedRisks = scenario.risks.map((r) => ({
+      ...r,
+      severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring),
+    }));
+    const riskIndex = computeRiskIndex({
+      risks: stabilizedRisks.map((r) => ({ severity_current: r.severity_current, confidence: r.confidence, risk_type: r.risk_type })),
+      assumptions: assumptionsForScoring,
+      macroLinkedCount: 0,
+    });
+    const score = Math.max(0, Math.min(100, riskIndex.score));
+    const band = ["Low", "Moderate", "Elevated", "High"].includes(riskIndex.band) ? riskIndex.band : "Moderate";
+    const completedAt = new Date().toISOString();
+    const dealIds: string[] = [];
+    const scanIdsOut: string[] = [];
+    for (let d = 0; d < 3; d++) {
+      const { data: dealRow, error: dealErr } = await service
+        .from("deals")
+        .insert({
+          organization_id: orgId,
+          created_by: user.id,
+          name: `Fixture: CONCENTRATION ${d + 1}`,
+          asset_type: "Multifamily",
+          market: concentrationNorm.market_label ?? "New York, NY",
+          city: concentrationNorm.city ?? null,
+          state: concentrationNorm.state ?? null,
+          market_key: concentrationNorm.market_key ?? null,
+          market_label: concentrationNorm.market_label ?? "New York, NY",
+        })
+        .select("id")
+        .single();
+      if (dealErr || !dealRow) {
+        console.error("[fixtures] concentration deal insert error", dealErr);
+        return NextResponse.json({ error: "Failed to create concentration deal" }, { status: 500 });
+      }
+      const did = (dealRow as { id: string }).id;
+      dealIds.push(did);
+      await service.from("deal_inputs").insert({ deal_id: did, raw_text: null });
+      const { data: scanRow, error: scanErr } = await service
+        .from("deal_scans")
+        .insert({
+          deal_id: did,
+          deal_input_id: null,
+          input_text_hash: null,
+          extraction,
+          status: "completed",
+          completed_at: completedAt,
+          model: "fixture",
+          prompt_version: null,
+          cap_rate_in: scenario.assumptions.cap_rate_in?.value ?? null,
+          exit_cap: scenario.assumptions.exit_cap?.value ?? null,
+          noi_year1: scenario.assumptions.noi_year1?.value ?? null,
+          ltv: scenario.assumptions.ltv?.value ?? null,
+          hold_period_years: scenario.assumptions.hold_period_years?.value ?? null,
+          asset_type: "Multifamily",
+          market: concentrationNorm.market_label ?? null,
+          risk_index_score: score,
+          risk_index_band: band,
+          risk_index_breakdown: riskIndex.breakdown,
+          risk_index_version: RISK_INDEX_VERSION,
+          macro_linked_count: 0,
+        })
+        .select("id")
+        .single();
+      if (scanErr || !scanRow) {
+        console.error("[fixtures] concentration scan insert error", scanErr);
+        return NextResponse.json({ error: "Failed to create concentration scan" }, { status: 500 });
+      }
+      const sid = (scanRow as { id: string }).id;
+      scanIdsOut.push(sid);
+      for (const r of stabilizedRisks) {
+        await service.from("deal_risks").insert({
+          deal_scan_id: sid,
+          risk_type: r.risk_type,
+          severity_original: r.severity,
+          severity_current: r.severity_current,
+          what_changed_or_trigger: r.what_changed_or_trigger,
+          why_it_matters: r.why_it_matters,
+          who_this_affects: r.who_this_affects,
+          recommended_action: r.recommended_action,
+          confidence: r.confidence,
+          evidence_snippets: r.evidence_snippets,
+        });
+      }
+      await service.from("deals").update({
+        latest_scan_id: sid,
+        latest_risk_score: score,
+        latest_risk_band: band,
+        latest_scanned_at: completedAt,
+        scan_count: 1,
+        updated_at: completedAt,
+      }).eq("id", did);
+    }
+    const policyRules = [
+      { id: `rule-${Date.now()}`, name: "Max Top Market 40%", type: "MAX_TOP_MARKET_PCT", threshold_pct: 40, scope: "all_deals", enabled: true, severity: "warn" },
+    ];
+    await service.from("risk_policies").insert({
+      organization_id: orgId,
+      created_by: user.id,
+      name: "Fixture: Concentration guardrail",
+      description: "Policy fixture for QA",
+      is_enabled: true,
+      is_shared: true,
+      severity_threshold: "warn",
+      rules_json: policyRules,
+    });
+    return NextResponse.json({ deal_ids: dealIds, scan_ids: scanIdsOut });
+  }
+
   const norm = normalizeMarket({ city: null, state: null, market: null });
   const { data: deal, error: dealError } = await service
     .from("deals")
@@ -93,7 +209,11 @@ export async function POST(request: Request) {
   await service.from("deal_inputs").insert({ deal_id: dealId, raw_text: null });
 
   const scanIds: string[] = [];
-  const completedAt = new Date().toISOString();
+  const STALE_DAYS_AGO = 32;
+  const completedAt =
+    type === "POLICY_VIOLATION_STALE"
+      ? new Date(Date.now() - STALE_DAYS_AGO * 24 * 60 * 60 * 1000).toISOString()
+      : new Date().toISOString();
 
   for (let i = 0; i < scenarios.length; i++) {
     const scenario = scenarios[i];

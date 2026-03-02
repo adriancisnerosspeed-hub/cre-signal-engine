@@ -70,6 +70,7 @@ function parsePortfolioState(params: URLSearchParams): Partial<{
   sortDir: SortDirection;
   riskMovement: RiskMovementFilter;
   highImpact: boolean;
+  dealIds: string[];
 }> {
   const get = (k: string) => params.get(k);
   return {
@@ -83,6 +84,7 @@ function parsePortfolioState(params: URLSearchParams): Partial<{
     sortDir: (get("sort")?.split("-")[1] as SortDirection | undefined) ?? undefined,
     riskMovement: (get("risk") as RiskMovementFilter) ?? undefined,
     highImpact: get("highImpact") === "1",
+    dealIds: get("dealIds")?.split(",").filter(Boolean),
   };
 }
 
@@ -97,6 +99,7 @@ function buildPortfolioParams(state: {
   sortDir: string;
   riskMovement: RiskMovementFilter;
   highImpact: boolean;
+  dealIds: string[];
 }): URLSearchParams {
   const p = new URLSearchParams();
   if (state.search) p.set("q", state.search);
@@ -108,6 +111,7 @@ function buildPortfolioParams(state: {
   if (state.sortField !== "score" || state.sortDir !== "desc") p.set("sort", `${state.sortField}-${state.sortDir}`);
   if (state.riskMovement) p.set("risk", state.riskMovement);
   if (state.highImpact) p.set("highImpact", "1");
+  if (state.dealIds.length) p.set("dealIds", state.dealIds.join(","));
   return p;
 }
 
@@ -132,13 +136,14 @@ export function PortfolioClient({
   const [sortDir, setSortDir] = useState<SortDirection>("desc");
   const [riskMovementFilter, setRiskMovementFilter] = useState<RiskMovementFilter>(null);
   const [highImpactFilter, setHighImpactFilter] = useState(false);
+  const [dealIdsFilter, setDealIdsFilter] = useState<string[]>([]);
   const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const fromUrl = searchParams.toString();
     const parsed = fromUrl ? parsePortfolioState(searchParams) : null;
-    if (parsed && (parsed.search !== undefined || parsed.statusFilter !== undefined || parsed.riskMovement !== undefined || parsed.highImpact !== undefined || parsed.sortField !== undefined)) {
+    if (parsed && (parsed.search !== undefined || parsed.statusFilter !== undefined || parsed.riskMovement !== undefined || parsed.highImpact !== undefined || parsed.sortField !== undefined || parsed.dealIds !== undefined)) {
       if (parsed.search != null) setSearch(parsed.search);
       if (parsed.statusFilter != null) setStatusFilter(parsed.statusFilter as typeof statusFilter);
       if (parsed.assetTypes) setAssetTypes(new Set(parsed.assetTypes));
@@ -149,6 +154,7 @@ export function PortfolioClient({
       if (parsed.sortDir) setSortDir(parsed.sortDir);
       if (parsed.riskMovement != null) setRiskMovementFilter(parsed.riskMovement);
       if (parsed.highImpact != null) setHighImpactFilter(parsed.highImpact);
+      if (parsed.dealIds && parsed.dealIds.length) setDealIdsFilter(parsed.dealIds);
     } else {
       try {
         const raw = sessionStorage.getItem(PORTFOLIO_STATE_KEY);
@@ -164,6 +170,7 @@ export function PortfolioClient({
           if (s.sortDir) setSortDir(s.sortDir as SortDirection);
           if (s.riskMovement) setRiskMovementFilter(s.riskMovement as RiskMovementFilter);
           if (s.highImpact === true) setHighImpactFilter(true);
+          if (Array.isArray(s.dealIds) && s.dealIds.length) setDealIdsFilter(s.dealIds as string[]);
         }
       } catch {
         // ignore
@@ -185,6 +192,7 @@ export function PortfolioClient({
       sortDir,
       riskMovement: riskMovementFilter,
       highImpact: highImpactFilter,
+      dealIds: dealIdsFilter,
     });
     const qs = params.toString();
     const url = qs ? `/app/portfolio?${qs}` : "/app/portfolio";
@@ -203,12 +211,13 @@ export function PortfolioClient({
           sortDir,
           riskMovement: riskMovementFilter,
           highImpact: highImpactFilter,
+          dealIds: dealIdsFilter,
         })
       );
     } catch {
       // ignore
     }
-  }, [hydrated, search, statusFilter, assetTypes, markets, tiers, includeUnscanned, sortField, sortDir, riskMovementFilter, highImpactFilter, router]);
+  }, [hydrated, search, statusFilter, assetTypes, markets, tiers, includeUnscanned, sortField, sortDir, riskMovementFilter, highImpactFilter, dealIdsFilter, router]);
 
   const dealToScore = useMemo(() => {
     const m = new Map<string, DealWithScore>();
@@ -275,6 +284,10 @@ export function PortfolioClient({
       const set = new Set(summary.highImpactDealIds);
       list = list.filter((d) => set.has(d.id));
     }
+    if (dealIdsFilter.length > 0) {
+      const dealIdSet = new Set(dealIdsFilter);
+      list = list.filter((d) => dealIdSet.has(d.id));
+    }
     list = [...list].sort((a, b) => {
       const aScore = dealToScore.get(a.id)?.risk_index_score ?? -1;
       const bScore = dealToScore.get(b.id)?.risk_index_score ?? -1;
@@ -318,6 +331,7 @@ export function PortfolioClient({
     tiers,
     riskMovementFilter,
     highImpactFilter,
+    dealIdsFilter,
     sortField,
     sortDir,
     dealToScore,
@@ -400,6 +414,10 @@ export function PortfolioClient({
         {" "}
         <Link href="/app/methodology" style={{ color: "#a1a1aa", fontSize: 14 }}>
           Risk Index Methodology
+        </Link>
+        {" · "}
+        <Link href="/app/policy" style={{ color: "#a1a1aa", fontSize: 14 }}>
+          Risk Policy
         </Link>
         {scanExportEnabled && (
           <>
@@ -679,6 +697,71 @@ export function PortfolioClient({
                 </div>
                 <div style={{ fontSize: 11, color: "#a1a1aa" }}>
                   Elevated {Number(summary.model_health.pct_elevated).toFixed(1)}% · High {Number(summary.model_health.pct_high).toFixed(1)}% · Gov locked {summary.model_health.governance_locked_at}
+                </div>
+              </div>
+            )}
+            {summary.policy_status != null && (
+              <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 180, maxWidth: 280 }}>
+                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>Risk Policy</div>
+                <div style={{ fontSize: 13, color: "#fafafa", marginBottom: 4 }}>
+                  {summary.policy_status.active_policy?.name ?? "Policy"}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background:
+                        summary.policy_status.overall_status === "PASS"
+                          ? "rgba(34,197,94,0.2)"
+                          : summary.policy_status.overall_status === "BLOCK"
+                            ? "rgba(239,68,68,0.25)"
+                            : "rgba(245,158,11,0.2)",
+                      color:
+                        summary.policy_status.overall_status === "PASS"
+                          ? "#22c55e"
+                          : summary.policy_status.overall_status === "BLOCK"
+                            ? "#f87171"
+                            : "#fbbf24",
+                    }}
+                  >
+                    {summary.policy_status.overall_status}
+                  </span>
+                  {summary.policy_status.violation_count > 0 && (
+                    <span style={{ fontSize: 12, color: "#a1a1aa" }}>
+                      {summary.policy_status.violation_count} violation{summary.policy_status.violation_count !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+                {summary.policy_status.top_violations?.length > 0 && (
+                  <ul style={{ margin: "0 0 8px 0", paddingLeft: 16, fontSize: 11, color: "#d4d4d8", lineHeight: 1.4 }}>
+                    {summary.policy_status.top_violations.slice(0, 3).map((v, i) => (
+                      <li key={i}>{v.message}</li>
+                    ))}
+                  </ul>
+                )}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  <Link
+                    href="/app/policy"
+                    style={{ fontSize: 12, color: "#a78bfa", textDecoration: "none" }}
+                  >
+                    Manage Policy
+                  </Link>
+                  {summary.policy_status.evaluation?.violations?.some((v) => v.affected_deal_ids?.length) && (() => {
+                    const allIds = summary.policy_status!.evaluation!.violations.flatMap((v) => v.affected_deal_ids ?? []);
+                    const uniqueIds = [...new Set(allIds)];
+                    if (uniqueIds.length === 0) return null;
+                    return (
+                      <Link
+                        href={`/app/portfolio?dealIds=${uniqueIds.join(",")}`}
+                        style={{ fontSize: 12, color: "#a78bfa", textDecoration: "none" }}
+                      >
+                        View affected deals
+                      </Link>
+                    );
+                  })()}
                 </div>
               </div>
             )}

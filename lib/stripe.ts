@@ -34,3 +34,33 @@ export async function getOrCreateStripeCustomerId(
   });
   return customer.id;
 }
+
+/** Get or create Stripe customer for organization (workspace). Stores stripe_customer_id on organizations. */
+export async function getOrCreateStripeCustomerIdForOrg(
+  supabase: SupabaseClient,
+  orgId: string,
+  email?: string
+): Promise<string> {
+  const { data: row } = await supabase
+    .from("organizations")
+    .select("stripe_customer_id")
+    .eq("id", orgId)
+    .maybeSingle();
+
+  const existing = (row as { stripe_customer_id?: string | null } | null)?.stripe_customer_id;
+  if (existing) return existing;
+
+  const st = getStripe();
+  const customer = await st.customers.create({
+    email: email ?? undefined,
+    metadata: { workspace_id: orgId },
+  });
+  await supabase
+    .from("organizations")
+    .update({
+      stripe_customer_id: customer.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orgId);
+  return customer.id;
+}

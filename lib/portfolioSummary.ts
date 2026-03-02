@@ -10,6 +10,8 @@ import { computeRiskPenaltyContribution, describeStabilizers } from "./riskIndex
 import type { DealScanAssumptions } from "./dealScanContract";
 import { computeBacktestMetrics, type BacktestMetrics } from "./backtestEngine";
 import { getRiskModelMetadata } from "./modelGovernance";
+import { evaluateRiskPolicy } from "./policy/engine";
+import type { RiskPolicyRow } from "./policy/types";
 
 export type IcStatusValue = "PRE_IC" | "APPROVED" | "APPROVED_WITH_CONDITIONS" | "REJECTED";
 
@@ -158,6 +160,20 @@ export type PortfolioSummary = {
   backtest_summary?: BacktestMetrics;
   ic_performance_summary?: IcPerformanceSummary;
   highImpactDealIds?: string[];
+  /** Per-deal LTV from latest scan (for policy engine); dealId -> 0-100. */
+  dealLatestLtv?: Record<string, number>;
+  /** Risk policy status (active policy evaluation for portfolio view). */
+  policy_status?: {
+    active_policy?: { id: string; name: string };
+    overall_status: "PASS" | "WARN" | "BLOCK";
+    violation_count: number;
+    top_violations: { message: string; severity: "warn" | "block" }[];
+    /** Full evaluation result for drilldown (e.g. affected_deal_ids). */
+    evaluation?: {
+      violations: { rule_name: string; message: string; severity: "warn" | "block"; affected_deal_ids?: string[] }[];
+      recommended_actions: { code: string; title: string; detail: string; deal_ids?: string[] }[];
+    };
+  };
   /** Model health & governance card (institutional transparency). */
   model_health?: {
     model_version: string;
@@ -494,6 +510,32 @@ export async function getPortfolioSummary(
       };
       emptyResult.benchmark_context = { cohort_type: "internal", percentile_rank: 50 };
     }
+    try {
+      const { data: policies } = await service
+        .from("risk_policies")
+        .select("id, organization_id, created_by, name, description, is_enabled, is_shared, severity_threshold, rules_json, created_at, updated_at")
+        .eq("organization_id", orgId)
+        .eq("is_enabled", true)
+        .eq("is_shared", true)
+        .order("updated_at", { ascending: false });
+      const activePolicy = Array.isArray(policies) && policies.length > 0 ? (policies[0] as RiskPolicyRow) : null;
+      if (activePolicy) {
+        const nowIso = new Date().toISOString();
+        const evaluation = evaluateRiskPolicy({ policy: activePolicy, portfolio: emptyResult, nowIso });
+        emptyResult.policy_status = {
+          active_policy: { id: activePolicy.id, name: activePolicy.name },
+          overall_status: evaluation.overall_status,
+          violation_count: evaluation.violation_count,
+          top_violations: evaluation.violations.slice(0, 3).map((v) => ({ message: v.message, severity: v.severity })),
+          evaluation: {
+            violations: evaluation.violations.map((v) => ({ rule_name: v.rule_name, message: v.message, severity: v.severity, affected_deal_ids: v.affected_deal_ids })),
+            recommended_actions: evaluation.recommended_actions.map((a) => ({ code: a.code, title: a.title, detail: a.detail, deal_ids: a.deal_ids })),
+          },
+        };
+      }
+    } catch (err) {
+      console.error("[getPortfolioSummary] policy evaluation failed (empty portfolio)", err);
+    }
     return emptyResult;
   }
 
@@ -608,6 +650,7 @@ export async function getPortfolioSummary(
   const bandTransitions: PortfolioSummary["trendSummary"]["bandTransitions"] = [];
   const deterioratedDealIds = new Set<string>();
   const highImpactDealIds = new Set<string>();
+  let dealLatestLtv: Record<string, number> | undefined;
   const alerts: AlertItem[] = [];
   const withScore: DealWithScore[] = [];
   let sumWeight = 0;
@@ -705,6 +748,15 @@ export async function getPortfolioSummary(
 
     const risks = risksByScanId.get(latestScan.id) ?? [];
     const assumptions = parseExtractionAssumptions(latestScan.extraction);
+    // LTV for policy engine: extraction.assumptions.ltv.value; if <= 1 treat as fraction
+    if (assumptions?.ltv?.value != null && typeof (assumptions as { ltv?: { value?: number } }).ltv.value === "number") {
+      const raw = (assumptions as { ltv: { value: number } }).ltv.value;
+      const pct = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
+      if (!Number.isNaN(pct)) {
+        if (!dealLatestLtv) dealLatestLtv = {};
+        dealLatestLtv[d.id] = Math.max(0, Math.min(100, pct));
+      }
+    }
     const contributions = risks.map((r) => ({
       risk_type: r.risk_type,
       penalty: computeRiskPenaltyContribution(r, assumptions),
@@ -997,6 +1049,7 @@ export async function getPortfolioSummary(
     ...(backtestResult.sample_size >= 20 && { backtest_summary: backtestResult }),
     ic_performance_summary,
     highImpactDealIds: [...highImpactDealIds],
+    ...(dealLatestLtv && Object.keys(dealLatestLtv).length > 0 && { dealLatestLtv }),
     model_health,
   };
 
@@ -1019,6 +1072,44 @@ export async function getPortfolioSummary(
       classification,
     };
     result.benchmark_context = { cohort_type: "internal", percentile_rank };
+  }
+
+  // Risk policy status: fetch enabled shared policies, pick one deterministically, evaluate
+  try {
+    const { data: policies } = await service
+      .from("risk_policies")
+      .select("id, organization_id, created_by, name, description, is_enabled, is_shared, severity_threshold, rules_json, created_at, updated_at")
+      .eq("organization_id", orgId)
+      .eq("is_enabled", true)
+      .eq("is_shared", true)
+      .order("updated_at", { ascending: false });
+    const activePolicy = Array.isArray(policies) && policies.length > 0 ? (policies[0] as RiskPolicyRow) : null;
+    if (activePolicy) {
+      const nowIso = new Date().toISOString();
+      const evaluation = evaluateRiskPolicy({ policy: activePolicy, portfolio: result, nowIso });
+      result.policy_status = {
+        active_policy: { id: activePolicy.id, name: activePolicy.name },
+        overall_status: evaluation.overall_status,
+        violation_count: evaluation.violation_count,
+        top_violations: evaluation.violations.slice(0, 3).map((v) => ({ message: v.message, severity: v.severity })),
+        evaluation: {
+          violations: evaluation.violations.map((v) => ({
+            rule_name: v.rule_name,
+            message: v.message,
+            severity: v.severity,
+            affected_deal_ids: v.affected_deal_ids,
+          })),
+          recommended_actions: evaluation.recommended_actions.map((a) => ({
+            code: a.code,
+            title: a.title,
+            detail: a.detail,
+            deal_ids: a.deal_ids,
+          })),
+        },
+      };
+    }
+  } catch (err) {
+    console.error("[getPortfolioSummary] policy evaluation failed", err);
   }
 
   return result;
