@@ -35,33 +35,28 @@ export async function POST(request: Request) {
   const now = new Date().toISOString();
   const tokenHash = hashToken(token);
 
-  let invite: { id: string; org_id: string; email: string; role: string } | null = null;
+  type InviteRow = { id: string; org_id: string; email: string; role: string; status: string; expires_at: string };
+  let invite: InviteRow | null = null;
 
   const { data: byHash, error: errHash } = await service
     .from("organization_invites")
-    .select("id, org_id, email, role")
+    .select("id, org_id, email, role, status, expires_at")
     .eq("token_hash", tokenHash)
-    .eq("status", "pending")
-    .gt("expires_at", now)
     .maybeSingle();
 
-  if (!errHash && byHash) {
-    invite = byHash as { id: string; org_id: string; email: string; role: string };
-  }
+  if (!errHash && byHash) invite = byHash as InviteRow;
 
   if (!invite) {
     const { data: byToken } = await service
       .from("organization_invites")
-      .select("id, org_id, email, role")
+      .select("id, org_id, email, role, status, expires_at")
       .eq("token", token)
-      .eq("status", "pending")
-      .gt("expires_at", now)
       .maybeSingle();
-    if (byToken) invite = byToken as { id: string; org_id: string; email: string; role: string };
+    if (byToken) invite = byToken as InviteRow;
   }
 
   if (!invite) {
-    return NextResponse.json({ error: "Invalid or expired invite" }, { status: 404 });
+    return NextResponse.json({ error: "Invalid or expired invite", code: "INVALID_INVITE" }, { status: 404 });
   }
 
   const inv = invite;
@@ -74,6 +69,24 @@ export async function POST(request: Request) {
     );
   }
 
+  if (inv.expires_at <= now) {
+    if (inv.status !== "expired") {
+      await service.from("organization_invites").update({ status: "expired" }).eq("id", inv.id);
+    }
+    return NextResponse.json(
+      { error: "This invite has expired", code: "EXPIRED_INVITE" },
+      { status: 410 }
+    );
+  }
+
+  if (inv.status === "accepted") {
+    return NextResponse.json({ success: true, org_id: inv.org_id });
+  }
+
+  if (inv.status !== "pending" && inv.status !== "sent") {
+    return NextResponse.json({ error: "Invalid or expired invite", code: "INVALID_INVITE" }, { status: 404 });
+  }
+
   const { error: insertError } = await service.from("organization_members").insert({
     org_id: inv.org_id,
     user_id: user.id,
@@ -82,7 +95,7 @@ export async function POST(request: Request) {
 
   if (insertError) {
     if ((insertError as { code?: string }).code === "23505") {
-      return NextResponse.json({ error: "You are already a member" }, { status: 409 });
+      return NextResponse.json({ success: true, org_id: inv.org_id });
     }
     console.error("organization_members insert error:", insertError);
     return NextResponse.json({ error: "Failed to join workspace" }, { status: 500 });

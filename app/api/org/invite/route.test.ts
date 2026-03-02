@@ -1,10 +1,10 @@
 /**
- * Workspace invite: assert token is stored hashed and email send is called with correct params.
+ * Workspace invite: token hashed, outbox row created, no inline email send, ENTERPRISE gating.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const mockInsert = vi.fn();
-const mockSendWorkspaceInvite = vi.fn();
+const mockInviteInsert = vi.fn();
+const mockOutboxInsert = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: () => ({
@@ -33,7 +33,7 @@ vi.mock("@/lib/supabase/service", () => ({
       if (table === "organization_invites") {
         return {
           insert: (payload: Record<string, unknown>) => {
-            mockInsert(payload);
+            mockInviteInsert(payload);
             return {
               select: () => ({
                 single: () =>
@@ -43,6 +43,14 @@ vi.mock("@/lib/supabase/service", () => ({
                   }),
               }),
             };
+          },
+        };
+      }
+      if (table === "email_outbox") {
+        return {
+          insert: (payload: Record<string, unknown>) => {
+            mockOutboxInsert(payload);
+            return Promise.resolve({ error: null });
           },
         };
       }
@@ -77,24 +85,54 @@ vi.mock("@/lib/entitlements/errors", () => ({
 }));
 
 vi.mock("@/lib/entitlements/workspace", () => ({
-  getWorkspacePlanAndEntitlements: () =>
+  getWorkspacePlanAndEntitlements: vi.fn(() =>
     Promise.resolve({
       plan: "ENTERPRISE",
       entitlements: { canInviteMembers: true },
-    }),
-}));
-
-vi.mock("@/lib/email/sendWorkspaceInvite", () => ({
-  sendWorkspaceInvite: (params: { to: string; orgName: string; inviterName: string; inviteLink: string }) => {
-    mockSendWorkspaceInvite(params);
-    return Promise.resolve({ success: true });
-  },
+    })
+  ),
 }));
 
 describe("POST /api/org/invite", () => {
+  it("returns 403 ENTERPRISE_REQUIRED when canInviteMembers is false", async () => {
+    const workspace = await import("@/lib/entitlements/workspace");
+    vi.mocked(workspace.getWorkspacePlanAndEntitlements).mockImplementationOnce(() =>
+      Promise.resolve({
+        plan: "PRO",
+        entitlements: {
+          maxLifetimeScans: null,
+          maxPortfolios: 3,
+          canUseBenchmark: true,
+          canBuildSnapshot: false,
+          canCreateCohort: false,
+          canUsePolicy: true,
+          canUseSupportBundle: true,
+          canInviteMembers: false,
+          maxActivePoliciesPerOrg: 1,
+        },
+      })
+    );
+
+    const { POST } = await import("./route");
+    const res = await POST(
+      new Request("http://localhost/api/org/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "invited@test.com", role: "member" }),
+      })
+    );
+
+    expect(res.status).toBe(403);
+    const data = await res.json();
+    expect(data.code).toBe("ENTERPRISE_REQUIRED");
+    expect(data.required_plan).toBe("ENTERPRISE");
+    expect(mockInviteInsert).not.toHaveBeenCalled();
+    expect(mockOutboxInsert).not.toHaveBeenCalled();
+  });
+
   it("stores token_hash and does not store raw token in insert payload", async () => {
-    mockInsert.mockClear();
-    mockSendWorkspaceInvite.mockClear();
+    mockInviteInsert.mockClear();
+    mockOutboxInsert.mockClear();
 
     const { POST } = await import("./route");
     const res = await POST(
@@ -106,7 +144,7 @@ describe("POST /api/org/invite", () => {
     );
 
     expect(res.status).toBe(200);
-    const payload = mockInsert.mock.calls[0]?.[0];
+    const payload = mockInviteInsert.mock.calls[0]?.[0];
     expect(payload).toBeDefined();
     expect(payload).toHaveProperty("token_hash");
     expect(typeof payload.token_hash).toBe("string");
@@ -114,12 +152,12 @@ describe("POST /api/org/invite", () => {
     expect(payload).not.toHaveProperty("token");
   });
 
-  it("calls sendWorkspaceInvite with orgName, inviterName, and inviteLink containing raw token", async () => {
-    mockInsert.mockClear();
-    mockSendWorkspaceInvite.mockClear();
+  it("inserts email_outbox row with ORG_INVITE, dedupe_key and QUEUED status", async () => {
+    mockInviteInsert.mockClear();
+    mockOutboxInsert.mockClear();
 
     const { POST } = await import("./route");
-    await POST(
+    const res = await POST(
       new Request("http://localhost/api/org/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,11 +165,26 @@ describe("POST /api/org/invite", () => {
       })
     );
 
-    expect(mockSendWorkspaceInvite).toHaveBeenCalledTimes(1);
-    const params = mockSendWorkspaceInvite.mock.calls[0]?.[0];
-    expect(params?.to).toBe("invited@test.com");
-    expect(params?.orgName).toBe("Test Org");
-    expect(params?.inviterName).toBe("Test Inviter");
-    expect(params?.inviteLink).toMatch(/\/invite\/accept\?token=[a-f0-9]{64}$/);
+    expect(res.status).toBe(200);
+    expect(mockOutboxInsert).toHaveBeenCalledTimes(1);
+    const outboxPayload = mockOutboxInsert.mock.calls[0]?.[0];
+    expect(outboxPayload).toMatchObject({
+      type: "ORG_INVITE",
+      recipient: "invited@test.com",
+      dedupe_key: "org_invite:invite-1:v1",
+      status: "QUEUED",
+    });
+    expect(outboxPayload.payload_json).toMatchObject({
+      invite_id: "invite-1",
+      organization_id: "org-1",
+      org_name: "Test Org",
+      inviter_name: "Test Inviter",
+    });
+    expect(outboxPayload.payload_json).toHaveProperty("raw_token");
+    expect(typeof (outboxPayload.payload_json as { raw_token: string }).raw_token).toBe("string");
+
+    const data = await res.json();
+    expect(data.invite_id).toBe("invite-1");
+    expect(data.email_queued).toBe(true);
   });
 });

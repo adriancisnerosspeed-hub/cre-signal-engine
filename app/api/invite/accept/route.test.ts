@@ -1,7 +1,7 @@
 /**
- * Accept invite: validate token via token_hash, add member, mark invite accepted.
+ * Accept invite: token_hash lookup, idempotent when already accepted, expired returns EXPIRED_INVITE.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import crypto from "crypto";
 
 function hashToken(token: string): string {
@@ -10,57 +10,46 @@ function hashToken(token: string): string {
 
 const rawToken = "a".repeat(64);
 const tokenHash = hashToken(rawToken);
-const mockInvite = {
+const futureExpiry = new Date(Date.now() + 86400000).toISOString();
+const pastExpiry = new Date(Date.now() - 86400000).toISOString();
+
+const mockInvitePending = {
   id: "invite-1",
   org_id: "org-1",
   email: "invited@test.com",
   role: "member",
+  status: "pending",
+  expires_at: futureExpiry,
 };
 
 const selectMock = vi.fn();
 const updateMock = vi.fn();
 const insertMock = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: () => ({
-    auth: {
-      getUser: () =>
-        Promise.resolve({
-          data: {
-            user: { id: "user-1", email: "invited@test.com" },
-          },
-        }),
-    },
-  }),
-}));
-
-vi.mock("@/lib/supabase/service", () => ({
-  createServiceRoleClient: () => ({
+function makeServiceMock(overrides: { invite?: Record<string, unknown>; lookupBy?: "hash" | "token" } = {}) {
+  const invite = overrides.invite ?? mockInvitePending;
+  const lookupBy = overrides.lookupBy ?? "hash";
+  return {
     from: (table: string) => {
       if (table === "organization_invites") {
         return {
-          select: (...args: unknown[]) => {
-            selectMock(...args);
-            return {
-              eq: (col: string, val: unknown) => ({
-                eq: (col2: string, val2: unknown) => ({
-                  gt: () => ({
-                    maybeSingle: () => {
-                      if (col === "token_hash" && val === tokenHash) {
-                        return Promise.resolve({ data: mockInvite, error: null });
-                      }
-                      return Promise.resolve({ data: null, error: null });
-                    },
-                  }),
-                }),
-              }),
-            };
-          },
+          select: () => ({
+            eq: (col: string, val: unknown) => ({
+              maybeSingle: () => {
+                selectMock(col, val);
+                if (lookupBy === "hash" && col === "token_hash" && val === tokenHash) {
+                  return Promise.resolve({ data: invite, error: null });
+                }
+                if (lookupBy === "token" && col === "token" && val === rawToken) {
+                  return Promise.resolve({ data: invite, error: null });
+                }
+                return Promise.resolve({ data: null, error: null });
+              },
+            }),
+          }),
           update: (payload: Record<string, unknown>) => {
             updateMock(payload);
-            return {
-              eq: () => Promise.resolve({ error: null }),
-            };
+            return { eq: () => Promise.resolve({ error: null }) };
           },
         };
       }
@@ -74,15 +63,34 @@ vi.mock("@/lib/supabase/service", () => ({
       }
       return {};
     },
+  };
+}
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: () => ({
+    auth: {
+      getUser: () =>
+        Promise.resolve({
+          data: { user: { id: "user-1", email: "invited@test.com" } },
+        }),
+    },
   }),
 }));
 
+vi.mock("@/lib/supabase/service", () => ({
+  createServiceRoleClient: vi.fn(),
+}));
+
 describe("POST /api/invite/accept", () => {
-  it("finds invite by token_hash and returns success with org_id", async () => {
+  beforeEach(async () => {
+    const service = await import("@/lib/supabase/service");
+    vi.mocked(service.createServiceRoleClient).mockImplementation(() => makeServiceMock() as never);
     selectMock.mockClear();
     updateMock.mockClear();
     insertMock.mockClear();
+  });
 
+  it("finds invite by token_hash and returns success with org_id", async () => {
     const { POST } = await import("./route");
     const res = await POST(
       new Request("http://localhost/api/invite/accept", {
@@ -110,8 +118,7 @@ describe("POST /api/invite/accept", () => {
     );
   });
 
-  it("returns 404 for invalid or expired token", async () => {
-    selectMock.mockClear();
+  it("returns 404 for invalid token", async () => {
     const { POST } = await import("./route");
     const res = await POST(
       new Request("http://localhost/api/invite/accept", {
@@ -121,5 +128,55 @@ describe("POST /api/invite/accept", () => {
       })
     );
     expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.code).toBe("INVALID_INVITE");
+  });
+
+  it("returns 410 EXPIRED_INVITE and sets status expired when invite is expired", async () => {
+    const service = await import("@/lib/supabase/service");
+    vi.mocked(service.createServiceRoleClient).mockImplementation(() =>
+      makeServiceMock({
+        invite: { ...mockInvitePending, status: "pending", expires_at: pastExpiry },
+      }) as never
+    );
+
+    const { POST } = await import("./route");
+    const res = await POST(
+      new Request("http://localhost/api/invite/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: rawToken }),
+      })
+    );
+
+    expect(res.status).toBe(410);
+    const data = await res.json();
+    expect(data.code).toBe("EXPIRED_INVITE");
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ status: "expired" }));
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 without re-inserting membership when invite already accepted (idempotent)", async () => {
+    const service = await import("@/lib/supabase/service");
+    vi.mocked(service.createServiceRoleClient).mockImplementation(() =>
+      makeServiceMock({
+        invite: { ...mockInvitePending, status: "accepted" },
+      }) as never
+    );
+
+    const { POST } = await import("./route");
+    const res = await POST(
+      new Request("http://localhost/api/invite/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: rawToken }),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.org_id).toBe("org-1");
+    expect(insertMock).not.toHaveBeenCalled();
   });
 });
