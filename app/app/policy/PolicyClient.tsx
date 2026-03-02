@@ -162,9 +162,10 @@ export function PolicyClient({ initialPolicies }: Props) {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      const data = await res.json().catch(() => ({})) as PolicyRow | { message?: string; error?: string };
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = (typeof data?.message === "string" ? data.message : typeof data?.error === "string" ? data.error : null) ?? "Failed to create policy";
+        const err = data as { message?: string; error?: string } | null;
+        const msg = (typeof err?.message === "string" ? err.message : typeof err?.error === "string" ? err.error : null) ?? "Failed to create policy";
         alert(msg);
         return;
       }
