@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import PaywallModal from "@/app/components/PaywallModal";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
+import { toast } from "@/lib/toast";
 
 export default function DealDetailClient({
   dealId,
@@ -33,39 +35,41 @@ export default function DealDetailClient({
     if (hasScan) setScanBanner("started");
     else setScanBanner(null);
     setLoading(true);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120_000);
     try {
       const body = hasScan ? { deal_id: dealId, force: 1 } : { deal_id: dealId };
-      const res = await fetch("/api/deals/scan", {
+      const r = await fetchJsonWithTimeout("/api/deals/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      const data = await res.json().catch(() => ({})) as { code?: string; error?: string; message?: string; reused?: boolean; used?: number; limit?: number };
-      if (!res.ok) {
+      }, 120_000);
+      const data = (r.json ?? {}) as { code?: string; error?: string; message?: string; reused?: boolean; used?: number; limit?: number };
+      if (!r.ok) {
         setScanBanner(null);
-        if ((res.status === 403 || res.status === 429) && data.code === "PLAN_LIMIT_REACHED") {
+        if ((r.status === 403 || r.status === 429) && data.code === "PLAN_LIMIT_REACHED") {
           setError(null);
+          toast("Upgrade required to run additional scans.", "error");
           setPaywallOpen(true);
           setLifetimeLimitPaywall(true);
           return;
         }
-        if (res.status === 429 && data.code === "LIFETIME_LIMIT_REACHED") {
+        if (r.status === 429 && data.code === "LIFETIME_LIMIT_REACHED") {
           setError(null);
+          toast("Upgrade required to run additional scans.", "error");
           setPaywallOpen(true);
           setLifetimeLimitPaywall(true);
           return;
         }
-        if (res.status === 429) {
-          setError(`Daily limit reached (${data.used ?? 0}/${data.limit ?? 0}). Upgrade for more scans.`);
+        if (r.status === 429) {
+          const msg = `Daily limit reached (${data.used ?? 0}/${data.limit ?? 0}). Upgrade for more scans.`;
+          toast(msg, "error");
+          setError(msg);
           setPaywallOpen(true);
           setLifetimeLimitPaywall(false);
           return;
         }
-        setError(data.error || data.message || `Error ${res.status}`);
+        const msg = data.error || data.message || `Error ${r.status}`;
+        toast(msg, "error");
+        setError(msg);
         return;
       }
       if (hasScan && !data.reused) {
@@ -76,12 +80,15 @@ export default function DealDetailClient({
       }
       router.refresh();
     } catch (err) {
-      clearTimeout(timeoutId);
       setScanBanner(null);
       if (err instanceof Error && err.name === "AbortError") {
-        setError("Scan is taking longer than expected. Refresh the page to check status.");
+        const msg = "Scan is taking longer than expected. Refresh the page to check status.";
+        toast(msg, "error");
+        setError(msg);
       } else {
-        setError(err instanceof Error ? err.message : "Failed to run scan");
+        const msg = err instanceof Error ? err.message : "Failed to run scan";
+        toast(msg, "error");
+        setError(msg);
       }
     } finally {
       setLoading(false);

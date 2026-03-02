@@ -3,15 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Plan } from "@/lib/entitlements";
-
-const FETCH_TIMEOUT_MS = 15_000;
-
-function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number } = {}) {
-  const { timeout = FETCH_TIMEOUT_MS, ...fetchOptions } = options;
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  return fetch(url, { ...fetchOptions, signal: controller.signal }).finally(() => clearTimeout(id));
-}
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
+import { toast } from "@/lib/toast";
 
 export default function PricingClient({ plan, workspaceId }: { plan: Plan; workspaceId?: string }) {
   const [loading, setLoading] = useState<"checkout" | "portal" | null>(null);
@@ -23,17 +16,19 @@ export default function PricingClient({ plan, workspaceId }: { plan: Plan; works
         ? "/api/billing/create-checkout-session"
         : "/api/stripe/checkout";
       const body = workspaceId ? JSON.stringify({ workspace_id: workspaceId }) : undefined;
-      const res = await fetchWithTimeout(url, {
+      const r = await fetchJsonWithTimeout(url, {
         method: "POST",
         headers: body ? { "Content-Type": "application/json" } : undefined,
         body,
       });
-      const data = await res.json().catch(() => ({}));
-      if (data.url) window.location.href = data.url;
-      else alert((data as { error?: string }).error || "Failed to start checkout");
+      const checkoutUrl = r?.json?.url as string | undefined;
+      if (!r.ok || !checkoutUrl) {
+        toast((r?.json?.error as string | undefined) ?? "Failed to start checkout", "error");
+        return;
+      }
+      window.location.href = checkoutUrl;
     } catch (e) {
-      if (e instanceof Error && e.name === "AbortError") alert("Request timed out. Try again.");
-      else alert("Failed to start checkout");
+      toast(e instanceof Error && e.name === "AbortError" ? "Request timed out. Try again." : "Failed to start checkout", "error");
     } finally {
       setLoading(null);
     }
@@ -42,13 +37,15 @@ export default function PricingClient({ plan, workspaceId }: { plan: Plan; works
   async function handleManageBilling() {
     setLoading("portal");
     try {
-      const res = await fetchWithTimeout("/api/stripe/portal", { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if ((data as { url?: string }).url) window.location.href = (data as { url: string }).url;
-      else alert((data as { error?: string }).error || "Failed to open billing portal");
+      const r = await fetchJsonWithTimeout("/api/stripe/portal", { method: "POST" });
+      const portalUrl = r?.json?.url as string | undefined;
+      if (!r.ok || !portalUrl) {
+        toast((r?.json?.error as string | undefined) ?? "Failed to open billing portal", "error");
+        return;
+      }
+      window.location.href = portalUrl;
     } catch (e) {
-      if (e instanceof Error && e.name === "AbortError") alert("Request timed out. Try again.");
-      else alert("Failed to open billing portal");
+      toast(e instanceof Error && e.name === "AbortError" ? "Request timed out. Try again." : "Failed to open billing portal", "error");
     } finally {
       setLoading(null);
     }

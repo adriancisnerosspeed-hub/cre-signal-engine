@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Plan } from "@/lib/entitlements";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
+import { toast } from "@/lib/toast";
 
 export default function BillingCard({
   plan,
@@ -24,10 +26,15 @@ export default function BillingCard({
   async function handleUpgrade() {
     setLoading("checkout");
     try {
-      const res = await fetch("/api/stripe/checkout", { method: "POST" });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else alert(data.error || "Failed to start checkout");
+      const r = await fetchJsonWithTimeout("/api/stripe/checkout", { method: "POST" });
+      const checkoutUrl = r?.json?.url as string | undefined;
+      if (!r.ok || !checkoutUrl) {
+        toast((r?.json?.error as string | undefined) ?? "Failed to start checkout", "error");
+        return;
+      }
+      window.location.href = checkoutUrl;
+    } catch (e) {
+      toast(e instanceof Error && e.name === "AbortError" ? "Request timed out. Try again." : "Failed to start checkout", "error");
     } finally {
       setLoading(null);
     }
@@ -36,10 +43,15 @@ export default function BillingCard({
   async function handleManageBilling() {
     setLoading("portal");
     try {
-      const res = await fetch("/api/stripe/portal", { method: "POST" });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else alert(data.error || "Failed to open billing portal");
+      const r = await fetchJsonWithTimeout("/api/stripe/portal", { method: "POST" });
+      const portalUrl = r?.json?.url as string | undefined;
+      if (!r.ok || !portalUrl) {
+        toast((r?.json?.error as string | undefined) ?? "Failed to open billing portal", "error");
+        return;
+      }
+      window.location.href = portalUrl;
+    } catch (e) {
+      toast(e instanceof Error && e.name === "AbortError" ? "Request timed out. Try again." : "Failed to open billing portal", "error");
     } finally {
       setLoading(null);
     }

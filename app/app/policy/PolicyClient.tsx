@@ -4,6 +4,8 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { PolicyRow } from "./page";
 import type { PolicyRule, PolicyEvaluationResult } from "@/lib/policy/types";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
+import { toast } from "@/lib/toast";
 
 const RULE_TYPE_OPTIONS: { type: PolicyRule["type"]; label: string }[] = [
   { type: "MAX_ELEVATED_PLUS_PCT", label: "Max Elevated+ %" },
@@ -109,7 +111,7 @@ export function PolicyClient({ initialPolicies }: Props) {
     if (!selectedId || !hasChanges) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/risk-policies/${selectedId}`, {
+      const r = await fetchJsonWithTimeout(`/api/risk-policies/${selectedId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -119,15 +121,19 @@ export function PolicyClient({ initialPolicies }: Props) {
           is_shared: draft.is_shared ?? selected?.is_shared,
           rules_json: draft.rules_json ?? selected?.rules_json ?? [],
         }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const updated = await res.json();
+      }, 15000);
+      if (!r.ok) {
+        const msg = (r.json?.message as string | undefined) ?? (r.json?.error as string | undefined) ?? `Failed to save policy (HTTP ${r.status})`;
+        toast(msg, "error");
+        return;
+      }
+      const updated = r.json;
       setPolicies((prev) => prev.map((p) => (p.id === selectedId ? updated : p)));
       setDraft({});
       setEvaluationResult(null);
     } catch (e) {
       console.error(e);
-      alert("Failed to save policy");
+      toast(e instanceof Error && e.name === "AbortError" ? "Request timed out. Try again." : "Failed to save policy", "error");
     } finally {
       setSaving(false);
     }
@@ -138,13 +144,17 @@ export function PolicyClient({ initialPolicies }: Props) {
     setEvaluating(true);
     setEvaluationResult(null);
     try {
-      const res = await fetch(`/api/risk-policies/${selectedId}/evaluate`, { method: "POST" });
-      if (!res.ok) throw new Error(await res.text());
-      const result: PolicyEvaluationResult = await res.json();
+      const r = await fetchJsonWithTimeout(`/api/risk-policies/${selectedId}/evaluate`, { method: "POST" }, 15000);
+      if (!r.ok) {
+        const msg = (r.json?.message as string | undefined) ?? (r.json?.error as string | undefined) ?? `Failed to run evaluation (HTTP ${r.status})`;
+        toast(msg, "error");
+        return;
+      }
+      const result: PolicyEvaluationResult = r.json as PolicyEvaluationResult;
       setEvaluationResult(result);
     } catch (e) {
       console.error(e);
-      alert("Failed to run evaluation");
+      toast(e instanceof Error && e.name === "AbortError" ? "Request timed out. Try again." : "Failed to run evaluation", "error");
     } finally {
       setEvaluating(false);
     }
@@ -152,34 +162,23 @@ export function PolicyClient({ initialPolicies }: Props) {
 
   const handleCreate = async () => {
     setCreating(true);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25_000);
     try {
-      const res = await fetch("/api/risk-policies", {
+      const r = await fetchJsonWithTimeout("/api/risk-policies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: "New policy", description: null, is_enabled: true, is_shared: true, rules_json: [] }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const err = data as { message?: string; error?: string } | null;
-        const msg = (typeof err?.message === "string" ? err.message : typeof err?.error === "string" ? err.error : null) ?? "Failed to create policy";
-        alert(msg);
+      }, 25000);
+      if (!r.ok) {
+        const msg = (r.json?.message as string | undefined) ?? (r.json?.error as string | undefined) ?? "Failed to create policy";
+        toast(msg, "error");
         return;
       }
-      const created = data as PolicyRow;
+      const created = r.json as PolicyRow;
       setPolicies((prev) => [created, ...prev]);
       loadDraft(created);
     } catch (e) {
-      clearTimeout(timeoutId);
-      if (e instanceof Error && e.name === "AbortError") {
-        alert("Request timed out. Check your connection and try again.");
-      } else {
-        console.error(e);
-        alert("Failed to create policy");
-      }
+      console.error(e);
+      toast(e instanceof Error && e.name === "AbortError" ? "Request timed out. Check your connection and try again." : "Failed to create policy", "error");
     } finally {
       setCreating(false);
     }
@@ -188,8 +187,12 @@ export function PolicyClient({ initialPolicies }: Props) {
   const handleDelete = async () => {
     if (!selectedId || !deleteConfirm) return;
     try {
-      const res = await fetch(`/api/risk-policies/${selectedId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(await res.text());
+      const r = await fetchJsonWithTimeout(`/api/risk-policies/${selectedId}`, { method: "DELETE" }, 15000);
+      if (!r.ok) {
+        const msg = (r.json?.message as string | undefined) ?? (r.json?.error as string | undefined) ?? `Failed to delete policy (HTTP ${r.status})`;
+        toast(msg, "error");
+        return;
+      }
       setPolicies((prev) => prev.filter((p) => p.id !== selectedId));
       const next = policies.find((p) => p.id !== selectedId);
       setSelectedId(next?.id ?? null);
@@ -198,7 +201,7 @@ export function PolicyClient({ initialPolicies }: Props) {
       setDeleteConfirm(false);
     } catch (e) {
       console.error(e);
-      alert("Failed to delete policy");
+      toast(e instanceof Error && e.name === "AbortError" ? "Request timed out. Try again." : "Failed to delete policy", "error");
     }
   };
 

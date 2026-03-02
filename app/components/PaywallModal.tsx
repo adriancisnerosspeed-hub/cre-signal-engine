@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
+import { toast } from "@/lib/toast";
 
 const CHECKOUT_TIMEOUT_MS = 15_000;
 
@@ -9,22 +11,22 @@ function UpgradeButton({ workspaceId }: { workspaceId?: string }) {
   const [loading, setLoading] = useState(false);
   async function handleUpgrade() {
     setLoading(true);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CHECKOUT_TIMEOUT_MS);
     try {
       const url = workspaceId ? "/api/billing/create-checkout-session" : "/api/stripe/checkout";
-      const res = await fetch(url, {
+      const r = await fetchJsonWithTimeout(url, {
         method: "POST",
         headers: workspaceId ? { "Content-Type": "application/json" } : undefined,
         body: workspaceId ? JSON.stringify({ workspace_id: workspaceId }) : undefined,
-        signal: controller.signal,
-      });
-      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (data.url) window.location.href = data.url;
-    } catch {
-      // timeout or network error
+      }, CHECKOUT_TIMEOUT_MS);
+      const checkoutUrl = r?.json?.url as string | undefined;
+      if (!r.ok || !checkoutUrl) {
+        toast((r?.json?.error as string | undefined) ?? "Failed to start checkout", "error");
+        return;
+      }
+      window.location.href = checkoutUrl;
+    } catch (e) {
+      toast(e instanceof Error && e.name === "AbortError" ? "Request timed out. Try again." : "Failed to start checkout", "error");
     } finally {
-      clearTimeout(timeoutId);
       setLoading(false);
     }
   }
