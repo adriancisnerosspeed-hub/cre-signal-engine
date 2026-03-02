@@ -35,7 +35,7 @@ export default function DealDetailClient({
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      const data = await res.json().catch(() => ({})) as { code?: string; error?: string; reused?: boolean; used?: number; limit?: number };
+      const data = await res.json().catch(() => ({})) as { code?: string; error?: string; message?: string; reused?: boolean; used?: number; limit?: number };
       if (!res.ok) {
         if ((res.status === 403 || res.status === 429) && data.code === "PLAN_LIMIT_REACHED") {
           setError(null);
