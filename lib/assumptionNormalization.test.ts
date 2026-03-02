@@ -138,4 +138,14 @@ describe("normalizeAssumptionsForScoringWithFlags", () => {
     expect(assumptions.vacancy?.value).toBe(38);
     expect(unitInferred).toBe(true);
   });
+
+  it("unit inference trigger: vacancy 0.38 and LTV 0.92 (unit blank) → both normalized, unitInferred true (scan sets EDGE_UNIT_INFERRED + review_flag)", () => {
+    const { assumptions, unitInferred } = normalizeAssumptionsForScoringWithFlags({
+      vacancy: { value: 0.38, unit: null, confidence: "High" },
+      ltv: { value: 0.92, unit: undefined, confidence: "Medium" },
+    });
+    expect(assumptions.vacancy?.value).toBe(38);
+    expect(assumptions.ltv?.value).toBe(92);
+    expect(unitInferred).toBe(true);
+  });
 });
