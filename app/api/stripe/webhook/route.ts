@@ -272,7 +272,7 @@ async function recordUnmatchedEvent(
     event_type: event.type,
     subscription_id: subscriptionId,
     customer_id: customerId,
-    metadata_json: event.data?.object ? (event.data.object as Record<string, unknown>) : {},
+    metadata_json: event.data?.object ? (event.data.object as unknown as Record<string, unknown>) : {},
     reason,
   });
 }
