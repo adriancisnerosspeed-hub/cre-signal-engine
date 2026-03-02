@@ -178,13 +178,15 @@ export async function GET(
           .select("cohort_id, as_of_timestamp, snapshot_hash, n_eligible, method_version, build_status")
           .eq("id", snapshotId)
           .single();
-        const { data: cohortRow } =
-          snapshotRow &&
-          (await service
+        let cohortRow: { id: string; key: string; name: string; rule_json: unknown; rule_hash: string | null } | null = null;
+        if (snapshotRow) {
+          const res = await service
             .from("benchmark_cohorts")
             .select("id, key, name, rule_json, rule_hash")
             .eq("id", (snapshotRow as { cohort_id: string }).cohort_id)
-            .single());
+            .single();
+          cohortRow = res.data;
+        }
         const { data: distRows } = await service
           .from("benchmark_snapshot_distributions")
           .select("metric_key, n, min_val, max_val, median_val, values_sorted")
