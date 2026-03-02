@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveLatestScanId, computePRPI, computeVersionDrift } from "./portfolioSummary";
+import { resolveLatestScanId, computePRPI, computeVersionDrift, getPortfolioSummary } from "./portfolioSummary";
 import { PORTFOLIO_STALE_DAYS } from "./constants";
 
 type ScanRow = {
@@ -230,5 +230,25 @@ describe("computeVersionDrift", () => {
     const { versionDrift, versionDriftDealIds } = computeVersionDrift([]);
     expect(versionDrift).toBe(false);
     expect(versionDriftDealIds).toEqual([]);
+  });
+});
+
+describe("getPortfolioSummary return shape", () => {
+  it("risk_movement and highImpactDealIds are always defined (empty org)", async () => {
+    const mockService = {
+      from: () => ({
+        select: () => ({
+          eq: () => Promise.resolve({ data: [] }),
+        }),
+      }),
+    };
+    const summary = await getPortfolioSummary(mockService as never, "org-1");
+    expect(summary.risk_movement).toBeDefined();
+    expect(summary.risk_movement?.deal_ids).toBeDefined();
+    expect(Array.isArray(summary.risk_movement?.deal_ids?.deteriorated)).toBe(true);
+    expect(Array.isArray(summary.risk_movement?.deal_ids?.crossed_tiers)).toBe(true);
+    expect(Array.isArray(summary.risk_movement?.deal_ids?.version_drift)).toBe(true);
+    expect(summary.highImpactDealIds).toBeDefined();
+    expect(Array.isArray(summary.highImpactDealIds)).toBe(true);
   });
 });

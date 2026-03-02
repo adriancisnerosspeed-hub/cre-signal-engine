@@ -9,6 +9,7 @@ import { exposureMarketKey, exposureMarketLabel } from "./normalizeMarket";
 import { computeRiskPenaltyContribution, describeStabilizers } from "./riskIndex";
 import type { DealScanAssumptions } from "./dealScanContract";
 import { computeBacktestMetrics, type BacktestMetrics } from "./backtestEngine";
+import { getRiskModelMetadata } from "./modelGovernance";
 
 export type IcStatusValue = "PRE_IC" | "APPROVED" | "APPROVED_WITH_CONDITIONS" | "REJECTED";
 
@@ -143,6 +144,16 @@ export type PortfolioSummary = {
   backtest_summary?: BacktestMetrics;
   ic_performance_summary?: IcPerformanceSummary;
   highImpactDealIds?: string[];
+  /** Model health & governance card (institutional transparency). */
+  model_health?: {
+    model_version: string;
+    weighted_avg_score: number;
+    distribution_by_band: Record<string, number>;
+    pct_high: number;
+    pct_elevated: number;
+    stress_last_run_at?: string;
+    governance_locked_at: string;
+  };
 };
 
 const ELEVATED_PLUS_BANDS = new Set<string>(["Elevated", "High"]);
@@ -387,6 +398,17 @@ export async function getPortfolioSummary(
         deal_ids: { deteriorated: [], crossed_tiers: [], version_drift: [] },
       },
       highImpactDealIds: [],
+      model_health: (() => {
+        const meta = getRiskModelMetadata();
+        return {
+          model_version: meta.version,
+          weighted_avg_score: 0,
+          distribution_by_band: {} as Record<string, number>,
+          pct_high: 0,
+          pct_elevated: 0,
+          governance_locked_at: meta.created_at,
+        };
+      })(),
     };
   }
 
@@ -851,6 +873,17 @@ export async function getPortfolioSummary(
     }
   }
 
+  const metadata = getRiskModelMetadata();
+  const scannedCount = withScore.length || 1;
+  const model_health = {
+    model_version: metadata.version,
+    weighted_avg_score: weightedMetrics.weightedAvgScore,
+    distribution_by_band: { ...distributionByBand },
+    pct_high: Math.round(((distributionByBand["High"] ?? 0) / scannedCount) * 1000) / 10,
+    pct_elevated: Math.round(((distributionByBand["Elevated"] ?? 0) / scannedCount) * 1000) / 10,
+    governance_locked_at: metadata.created_at,
+  };
+
   return {
     deals,
     counts: {
@@ -879,5 +912,6 @@ export async function getPortfolioSummary(
     ...(backtestResult.sample_size >= 20 && { backtest_summary: backtestResult }),
     ic_performance_summary,
     highImpactDealIds: [...highImpactDealIds],
+    model_health,
   };
 }

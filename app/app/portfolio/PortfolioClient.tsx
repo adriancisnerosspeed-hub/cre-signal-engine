@@ -564,7 +564,7 @@ export function PortfolioClient({
               fontSize: 13,
             }}
           >
-            Reset filters
+            Clear all filters
           </button>
           {((summary.highImpactDealIds?.length ?? 0) > 0) && (
             <button
@@ -629,12 +629,12 @@ export function PortfolioClient({
                 style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}
                 title={
                   [
-                    "PRPI = weighted sum of components (0–100). Weights:",
-                    `• Weighted avg score: ${summary.prpi.components.weighted_average_score.toFixed(1)} (weight 30%)`,
-                    `• % exposure High: ${summary.prpi.components.pct_exposure_high.toFixed(1)}% (weight 25%)`,
-                    `• % exposure deteriorating: ${summary.prpi.components.pct_exposure_deteriorating.toFixed(1)}% (weight 15%)`,
-                    `• Top market concentration: ${summary.prpi.components.top_market_concentration_pct.toFixed(0)}% (weight 15%)`,
-                    `• Top asset concentration: ${summary.prpi.components.top_asset_concentration_pct.toFixed(0)}% (weight 15%)`,
+                    "PRPI = weighted sum of components (0–100). Formula weights:",
+                    `• Weighted avg score (30%): ${summary.prpi.components.weighted_average_score.toFixed(1)}`,
+                    `• % exposure High (25%): ${summary.prpi.components.pct_exposure_high.toFixed(1)}%`,
+                    `• % exposure deteriorating (15%): ${summary.prpi.components.pct_exposure_deteriorating.toFixed(1)}%`,
+                    `• Top market concentration (15%): ${summary.prpi.components.top_market_concentration_pct.toFixed(0)}%`,
+                    `• Top asset concentration (15%): ${summary.prpi.components.top_asset_concentration_pct.toFixed(0)}%`,
                   ].join("\n")
                 }
               >
@@ -644,6 +644,20 @@ export function PortfolioClient({
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
                   {summary.prpi.prpi_band} ({summary.prpi.prpi_score})
+                </div>
+              </div>
+            )}
+            {summary.model_health != null && (
+              <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 160 }}>
+                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>Model Health</div>
+                <div style={{ fontSize: 13, color: "#fafafa", marginBottom: 4 }}>
+                  Version: {summary.model_health.model_version}
+                </div>
+                <div style={{ fontSize: 12, color: "#e4e4e7", marginBottom: 2 }}>
+                  Distribution: Low {summary.model_health.distribution_by_band?.Low ?? 0} · Mod {summary.model_health.distribution_by_band?.Moderate ?? 0} · Elev {summary.model_health.distribution_by_band?.Elevated ?? 0} · High {summary.model_health.distribution_by_band?.High ?? 0}
+                </div>
+                <div style={{ fontSize: 11, color: "#a1a1aa" }}>
+                  Elevated {Number(summary.model_health.pct_elevated).toFixed(1)}% · High {Number(summary.model_health.pct_high).toFixed(1)}% · Gov locked {summary.model_health.governance_locked_at}
                 </div>
               </div>
             )}

@@ -4,6 +4,7 @@ import { getCurrentOrgId } from "@/lib/org";
 import { getEntitlementsForUser } from "@/lib/entitlements";
 import { getRecommendedActions } from "@/lib/icRecommendedActions";
 import { checkBandConsistency } from "@/lib/bandConsistency";
+import { computeExplainabilityDiff } from "@/lib/explainabilityDiff";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import DealDetailClient from "./DealDetailClient";
@@ -201,8 +202,19 @@ export default async function DealPage({
     model: string | null;
     risk_index_score: number | null;
     risk_index_band: string | null;
-    risk_index_breakdown?: { delta_comparable?: boolean; tier_drivers?: string[] } | null;
+    risk_index_breakdown?: { delta_comparable?: boolean; tier_drivers?: string[]; contributions?: { driver: string; points: number }[] } | null;
   }[];
+
+  const latestScan = last5Scans[0];
+  const previousScan = last5Scans[1];
+  const explainabilityDiff =
+    latestScan?.risk_index_breakdown?.delta_comparable === true && previousScan
+      ? computeExplainabilityDiff(
+          latestScan.risk_index_breakdown,
+          previousScan.risk_index_breakdown,
+          true
+        ).slice(0, 5)
+      : [];
 
   const bandConsistency = scan
     ? checkBandConsistency(scan.risk_index_score, scan.risk_index_band, scan.risk_index_version ?? null)
@@ -304,6 +316,35 @@ export default async function DealPage({
                 }}
               >
                 <RiskTrajectoryChart scans={last5Scans} />
+              </div>
+            </section>
+          )}
+          {explainabilityDiff.length > 0 && (
+            <section style={{ marginBottom: 32 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+                Score Change Drivers
+              </h2>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 8,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                }}
+              >
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                  {explainabilityDiff.map((item, i) => (
+                    <li key={i} style={{ padding: "6px 0", borderBottom: i < explainabilityDiff.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none", fontSize: 14 }}>
+                      <span style={{ color: "#e4e4e7" }}>{item.driver}</span>
+                      {" "}
+                      <span style={{ color: "#a1a1aa" }}>
+                        {item.previous_points} → {item.current_points}
+                        {item.delta_points >= 0 ? " (+" : " ("}
+                        {item.delta_points})
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </section>
           )}
