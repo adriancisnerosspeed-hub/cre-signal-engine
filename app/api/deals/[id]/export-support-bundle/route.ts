@@ -133,7 +133,7 @@ export async function GET(
   zip.file("risk_audit_log.json", JSON.stringify(auditRows ?? [], null, 2));
 
   try {
-    if (entitlements.backtest_enabled) {
+    if (entitlements.canUseBenchmark) {
       const summary = await getPortfolioSummary(service, orgId);
       if (summary.backtest_summary) {
         zip.file("backtest_summary.json", JSON.stringify(summary.backtest_summary, null, 2));
