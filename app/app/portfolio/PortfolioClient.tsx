@@ -55,6 +55,8 @@ type Props = {
   scanExportEnabled?: boolean;
   methodologyPdfFilename?: string;
   savedViews?: { id: string; name: string; config_json: PortfolioViewConfig }[];
+  benchmarkEnabled?: boolean;
+  backtestEnabled?: boolean;
 };
 
 function parsePortfolioState(params: URLSearchParams): Partial<{
@@ -115,6 +117,8 @@ export function PortfolioClient({
   scanExportEnabled = false,
   methodologyPdfFilename = "cre-signal-risk-index-methodology.pdf",
   savedViews = [],
+  benchmarkEnabled = false,
+  backtestEnabled = false,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -644,6 +648,23 @@ export function PortfolioClient({
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
                   {summary.prpi.prpi_band} ({summary.prpi.prpi_score})
+                </div>
+              </div>
+            )}
+            {benchmarkEnabled && summary.benchmark != null && (
+              <div
+                style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 160 }}
+                title="Percentile ranks this portfolio's weighted risk score vs. internal cohort. Classification uses PRPI, concentration, and deterioration rules (Conservative, Moderate, Aggressive, Concentrated, Deteriorating)."
+              >
+                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                  Benchmark
+                  <span style={{ cursor: "help", opacity: 0.8 }} aria-label="Percentile and classification">ⓘ</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#fafafa", marginBottom: 2 }}>
+                  {summary.benchmark.percentile_rank}th percentile
+                </div>
+                <div style={{ fontSize: 12, color: "#a1a1aa" }}>
+                  {summary.benchmark.classification}
                 </div>
               </div>
             )}

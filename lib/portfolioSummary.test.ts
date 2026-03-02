@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { resolveLatestScanId, computePRPI, computeVersionDrift, getPortfolioSummary } from "./portfolioSummary";
+import {
+  resolveLatestScanId,
+  computePRPI,
+  computeVersionDrift,
+  getBenchmarkClassification,
+  computePortfolioPercentile,
+  getPortfolioSummary,
+} from "./portfolioSummary";
 import { PORTFOLIO_STALE_DAYS } from "./constants";
 
 type ScanRow = {
@@ -233,6 +240,122 @@ describe("computeVersionDrift", () => {
   });
 });
 
+describe("getBenchmarkClassification", () => {
+  it("returns Conservative when PRPI < 30 and pct_high < 10", () => {
+    const summary = {
+      counts: { total: 10 },
+      prpi: { prpi_score: 25, components: { pct_exposure_high: 5 } },
+      concentration: { topMarketPct: 20 },
+      trendSummary: { deteriorations: [] },
+      weightedMetrics: { pctElevatedPlusByWeight: 10 },
+    };
+    expect(getBenchmarkClassification(summary as never)).toBe("Conservative");
+  });
+
+  it("returns Moderate when PRPI 30–50", () => {
+    const summary = {
+      counts: { total: 10 },
+      prpi: { prpi_score: 40, components: { pct_exposure_high: 15 } },
+      concentration: { topMarketPct: 30 },
+      trendSummary: { deteriorations: [] },
+      weightedMetrics: { pctElevatedPlusByWeight: 20 },
+    };
+    expect(getBenchmarkClassification(summary as never)).toBe("Moderate");
+  });
+
+  it("returns Aggressive when PRPI > 50 and pct_elevated_plus > 25", () => {
+    const summary = {
+      counts: { total: 10 },
+      prpi: { prpi_score: 60, components: { pct_exposure_high: 20 } },
+      concentration: { topMarketPct: 35 },
+      trendSummary: { deteriorations: [] },
+      weightedMetrics: { pctElevatedPlusByWeight: 30 },
+    };
+    expect(getBenchmarkClassification(summary as never)).toBe("Aggressive");
+  });
+
+  it("returns Concentrated when top_market_pct > 40", () => {
+    const summary = {
+      counts: { total: 10 },
+      prpi: { prpi_score: 55, components: { pct_exposure_high: 15 } },
+      concentration: { topMarketPct: 45 },
+      trendSummary: { deteriorations: [] },
+      weightedMetrics: { pctElevatedPlusByWeight: 30 },
+    };
+    expect(getBenchmarkClassification(summary as never)).toBe("Concentrated");
+  });
+
+  it("returns Deteriorating when deteriorated / total > 15%", () => {
+    const summary = {
+      counts: { total: 10 },
+      prpi: { prpi_score: 50, components: { pct_exposure_high: 10 } },
+      concentration: { topMarketPct: 30 },
+      trendSummary: { deteriorations: [{}, {}, {}] },
+      weightedMetrics: { pctElevatedPlusByWeight: 20 },
+    };
+    expect(getBenchmarkClassification(summary as never)).toBe("Deteriorating");
+  });
+
+  it("priority: Deteriorating beats Concentrated", () => {
+    const summary = {
+      counts: { total: 10 },
+      prpi: { prpi_score: 60, components: { pct_exposure_high: 20 } },
+      concentration: { topMarketPct: 50 },
+      trendSummary: { deteriorations: [{}, {}] },
+      weightedMetrics: { pctElevatedPlusByWeight: 30 },
+    };
+    expect(getBenchmarkClassification(summary as never)).toBe("Deteriorating");
+  });
+
+  it("priority: Concentrated beats Aggressive", () => {
+    const summary = {
+      counts: { total: 10 },
+      prpi: { prpi_score: 55, components: { pct_exposure_high: 15 } },
+      concentration: { topMarketPct: 45 },
+      trendSummary: { deteriorations: [] },
+      weightedMetrics: { pctElevatedPlusByWeight: 30 },
+    };
+    expect(getBenchmarkClassification(summary as never)).toBe("Concentrated");
+  });
+
+  it("defaults to Moderate when no rule matches", () => {
+    const summary = {
+      counts: { total: 10 },
+      prpi: { prpi_score: 55, components: { pct_exposure_high: 15 } },
+      concentration: { topMarketPct: 35 },
+      trendSummary: { deteriorations: [] },
+      weightedMetrics: { pctElevatedPlusByWeight: 20 },
+    };
+    expect(getBenchmarkClassification(summary as never)).toBe("Moderate");
+  });
+});
+
+describe("computePortfolioPercentile", () => {
+  it("returns 50 when only one org in cohort", async () => {
+    const mockService = {
+      from: () => ({
+        select: () => ({
+          limit: () => Promise.resolve({ data: [{ id: "org-1" }] }),
+        }),
+      }),
+    };
+    const pct = await computePortfolioPercentile(mockService as never, "org-1", 40);
+    expect(pct).toBe(50);
+  });
+
+  it("returns 50 when no orgs (v1 fallback)", async () => {
+    const mockService = {
+      from: () => ({
+        select: () => ({
+          limit: () => Promise.resolve({ data: [] }),
+        }),
+      }),
+    };
+    const pct = await computePortfolioPercentile(mockService as never, "org-1", 40);
+    expect(pct).toBe(50);
+  });
+});
+
 describe("getPortfolioSummary return shape", () => {
   it("risk_movement and highImpactDealIds are always defined (empty org)", async () => {
     const mockService = {
@@ -250,5 +373,40 @@ describe("getPortfolioSummary return shape", () => {
     expect(Array.isArray(summary.risk_movement?.deal_ids?.version_drift)).toBe(true);
     expect(summary.highImpactDealIds).toBeDefined();
     expect(Array.isArray(summary.highImpactDealIds)).toBe(true);
+  });
+
+  it("includes benchmark when benchmarkEnabled is true (empty org → classification still set)", async () => {
+    const mockService = {
+      from: () => ({
+        select: () => ({
+          eq: () => Promise.resolve({ data: [] }),
+          in: () => Promise.resolve({ data: [] }),
+          not: () => ({ eq: () => Promise.resolve({ data: [] }) }),
+          order: () => Promise.resolve({ data: [] }),
+          gt: () => Promise.resolve({ data: [] }),
+        }),
+      }),
+    };
+    const summary = await getPortfolioSummary(mockService as never, "org-1", {
+      benchmarkEnabled: true,
+    });
+    expect(summary.benchmark).toBeDefined();
+    expect(summary.benchmark?.cohort_type).toBe("internal");
+    expect(summary.benchmark?.percentile_rank).toBe(50);
+    expect(["Conservative", "Moderate", "Aggressive", "Concentrated", "Deteriorating"]).toContain(
+      summary.benchmark?.classification
+    );
+  });
+
+  it("omits benchmark when benchmarkEnabled is false", async () => {
+    const mockService = {
+      from: () => ({
+        select: () => ({
+          eq: () => Promise.resolve({ data: [] }),
+        }),
+      }),
+    };
+    const summary = await getPortfolioSummary(mockService as never, "org-1");
+    expect(summary.benchmark).toBeUndefined();
   });
 });

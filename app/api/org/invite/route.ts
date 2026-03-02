@@ -3,13 +3,17 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
 import { getEntitlementsForUser } from "@/lib/entitlements";
-import { sendWorkspaceInviteEmail } from "@/lib/email";
+import { sendWorkspaceInvite } from "@/lib/email/sendWorkspaceInvite";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
 
 const INVITE_EXPIRY_DAYS = 7;
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token, "utf8").digest("hex");
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -52,20 +56,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 });
   }
 
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = hashToken(rawToken);
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + INVITE_EXPIRY_DAYS);
 
-  const { data: invite, error: insertError } = await supabase
+  const { data: invite, error: insertError } = await service
     .from("organization_invites")
     .insert({
       org_id: orgId,
       email,
       role,
       invited_by: user.id,
-      token: crypto.randomUUID(),
+      token_hash: tokenHash,
       expires_at: expiresAt.toISOString(),
     })
-    .select("id, token")
+    .select("id")
     .single();
 
   if (insertError) {
@@ -75,25 +81,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create invite" }, { status: 500 });
   }
 
+  const inviteId = (invite as { id: string }).id;
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-  const inviteLink = `${baseUrl}/invite/accept?token=${(invite as { token: string }).token}`;
+  const inviteLink = `${baseUrl}/invite/accept?token=${rawToken}`;
 
-  const sendResult = await sendWorkspaceInviteEmail({
+  let inviterName = "A team member";
+  const { data: profile } = await service.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+  if (profile && typeof (profile as { full_name?: string }).full_name === "string") {
+    const name = (profile as { full_name: string }).full_name.trim();
+    if (name) inviterName = name;
+  }
+
+  let sendResult = await sendWorkspaceInvite({
     to: email,
     orgName: (org as { name: string }).name,
+    inviterName,
     inviteLink,
   });
 
   if (!sendResult.success) {
+    console.error("[workspace-invite] email send failed", { inviteId, error: sendResult.error });
+    sendResult = await sendWorkspaceInvite({
+      to: email,
+      orgName: (org as { name: string }).name,
+      inviterName,
+      inviteLink,
+    });
+  }
+
+  if (!sendResult.success) {
     return NextResponse.json({
-      invite_id: (invite as { id: string }).id,
-      invite_link: inviteLink,
+      invite_id: inviteId,
       email_sent: false,
       error: sendResult.error,
     });
   }
 
-  return NextResponse.json({ invite_id: (invite as { id: string }).id, email_sent: true });
+  return NextResponse.json({ invite_id: inviteId, email_sent: true });
 }

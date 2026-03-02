@@ -9,10 +9,12 @@ export default function ScenarioComparisonBlock({
   dealId,
   scans,
   plan,
+  explainabilityEnabled = true,
 }: {
   dealId: string;
   scans: ScanOption[];
   plan: "free" | "pro" | "owner";
+  explainabilityEnabled?: boolean;
 }) {
   const [baseId, setBaseId] = useState<string>(scans[0]?.id ?? "");
   const [conservativeId, setConservativeId] = useState<string>(scans[1]?.id ?? "");
@@ -25,8 +27,10 @@ export default function ScenarioComparisonBlock({
   const [loading, setLoading] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
+  const showPaywall = !explainabilityEnabled || plan === "free";
+
   async function handleCompare() {
-    if (plan === "free") {
+    if (showPaywall) {
       setPaywallOpen(true);
       return;
     }
@@ -50,7 +54,7 @@ export default function ScenarioComparisonBlock({
 
   if (scans.length < 2) return null;
 
-  if (plan === "free") {
+  if (showPaywall) {
     return (
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>

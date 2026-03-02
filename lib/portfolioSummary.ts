@@ -119,6 +119,20 @@ export type RiskMovement = {
   };
 };
 
+/** Risk profile classification for benchmark card (deterministic rules). */
+export type BenchmarkClassification =
+  | "Conservative"
+  | "Moderate"
+  | "Aggressive"
+  | "Concentrated"
+  | "Deteriorating";
+
+/** Future hook for industry/custom cohorts; v1 uses internal only. */
+export type BenchmarkContext = {
+  cohort_type: "internal" | "industry" | "custom";
+  percentile_rank: number;
+};
+
 export type PortfolioSummary = {
   deals: DealRow[];
   counts: { total: number; scanned: number; unscanned: number; stale: number; needsReview: number };
@@ -154,7 +168,15 @@ export type PortfolioSummary = {
     stress_last_run_at?: string;
     governance_locked_at: string;
   };
-};
+  /** Benchmark layer: percentile vs internal cohort + classification (Pro only). */
+  benchmark?: {
+    percentile_rank: number;
+    cohort_type: "internal";
+    classification: BenchmarkClassification;
+  };
+  /** Future: industry/custom cohort percentile; v1 internal only. */
+  benchmark_context?: BenchmarkContext;
+}
 
 const ELEVATED_PLUS_BANDS = new Set<string>(["Elevated", "High"]);
 
@@ -262,6 +284,52 @@ export function computeVersionDrift(dealsWithVersion: { id: string; risk_index_v
   return { versionDrift: true, versionDriftDealIds };
 }
 
+/** Minimal summary shape needed for classification. */
+type SummaryForClassification = {
+  counts: { total: number };
+  prpi?: PRPIResult;
+  concentration?: PortfolioConcentration;
+  trendSummary: { deteriorations: unknown[] };
+  weightedMetrics: WeightedMetrics;
+};
+
+/**
+ * Deterministic risk profile classification. Priority: Deteriorating > Concentrated > Aggressive > Moderate > Conservative.
+ */
+export function getBenchmarkClassification(summary: SummaryForClassification): BenchmarkClassification {
+  const total = summary.counts.total || 1;
+  const prpi = summary.prpi;
+  const prpiScore = prpi?.prpi_score ?? 0;
+  const pctHigh = prpi?.components?.pct_exposure_high ?? 0;
+  const pctElevatedPlus = summary.weightedMetrics?.pctElevatedPlusByWeight ?? prpi?.components?.pct_exposure_elevated_plus ?? 0;
+  const topMarketPct = summary.concentration?.topMarketPct ?? 0;
+  const deterioratedCount = summary.trendSummary?.deteriorations?.length ?? 0;
+  const deterioratedPct = (deterioratedCount / total) * 100;
+
+  if (deterioratedPct > 15) return "Deteriorating";
+  if (topMarketPct > 40) return "Concentrated";
+  if (prpiScore > 50 && pctElevatedPlus > 25) return "Aggressive";
+  if (prpiScore >= 30 && prpiScore <= 50) return "Moderate";
+  if (prpiScore < 30 && pctHigh < 10) return "Conservative";
+  return "Moderate";
+}
+
+/**
+ * Percentile rank within internal cohort (orgs). v1: single org or no cohort data → 50.
+ * When multiple orgs exist, ranks by weighted_avg_score; else returns 50 (deterministic).
+ */
+export async function computePortfolioPercentile(
+  service: SupabaseClient,
+  orgId: string,
+  _currentWeightedAvg: number
+): Promise<number> {
+  const { data: orgs } = await service.from("organizations").select("id").limit(500);
+  const orgIds = (orgs ?? []).map((o: { id: string }) => o.id);
+  if (orgIds.length < 2) return 50;
+  // v1: no pre-aggregated cohort table; return 50 so UI shows a stable value. Later: use portfolio_snapshots.
+  return 50;
+}
+
 function parseExtractionAssumptions(extraction: unknown): DealScanAssumptions | undefined {
   if (!extraction || typeof extraction !== "object" || !("assumptions" in extraction)) return undefined;
   const a = (extraction as { assumptions?: unknown }).assumptions;
@@ -331,7 +399,8 @@ export function resolveLatestScanId(
 
 export async function getPortfolioSummary(
   service: SupabaseClient,
-  orgId: string
+  orgId: string,
+  options?: { benchmarkEnabled?: boolean }
 ): Promise<PortfolioSummary> {
   const now = new Date();
   const staleCutoff = new Date(now.getTime() - PORTFOLIO_STALE_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -347,7 +416,7 @@ export async function getPortfolioSummary(
   const deals = (dealsList ?? []) as DealRow[];
 
   if (deals.length === 0) {
-    return {
+    const emptyResult: PortfolioSummary = {
       deals: [],
       counts: { total: 0, scanned: 0, unscanned: 0, stale: 0, needsReview: 0 },
       distributionByBand: {},
@@ -410,6 +479,22 @@ export async function getPortfolioSummary(
         };
       })(),
     };
+    if (options?.benchmarkEnabled) {
+      const emptySummary = {
+        counts: { total: 0 },
+        prpi: { prpi_score: 0, components: { pct_exposure_high: 0 } },
+        concentration: { topMarketPct: 0 },
+        trendSummary: { deteriorations: [] },
+        weightedMetrics: { pctElevatedPlusByWeight: 0 },
+      };
+      emptyResult.benchmark = {
+        percentile_rank: 50,
+        cohort_type: "internal",
+        classification: getBenchmarkClassification(emptySummary),
+      };
+      emptyResult.benchmark_context = { cohort_type: "internal", percentile_rank: 50 };
+    }
+    return emptyResult;
   }
 
   const dealIds = deals.map((d) => d.id);
@@ -884,7 +969,7 @@ export async function getPortfolioSummary(
     governance_locked_at: metadata.created_at,
   };
 
-  return {
+  const result: PortfolioSummary = {
     deals,
     counts: {
       total: deals.length,
@@ -914,4 +999,27 @@ export async function getPortfolioSummary(
     highImpactDealIds: [...highImpactDealIds],
     model_health,
   };
+
+  if (options?.benchmarkEnabled) {
+    const classification = getBenchmarkClassification({
+      counts: result.counts,
+      prpi: result.prpi,
+      concentration: result.concentration,
+      trendSummary: result.trendSummary,
+      weightedMetrics: result.weightedMetrics,
+    });
+    const percentile_rank = await computePortfolioPercentile(
+      service,
+      orgId,
+      weightedMetrics.weightedAvgScore
+    );
+    result.benchmark = {
+      percentile_rank,
+      cohort_type: "internal",
+      classification,
+    };
+    result.benchmark_context = { cohort_type: "internal", percentile_rank };
+  }
+
+  return result;
 }

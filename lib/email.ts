@@ -128,9 +128,12 @@ export async function sendDigestEmail(options: {
   }
 }
 
+const WORKSPACE_INVITE_SUBJECT = "You've been invited to CRE Signal Workspace";
+
 export async function sendWorkspaceInviteEmail(options: {
   to: string;
   orgName: string;
+  inviterName: string;
   inviteLink: string;
 }): Promise<{ success: boolean; error?: string }> {
   const resend = getResend();
@@ -143,8 +146,8 @@ export async function sendWorkspaceInviteEmail(options: {
 <html>
 <head><meta charset="utf-8"><title>Workspace invite</title></head>
 <body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #1a1a1a; max-width: 560px; margin: 0 auto; padding: 24px;">
-  <h1 style="font-size: 18px;">You’re invited to ${escapeHtml(options.orgName)}</h1>
-  <p style="color: #444;">Click the link below to join the workspace on CRE Signal Engine.</p>
+  <h1 style="font-size: 18px;">${WORKSPACE_INVITE_SUBJECT}</h1>
+  <p style="color: #444;">${escapeHtml(options.inviterName)} invited you to join <strong>${escapeHtml(options.orgName)}</strong> on CRE Signal.</p>
   <p style="margin: 24px 0;"><a href="${escapeHtml(options.inviteLink)}" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">Accept invite</a></p>
   <p style="font-size: 12px; color: #666;">If you didn’t expect this invite, you can ignore this email.</p>
 </body>
@@ -153,7 +156,7 @@ export async function sendWorkspaceInviteEmail(options: {
     const { error } = await resend.emails.send({
       from,
       to: options.to,
-      subject: `Invitation to join ${options.orgName} on CRE Signal Engine`,
+      subject: WORKSPACE_INVITE_SUBJECT,
       html,
     });
     if (error) return { success: false, error: error.message };

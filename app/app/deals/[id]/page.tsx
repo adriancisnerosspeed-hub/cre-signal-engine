@@ -319,7 +319,7 @@ export default async function DealPage({
               </div>
             </section>
           )}
-          {explainabilityDiff.length > 0 && (
+          {entitlements.explainability_enabled && explainabilityDiff.length > 0 && (
             <section style={{ marginBottom: 32 }}>
               <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
                 Score Change Drivers
@@ -395,6 +395,7 @@ export default async function DealPage({
             dealId={dealId}
             scans={last5Scans.map((s) => ({ id: s.id, created_at: s.created_at, risk_index_band: s.risk_index_band }))}
             plan={plan}
+            explainabilityEnabled={entitlements.explainability_enabled}
           />
 
           <section style={{ marginBottom: 32 }}>

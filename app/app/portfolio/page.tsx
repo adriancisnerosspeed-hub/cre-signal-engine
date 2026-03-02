@@ -31,7 +31,9 @@ export default async function PortfolioPage() {
     getPlanForUser(service, user.id),
     getEntitlementsForUser(supabase, user.id),
   ]);
-  const summary = await getPortfolioSummary(service, orgId);
+  const summary = await getPortfolioSummary(service, orgId, {
+    benchmarkEnabled: entitlements.benchmark_enabled,
+  });
 
   const dealBadges: Record<string, ("unscanned" | "stale" | "needs_review")[]> = {};
   summary.dealBadges.forEach((badges, id) => {
@@ -75,6 +77,8 @@ export default async function PortfolioPage() {
         scanExportEnabled={entitlements.scan_export_enabled}
         methodologyPdfFilename={`cre-signal-risk-index-methodology-v${methodologyVersion}.pdf`}
         savedViews={savedViews}
+        benchmarkEnabled={entitlements.benchmark_enabled}
+        backtestEnabled={entitlements.backtest_enabled}
       />
     </main>
   );

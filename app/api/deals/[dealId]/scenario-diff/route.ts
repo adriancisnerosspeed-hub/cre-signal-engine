@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { getPlanForUser } from "@/lib/entitlements";
+import { getEntitlementsForUser } from "@/lib/entitlements";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -31,9 +31,9 @@ export async function GET(
   }
 
   const service = createServiceRoleClient();
-  const plan = await getPlanForUser(service, user.id);
+  const entitlements = await getEntitlementsForUser(service, user.id);
 
-  if (plan === "free") {
+  if (!entitlements.explainability_enabled) {
     return NextResponse.json(
       { code: "PRO_REQUIRED_FOR_SCENARIO" },
       { status: 403 }

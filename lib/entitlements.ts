@@ -13,12 +13,17 @@ export type Entitlements = {
   ic_narrative_enabled: boolean;
   scan_export_enabled: boolean;
   workspace_invites_enabled: boolean;
+  benchmark_enabled: boolean;
+  explainability_enabled: boolean;
+  backtest_enabled: boolean;
+  workspace_enabled: boolean;
 };
 
+/** FREE: 3 lifetime scans, no benchmark/explainability/backtest/workspace. */
 const FREE_ENTITLEMENTS: Entitlements = {
   plan: "free",
   analyze_calls_per_day: 10,
-  deal_scans_per_day: 0, // Free: no daily cap, lifetime only
+  deal_scans_per_day: 0,
   lifetime_full_scan_limit: 3,
   digest_manual_send: true,
   digest_scheduled: false,
@@ -26,8 +31,13 @@ const FREE_ENTITLEMENTS: Entitlements = {
   ic_narrative_enabled: false,
   scan_export_enabled: false,
   workspace_invites_enabled: false,
+  benchmark_enabled: false,
+  explainability_enabled: false,
+  backtest_enabled: false,
+  workspace_enabled: false,
 };
 
+/** PRO: unlimited scans, benchmark, explainability, backtest, workspace. Enterprise (cross-org, API, audit) not built yet. */
 const PRO_ENTITLEMENTS: Entitlements = {
   plan: "pro",
   analyze_calls_per_day: 200,
@@ -39,6 +49,10 @@ const PRO_ENTITLEMENTS: Entitlements = {
   ic_narrative_enabled: true,
   scan_export_enabled: true,
   workspace_invites_enabled: true,
+  benchmark_enabled: true,
+  explainability_enabled: true,
+  backtest_enabled: true,
+  workspace_enabled: true,
 };
 
 const OWNER_ENTITLEMENTS: Entitlements = {
@@ -52,6 +66,10 @@ const OWNER_ENTITLEMENTS: Entitlements = {
   ic_narrative_enabled: true,
   scan_export_enabled: true,
   workspace_invites_enabled: true,
+  benchmark_enabled: true,
+  explainability_enabled: true,
+  backtest_enabled: true,
+  workspace_enabled: true,
 };
 
 /** Server-only: get effective plan for user (from profiles.role). Owner bypass has all pro+ entitlements. */

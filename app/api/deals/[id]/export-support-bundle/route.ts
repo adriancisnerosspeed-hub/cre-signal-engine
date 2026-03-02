@@ -122,9 +122,11 @@ export async function GET(
   zip.file("risk_audit_log.json", JSON.stringify(auditRows ?? [], null, 2));
 
   try {
-    const summary = await getPortfolioSummary(service, orgId);
-    if (summary.backtest_summary) {
-      zip.file("backtest_summary.json", JSON.stringify(summary.backtest_summary, null, 2));
+    if (entitlements.backtest_enabled) {
+      const summary = await getPortfolioSummary(service, orgId);
+      if (summary.backtest_summary) {
+        zip.file("backtest_summary.json", JSON.stringify(summary.backtest_summary, null, 2));
+      }
     }
   } catch {
     // omit backtest if unavailable
