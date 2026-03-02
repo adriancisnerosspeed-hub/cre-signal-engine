@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import PaywallModal from "@/app/components/PaywallModal";
 
@@ -16,13 +16,22 @@ export default function DealDetailClient({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [freshScanHint, setFreshScanHint] = useState(false);
+  const [scanBanner, setScanBanner] = useState<null | "started" | "completed">(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [lifetimeLimitPaywall, setLifetimeLimitPaywall] = useState(false);
+  const clearBannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (clearBannerTimeoutRef.current) clearTimeout(clearBannerTimeoutRef.current);
+    };
+  }, []);
 
   async function handleRunScan() {
     setError(null);
-    setFreshScanHint(false);
+    if (clearBannerTimeoutRef.current) clearTimeout(clearBannerTimeoutRef.current);
+    if (hasScan) setScanBanner("started");
+    else setScanBanner(null);
     setLoading(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120_000);
@@ -37,6 +46,7 @@ export default function DealDetailClient({
       clearTimeout(timeoutId);
       const data = await res.json().catch(() => ({})) as { code?: string; error?: string; message?: string; reused?: boolean; used?: number; limit?: number };
       if (!res.ok) {
+        setScanBanner(null);
         if ((res.status === 403 || res.status === 429) && data.code === "PLAN_LIMIT_REACHED") {
           setError(null);
           setPaywallOpen(true);
@@ -58,10 +68,16 @@ export default function DealDetailClient({
         setError(data.error || data.message || `Error ${res.status}`);
         return;
       }
-      if (hasScan && !data.reused) setFreshScanHint(true);
+      if (hasScan && !data.reused) {
+        setScanBanner("completed");
+        clearBannerTimeoutRef.current = setTimeout(() => setScanBanner(null), 3000);
+      } else {
+        setScanBanner(null);
+      }
       router.refresh();
     } catch (err) {
       clearTimeout(timeoutId);
+      setScanBanner(null);
       if (err instanceof Error && err.name === "AbortError") {
         setError("Scan is taking longer than expected. Refresh the page to check status.");
       } else {
@@ -77,8 +93,11 @@ export default function DealDetailClient({
       {error && (
         <p style={{ marginBottom: 8, fontSize: 14, color: "#ef4444" }}>{error}</p>
       )}
-      {freshScanHint && (
-        <p style={{ marginBottom: 8, fontSize: 14, color: "#22c55e" }}>Fresh scan started…</p>
+      {scanBanner === "started" && (
+        <p style={{ marginBottom: 8, fontSize: 14, color: "#a78bfa" }}>Fresh scan started…</p>
+      )}
+      {scanBanner === "completed" && (
+        <p style={{ marginBottom: 8, fontSize: 14, color: "#22c55e" }}>Scan completed</p>
       )}
       <PaywallModal
         open={paywallOpen}
