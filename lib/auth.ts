@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "";
 
-export type Role = "free" | "owner" | "pro";
+export type Role = "free" | "platform_admin" | "pro";
 
 function isOwnerEmail(email: string | undefined): boolean {
   if (!email || !OWNER_EMAIL.trim()) return false;
@@ -13,8 +13,8 @@ function isOwnerEmail(email: string | undefined): boolean {
 
 /**
  * Server-side: ensure a profile exists for the user (e.g. on first login).
- * If no profile exists, creates one; sets role to 'owner' when user email matches OWNER_EMAIL.
- * If profile exists and user email matches OWNER_EMAIL, updates role to 'owner' (so existing users get owner).
+ * If no profile exists, creates one; sets role to 'platform_admin' when user email matches OWNER_EMAIL.
+ * If profile exists and user email matches OWNER_EMAIL, updates role to 'platform_admin'.
  */
 export async function ensureProfile(
   supabase: SupabaseClient,
@@ -26,16 +26,16 @@ export async function ensureProfile(
     .eq("id", user.id)
     .maybeSingle();
 
-  const shouldBeOwner = isOwnerEmail(user.email);
+  const shouldBePlatformAdmin = isOwnerEmail(user.email);
 
   if (existing) {
-    if (shouldBeOwner && existing.role !== "owner") {
-      await supabase.from("profiles").update({ role: "owner" }).eq("id", user.id);
+    if (shouldBePlatformAdmin && existing.role !== "platform_admin") {
+      await supabase.from("profiles").update({ role: "platform_admin" }).eq("id", user.id);
     }
     return;
   }
 
-  const role: Role = shouldBeOwner ? "owner" : "free";
+  const role: Role = shouldBePlatformAdmin ? "platform_admin" : "free";
   await supabase.from("profiles").insert({ id: user.id, role });
 }
 
@@ -56,16 +56,16 @@ export async function getCurrentUserRole(): Promise<Role | null> {
     .single();
 
   const role = profile?.role as Role | undefined;
-  if (role && ["free", "owner", "pro"].includes(role)) return role;
+  if (role && ["free", "platform_admin", "pro"].includes(role)) return role;
   return "free";
 }
 
-/** Server-side: returns true if role can bypass rate limits (e.g. owner, pro). */
+/** Server-side: returns true if role can bypass rate limits (e.g. platform_admin, pro). */
 export function canBypassRateLimit(role: Role | null): boolean {
-  return role === "owner" || role === "pro";
+  return role === "platform_admin" || role === "pro";
 }
 
 /** Server-side: returns true if role is allowed to use Pro features (e.g. analyze without strict limit). */
 export function canUseProFeature(role: Role | null): boolean {
-  return role === "owner" || role === "pro";
+  return role === "platform_admin" || role === "pro";
 }

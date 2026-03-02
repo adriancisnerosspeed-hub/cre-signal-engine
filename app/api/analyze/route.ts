@@ -167,8 +167,8 @@ export async function POST(req: Request) {
     const usage = await getUsageToday(supabase, user.id);
     const used = usage.analyze_calls;
 
-    // Owner bypasses all limits
-    if (plan !== "owner" && used >= limit) {
+    // platform_admin bypasses all limits
+    if (plan !== "platform_admin" && used >= limit) {
       console.warn(`[${requestId}] DAILY_LIMIT`, { userId: user.id, used, limit });
       return Response.json(
         {

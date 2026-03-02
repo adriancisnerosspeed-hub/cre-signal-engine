@@ -54,7 +54,7 @@ export default async function WorkspacePage() {
   }
 
   const myMember = members.find((m) => m.user_id === user.id);
-  const canManage = myMember?.role === "owner" || myMember?.role === "admin";
+  const canManage = myMember?.role === "OWNER" || myMember?.role === "ADMIN";
 
   const { data: invites } = await supabase
     .from("organization_invites")
@@ -77,7 +77,7 @@ export default async function WorkspacePage() {
         {(org as { name?: string })?.name ?? "Workspace"}
       </p>
       <p style={{ color: "#71717a", fontSize: 13, marginBottom: 24 }}>
-        Plan: <span style={{ fontWeight: 600, color: plan === "pro" || plan === "owner" ? "#22c55e" : "#e4e4e7" }}>{plan === "owner" ? "Pro" : plan === "pro" ? "Pro" : "Free"}</span>
+        Plan: <span style={{ fontWeight: 600, color: plan === "pro" || plan === "platform_admin" ? "#22c55e" : "#e4e4e7" }}>{plan === "platform_admin" ? "Pro" : plan === "pro" ? "Pro" : "Free"}</span>
       </p>
 
       {!canInvite ? (

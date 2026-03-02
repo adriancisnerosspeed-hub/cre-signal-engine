@@ -124,10 +124,11 @@ export async function POST(request: Request) {
     );
   }
 
+  const workspaceRole = inv.role === "admin" ? "ADMIN" : "MEMBER";
   const { error: insertError } = await service.from("organization_members").insert({
     org_id: inv.org_id,
     user_id: user.id,
-    role: inv.role,
+    role: workspaceRole,
   });
 
   if (insertError) {

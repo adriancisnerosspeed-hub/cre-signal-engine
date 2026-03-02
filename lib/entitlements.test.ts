@@ -30,9 +30,9 @@ describe("entitlements", () => {
     });
   });
 
-  describe("OWNER tier", () => {
+  describe("platform_admin tier", () => {
     it("has benchmark_enabled, explainability_enabled, backtest_enabled, workspace_enabled true", () => {
-      const e = getEntitlements("owner");
+      const e = getEntitlements("platform_admin");
       expect(e.benchmark_enabled).toBe(true);
       expect(e.explainability_enabled).toBe(true);
       expect(e.backtest_enabled).toBe(true);

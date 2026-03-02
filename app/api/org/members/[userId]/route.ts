@@ -24,7 +24,34 @@ export async function PATCH(
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  const role = body.role === "admin" ? "admin" : "member";
+  const rawRole = body.role;
+  const role =
+    rawRole === "OWNER" ? "OWNER" : rawRole === "ADMIN" ? "ADMIN" : rawRole === "MEMBER" ? "MEMBER" : null;
+  if (role === null) {
+    return NextResponse.json({ error: "role must be OWNER, ADMIN, or MEMBER" }, { status: 400 });
+  }
+
+  if (role !== "OWNER") {
+    const { data: current } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("org_id", orgId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if ((current as { role?: string } | null)?.role === "OWNER") {
+      const { data: owners } = await supabase
+        .from("organization_members")
+        .select("user_id")
+        .eq("org_id", orgId)
+        .eq("role", "OWNER");
+      if ((owners?.length ?? 0) <= 1) {
+        return NextResponse.json(
+          { error: "Cannot demote the last OWNER; assign another OWNER first." },
+          { status: 400 }
+        );
+      }
+    }
+  }
 
   const { error } = await supabase
     .from("organization_members")

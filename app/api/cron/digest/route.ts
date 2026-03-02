@@ -76,7 +76,7 @@ export async function GET(request: Request) {
     .from("profiles")
     .select("id")
     .in("id", userIds)
-    .in("role", ["pro", "owner"]);
+    .in("role", ["pro", "platform_admin"]);
   const proOrOwnerIds = new Set(proProfiles?.map((p) => p.id) ?? []);
   const toProcess = inWindow.filter((r) => proOrOwnerIds.has(r.user_id));
   if (inWindow.length > toProcess.length && process.env.NODE_ENV !== "test") {

@@ -133,7 +133,7 @@ describe("POST /api/invite/accept", () => {
       expect.objectContaining({
         org_id: "org-1",
         user_id: "user-1",
-        role: "member",
+        role: "MEMBER",
       })
     );
     expect(updateMock).toHaveBeenCalledWith(

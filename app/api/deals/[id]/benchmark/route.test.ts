@@ -44,7 +44,7 @@ const mockEntitlements = {
   },
 };
 vi.mock("@/lib/entitlements/workspace", () => ({
-  getWorkspacePlanAndEntitlements: vi.fn(() => Promise.resolve(mockEntitlements)),
+  getWorkspacePlanAndEntitlementsForUser: vi.fn(() => Promise.resolve(mockEntitlements)),
 }));
 
 vi.mock("@/lib/supabase/service", () => ({
@@ -132,8 +132,8 @@ describe("GET /api/deals/[id]/benchmark", () => {
   });
 
   it("returns 403 FEATURE_NOT_AVAILABLE when workspace plan does not allow benchmark", async () => {
-    const { getWorkspacePlanAndEntitlements } = await import("@/lib/entitlements/workspace");
-    (getWorkspacePlanAndEntitlements as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    const { getWorkspacePlanAndEntitlementsForUser } = await import("@/lib/entitlements/workspace");
+    (getWorkspacePlanAndEntitlementsForUser as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       plan: "FREE",
       entitlements: {
         canUseBenchmark: false,

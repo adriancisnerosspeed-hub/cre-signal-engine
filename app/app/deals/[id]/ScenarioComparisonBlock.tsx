@@ -13,7 +13,7 @@ export default function ScenarioComparisonBlock({
 }: {
   dealId: string;
   scans: ScanOption[];
-  plan: "free" | "pro" | "owner";
+  plan: "free" | "pro" | "platform_admin";
   explainabilityEnabled?: boolean;
 }) {
   const [baseId, setBaseId] = useState<string>(scans[0]?.id ?? "");

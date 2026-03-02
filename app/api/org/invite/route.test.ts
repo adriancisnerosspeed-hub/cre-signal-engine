@@ -85,7 +85,7 @@ vi.mock("@/lib/entitlements/errors", () => ({
 }));
 
 vi.mock("@/lib/entitlements/workspace", () => ({
-  getWorkspacePlanAndEntitlements: vi.fn(() =>
+  getWorkspacePlanAndEntitlementsForUser: vi.fn(() =>
     Promise.resolve({
       plan: "ENTERPRISE",
       entitlements: { canInviteMembers: true },
@@ -96,7 +96,7 @@ vi.mock("@/lib/entitlements/workspace", () => ({
 describe("POST /api/org/invite", () => {
   it("returns 403 ENTERPRISE_REQUIRED when canInviteMembers is false", async () => {
     const workspace = await import("@/lib/entitlements/workspace");
-    vi.mocked(workspace.getWorkspacePlanAndEntitlements).mockImplementationOnce(() =>
+    vi.mocked(workspace.getWorkspacePlanAndEntitlementsForUser).mockImplementationOnce(() =>
       Promise.resolve({
         plan: "PRO",
         entitlements: {

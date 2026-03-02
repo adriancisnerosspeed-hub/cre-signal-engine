@@ -1,6 +1,6 @@
 /**
  * Internal-only QA fixture generator. Creates demo-grade stress cases without manual SQL.
- * Auth: user required. Allowed when user.role === "owner" OR process.env.ENABLE_FIXTURES === "true".
+ * Auth: user required. Allowed when user.role === "platform_admin" OR process.env.ENABLE_FIXTURES === "true".
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -43,8 +43,8 @@ export async function POST(request: Request) {
 
   const role = await getCurrentUserRole();
   const allowFixtures = process.env.ENABLE_FIXTURES === "true";
-  if (role !== "owner" && !allowFixtures) {
-    return NextResponse.json({ error: "Forbidden: fixtures require owner role or ENABLE_FIXTURES" }, { status: 403 });
+  if (role !== "platform_admin" && !allowFixtures) {
+    return NextResponse.json({ error: "Forbidden: fixtures require platform_admin role or ENABLE_FIXTURES" }, { status: 403 });
   }
 
   const orgId = await getCurrentOrgId(supabase, user);

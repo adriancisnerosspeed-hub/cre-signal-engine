@@ -76,7 +76,7 @@ export default function WorkspaceClient({
     } catch {}
   }
 
-  const ownerCount = members.filter((m) => m.role === "owner").length;
+  const ownerCount = members.filter((m) => m.role === "OWNER").length;
 
   return (
     <div>
@@ -117,7 +117,7 @@ export default function WorkspaceClient({
                   disabled={
                     updating === m.user_id ||
                     m.user_id === currentUserId ||
-                    (m.role === "owner" && ownerCount <= 1)
+                    (m.role === "OWNER" && ownerCount <= 1)
                   }
                   style={{
                     padding: "6px 10px",
@@ -128,16 +128,16 @@ export default function WorkspaceClient({
                     fontSize: 13,
                   }}
                 >
-                  <option value="owner">owner</option>
-                  <option value="admin">admin</option>
-                  <option value="member">member</option>
+                  <option value="OWNER">OWNER</option>
+                  <option value="ADMIN">ADMIN</option>
+                  <option value="MEMBER">MEMBER</option>
                 </select>
                 <button
                   type="button"
                   onClick={() => handleRemove(m.user_id)}
                   disabled={
                     (m.user_id === currentUserId && members.length <= 1) ||
-                    (m.role === "owner" && ownerCount <= 1)
+                    (m.role === "OWNER" && ownerCount <= 1)
                   }
                   style={{
                     padding: "6px 12px",

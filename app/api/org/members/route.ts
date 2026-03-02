@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
+import { canManageWorkspace } from "@/lib/workspaceRoles";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -36,7 +37,7 @@ export async function GET() {
   }
 
   const myMember = members.find((m) => m.user_id === user.id);
-  const canManage = myMember?.role === "owner" || myMember?.role === "admin";
+  const canManage = canManageWorkspace(myMember?.role);
 
   return NextResponse.json({
     members,

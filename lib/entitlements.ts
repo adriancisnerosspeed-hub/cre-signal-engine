@@ -1,12 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type Plan = "free" | "pro" | "owner";
+export type Plan = "free" | "pro" | "platform_admin";
 
 export type Entitlements = {
   plan: Plan;
   analyze_calls_per_day: number;
   deal_scans_per_day: number;
-  lifetime_full_scan_limit: number | null; // null = no cap (Pro/Owner)
+  lifetime_full_scan_limit: number | null; // null = no cap (Pro/platform_admin)
   digest_manual_send: boolean;
   digest_scheduled: boolean;
   email_digest_max_signals: number;
@@ -55,8 +55,8 @@ const PRO_ENTITLEMENTS: Entitlements = {
   workspace_enabled: true,
 };
 
-const OWNER_ENTITLEMENTS: Entitlements = {
-  plan: "owner",
+const PLATFORM_ADMIN_ENTITLEMENTS: Entitlements = {
+  plan: "platform_admin",
   analyze_calls_per_day: 1000,
   deal_scans_per_day: 50,
   lifetime_full_scan_limit: null,
@@ -72,17 +72,17 @@ const OWNER_ENTITLEMENTS: Entitlements = {
   workspace_enabled: true,
 };
 
-/** Server-only: get effective plan for user (from profiles.role). Owner bypass has all pro+ entitlements. */
+/** Server-only: get effective plan for user (from profiles.role). platform_admin bypass has all pro+ entitlements. */
 export async function getPlanForUser(supabase: SupabaseClient, userId: string): Promise<Plan> {
   const { data } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
   const role = (data?.role as string) || "free";
-  if (role === "owner" || role === "pro") return role as Plan;
+  if (role === "platform_admin" || role === "pro") return role as Plan;
   return "free";
 }
 
-/** Get entitlements for a plan. Owner gets highest limits. */
+/** Get entitlements for a plan. platform_admin gets highest limits. */
 export function getEntitlements(plan: Plan): Entitlements {
-  if (plan === "owner") return { ...OWNER_ENTITLEMENTS };
+  if (plan === "platform_admin") return { ...PLATFORM_ADMIN_ENTITLEMENTS };
   if (plan === "pro") return { ...PRO_ENTITLEMENTS };
   return { ...FREE_ENTITLEMENTS };
 }

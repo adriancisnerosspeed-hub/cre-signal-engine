@@ -51,7 +51,7 @@ export default function PricingClient({ plan, workspaceId }: { plan: Plan; works
     }
   }
 
-  if (plan === "pro" || plan === "owner") {
+  if (plan === "pro" || plan === "platform_admin") {
     return (
       <button
         type="button"

@@ -1,6 +1,6 @@
 /**
  * Workspace (organization) entitlements — single source of truth for plan-based capabilities.
- * All enforcement reads from organizations.plan + this module only. No profiles.role or user Stripe.
+ * All enforcement reads from organizations.plan + this module only. No workspace role here; platform role (profiles.role) only for bypass.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -85,7 +85,7 @@ export async function getWorkspacePlanAndEntitlements(
 
 /**
  * Server-only. Same as getWorkspacePlanAndEntitlements, but with an OWNER bypass:
- * if the user has profiles.role = 'owner', treat them as ENTERPRISE for workspace-gated features.
+ * if the user has profiles.role = 'platform_admin', treat them as ENTERPRISE for workspace-gated features.
  */
 export async function getWorkspacePlanAndEntitlementsForUser(
   supabase: SupabaseClient,
@@ -93,7 +93,7 @@ export async function getWorkspacePlanAndEntitlementsForUser(
   userId: string
 ): Promise<{ plan: WorkspacePlan; entitlements: WorkspaceEntitlements; ownerBypass: boolean }> {
   const userPlan = await getPlanForUser(supabase, userId);
-  if (userPlan === "owner") {
+  if (userPlan === "platform_admin") {
     return {
       plan: "ENTERPRISE",
       entitlements: getWorkspaceEntitlements("ENTERPRISE"),

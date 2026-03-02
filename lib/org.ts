@@ -204,7 +204,7 @@ export async function ensureDefaultOrganization(
   const { error: memberError } = await supabase.from("organization_members").insert({
     org_id: org.id,
     user_id: user.id,
-    role: "owner",
+    role: "OWNER",
   });
 
   if (memberError) {

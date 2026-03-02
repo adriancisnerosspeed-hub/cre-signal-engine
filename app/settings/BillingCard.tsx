@@ -67,7 +67,7 @@ export default function BillingCard({
 
   const dealScansPercent = dealScansLimit > 0 ? Math.round((dealScansToday / dealScansLimit) * 100) : 0;
 
-  const planLabel = plan === "pro" || plan === "owner" ? "PRO — Institutional Workspace" : plan;
+  const planLabel = plan === "pro" || plan === "platform_admin" ? "PRO — Institutional Workspace" : plan;
 
   return (
     <div style={blockStyle}>
@@ -80,7 +80,7 @@ export default function BillingCard({
       <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
         Plan: <strong style={{ color: "#e4e4e7" }}>{planLabel}</strong>
       </p>
-      {(plan === "pro" || plan === "owner") && (
+      {(plan === "pro" || plan === "platform_admin") && (
         <>
           <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
             Active Policy: 1 / 1
@@ -104,7 +104,7 @@ export default function BillingCard({
         Scheduled Risk Brief: {digestScheduledEnabled ? "Enabled" : "Pro only"}
       </p>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        {plan === "pro" || plan === "owner" ? (
+        {plan === "pro" || plan === "platform_admin" ? (
           <button
             type="button"
             onClick={handleManageBilling}

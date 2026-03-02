@@ -21,7 +21,7 @@ export default function PercentileBlock({
 }: {
   dealId: string;
   scanId: string;
-  plan: "free" | "pro" | "owner";
+  plan: "free" | "pro" | "platform_admin";
 }) {
   const [data, setData] = useState<BenchmarkData | null>(null);
   const [code, setCode] = useState<string | null>(null);
