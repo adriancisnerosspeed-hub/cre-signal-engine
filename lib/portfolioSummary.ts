@@ -765,8 +765,9 @@ export async function getPortfolioSummary(
     const risks = risksByScanId.get(latestScan.id) ?? [];
     const assumptions = parseExtractionAssumptions(latestScan.extraction);
     // LTV for policy engine: extraction.assumptions.ltv.value; if <= 1 treat as fraction
-    if (assumptions?.ltv?.value != null && typeof (assumptions as { ltv?: { value?: number } }).ltv.value === "number") {
-      const raw = (assumptions as { ltv: { value: number } }).ltv.value;
+    const ltvVal = assumptions?.ltv?.value;
+    if (ltvVal != null && typeof ltvVal === "number") {
+      const raw = ltvVal;
       const pct = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
       if (!Number.isNaN(pct)) {
         if (!dealLatestLtv) dealLatestLtv = {};
