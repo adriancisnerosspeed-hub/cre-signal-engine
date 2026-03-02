@@ -3,16 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-function UpgradeButton() {
+const CHECKOUT_TIMEOUT_MS = 15_000;
+
+function UpgradeButton({ workspaceId }: { workspaceId?: string }) {
   const [loading, setLoading] = useState(false);
   async function handleUpgrade() {
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CHECKOUT_TIMEOUT_MS);
     try {
-      const res = await fetch("/api/stripe/checkout", { method: "POST" });
-      const data = await res.json();
+      const url = workspaceId ? "/api/billing/create-checkout-session" : "/api/stripe/checkout";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: workspaceId ? { "Content-Type": "application/json" } : undefined,
+        body: workspaceId ? JSON.stringify({ workspace_id: workspaceId }) : undefined,
+        signal: controller.signal,
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
       if (data.url) window.location.href = data.url;
-      else setLoading(false);
     } catch {
+      // timeout or network error
+    } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }
@@ -62,6 +74,7 @@ export default function PaywallModal({
   subtitle,
   redactedPreview,
   variant = "default",
+  workspaceId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -69,6 +82,7 @@ export default function PaywallModal({
   subtitle?: string;
   redactedPreview?: string;
   variant?: "default" | "lifetime_limit";
+  workspaceId?: string;
 }) {
   const router = useRouter();
   const isLifetimeLimit = variant === "lifetime_limit";
@@ -136,7 +150,7 @@ export default function PaywallModal({
             Your underwriting data remains intact. Upgrade takes less than 30 seconds.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <UpgradeButton />
+            <UpgradeButton workspaceId={workspaceId} />
             <button
               type="button"
               onClick={handleReturnToDeals}
@@ -212,7 +226,7 @@ export default function PaywallModal({
           ))}
         </ul>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <UpgradeButton />
+          <UpgradeButton workspaceId={workspaceId} />
           <button
             type="button"
             onClick={onClose}

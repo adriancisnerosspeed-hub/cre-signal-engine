@@ -248,7 +248,7 @@ export default async function DealPage({
               scanExportEnabled={entitlements.scan_export_enabled}
             />
           )}
-          <DealDetailClient dealId={d.id} hasScan={!!scan} />
+          <DealDetailClient dealId={d.id} hasScan={!!scan} workspaceId={orgId} />
         </div>
       </div>
 

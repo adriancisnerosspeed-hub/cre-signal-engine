@@ -7,9 +7,11 @@ import PaywallModal from "@/app/components/PaywallModal";
 export default function DealDetailClient({
   dealId,
   hasScan,
+  workspaceId,
 }: {
   dealId: string;
   hasScan: boolean;
+  workspaceId?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -22,15 +24,25 @@ export default function DealDetailClient({
     setError(null);
     setFreshScanHint(false);
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120_000);
     try {
       const body = hasScan ? { deal_id: dealId, force: 1 } : { deal_id: dealId };
       const res = await fetch("/api/deals/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: controller.signal,
       });
-      const data = await res.json().catch(() => ({}));
+      clearTimeout(timeoutId);
+      const data = await res.json().catch(() => ({})) as { code?: string; error?: string; reused?: boolean; used?: number; limit?: number };
       if (!res.ok) {
+        if ((res.status === 403 || res.status === 429) && data.code === "PLAN_LIMIT_REACHED") {
+          setError(null);
+          setPaywallOpen(true);
+          setLifetimeLimitPaywall(true);
+          return;
+        }
         if (res.status === 429 && data.code === "LIFETIME_LIMIT_REACHED") {
           setError(null);
           setPaywallOpen(true);
@@ -43,13 +55,18 @@ export default function DealDetailClient({
           setLifetimeLimitPaywall(false);
           return;
         }
-        setError(data.error || `Error ${res.status}`);
+        setError(data.error || data.message || `Error ${res.status}`);
         return;
       }
       if (hasScan && !data.reused) setFreshScanHint(true);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to run scan");
+      clearTimeout(timeoutId);
+      if (err instanceof Error && err.name === "AbortError") {
+        setError("Scan is taking longer than expected. Refresh the page to check status.");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to run scan");
+      }
     } finally {
       setLoading(false);
     }
@@ -69,6 +86,7 @@ export default function DealDetailClient({
         variant={lifetimeLimitPaywall ? "lifetime_limit" : "default"}
         title={lifetimeLimitPaywall ? undefined : "Daily limit reached"}
         subtitle={lifetimeLimitPaywall ? undefined : "Upgrade to Pro for higher scan limits, IC Memorandum Narrative, and more."}
+        workspaceId={workspaceId}
       />
       <button
         type="button"

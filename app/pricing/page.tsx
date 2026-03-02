@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrgId } from "@/lib/org";
 import { getPlanForUser } from "@/lib/entitlements";
 import PricingClient from "./PricingClient";
 
@@ -9,6 +10,7 @@ export default async function PricingPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const plan = user ? await getPlanForUser(supabase, user.id) : "free";
+  const orgId = user ? await getCurrentOrgId(supabase, user) : null;
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
@@ -83,7 +85,7 @@ export default async function PricingPage() {
             <li>Workspace collaboration</li>
             <li>Portfolio dashboard</li>
           </ul>
-          <PricingClient plan={plan} />
+          <PricingClient plan={plan} workspaceId={orgId ?? undefined} />
         </section>
       </div>
 

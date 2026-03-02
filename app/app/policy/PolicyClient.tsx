@@ -152,19 +152,33 @@ export function PolicyClient({ initialPolicies }: Props) {
 
   const handleCreate = async () => {
     setCreating(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25_000);
     try {
       const res = await fetch("/api/risk-policies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: "New policy", description: null, is_enabled: true, is_shared: true, rules_json: [] }),
+        signal: controller.signal,
       });
-      if (!res.ok) throw new Error(await res.text());
-      const created: PolicyRow = await res.json();
+      clearTimeout(timeoutId);
+      const data = await res.json().catch(() => ({})) as PolicyRow | { message?: string; error?: string };
+      if (!res.ok) {
+        const msg = (typeof data?.message === "string" ? data.message : typeof data?.error === "string" ? data.error : null) ?? "Failed to create policy";
+        alert(msg);
+        return;
+      }
+      const created = data as PolicyRow;
       setPolicies((prev) => [created, ...prev]);
       loadDraft(created);
     } catch (e) {
-      console.error(e);
-      alert("Failed to create policy");
+      clearTimeout(timeoutId);
+      if (e instanceof Error && e.name === "AbortError") {
+        alert("Request timed out. Check your connection and try again.");
+      } else {
+        console.error(e);
+        alert("Failed to create policy");
+      }
     } finally {
       setCreating(false);
     }
