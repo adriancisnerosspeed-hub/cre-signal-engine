@@ -130,10 +130,10 @@ export async function GET(
     // omit backtest if unavailable
   }
 
-  const blob = await zip.generateAsync({ type: "nodebuffer" });
+  const zipBytes = await zip.generateAsync({ type: "uint8array" });
   const filename = `cre-signal-support-bundle-${safeName}-${timestamp}.zip`;
 
-  return new NextResponse(blob, {
+  return new NextResponse(zipBytes, {
     status: 200,
     headers: {
       "Content-Type": "application/zip",
