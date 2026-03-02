@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getCurrentOrgId } from "@/lib/org";
-import { getWorkspacePlanAndEntitlements } from "@/lib/entitlements/workspace";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
 import { getOrComputeDealBenchmark } from "@/lib/benchmark/compute";
 import { BENCHMARK_ERROR_CODES } from "@/lib/benchmark/constants";
@@ -29,7 +29,7 @@ export async function GET(
   const snapshotId = new URL(request.url).searchParams.get("snapshot_id");
 
   const service = createServiceRoleClient();
-  const { entitlements } = await getWorkspacePlanAndEntitlements(service, orgId);
+  const { entitlements } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
   if (!entitlements.canUseBenchmark) {
     return NextResponse.json(
       {

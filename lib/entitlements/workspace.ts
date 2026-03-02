@@ -4,6 +4,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getPlanForUser } from "@/lib/entitlements";
 
 export type WorkspacePlan = "FREE" | "PRO" | "ENTERPRISE";
 
@@ -80,4 +81,25 @@ export async function getWorkspacePlanAndEntitlements(
     raw === "PRO" || raw === "ENTERPRISE" ? raw : "FREE";
   const entitlements = getWorkspaceEntitlements(plan);
   return { plan, entitlements };
+}
+
+/**
+ * Server-only. Same as getWorkspacePlanAndEntitlements, but with an OWNER bypass:
+ * if the user has profiles.role = 'owner', treat them as ENTERPRISE for workspace-gated features.
+ */
+export async function getWorkspacePlanAndEntitlementsForUser(
+  supabase: SupabaseClient,
+  orgId: string,
+  userId: string
+): Promise<{ plan: WorkspacePlan; entitlements: WorkspaceEntitlements; ownerBypass: boolean }> {
+  const userPlan = await getPlanForUser(supabase, userId);
+  if (userPlan === "owner") {
+    return {
+      plan: "ENTERPRISE",
+      entitlements: getWorkspaceEntitlements("ENTERPRISE"),
+      ownerBypass: true,
+    };
+  }
+  const { plan, entitlements } = await getWorkspacePlanAndEntitlements(supabase, orgId);
+  return { plan, entitlements, ownerBypass: false };
 }

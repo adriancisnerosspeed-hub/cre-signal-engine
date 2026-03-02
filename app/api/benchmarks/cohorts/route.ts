@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getCurrentOrgId } from "@/lib/org";
-import { getWorkspacePlanAndEntitlements } from "@/lib/entitlements/workspace";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
 import { computeRuleHash, validateRule } from "@/lib/benchmark/cohortRule";
 import { NextResponse } from "next/server";
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   }
 
   const service = createServiceRoleClient();
-  const { entitlements } = await getWorkspacePlanAndEntitlements(service, orgId);
+  const { entitlements } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
   if (!entitlements.canCreateCohort) {
     return NextResponse.json(
       {

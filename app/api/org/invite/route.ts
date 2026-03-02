@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
-import { getWorkspacePlanAndEntitlements } from "@/lib/entitlements/workspace";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const orgId = await getCurrentOrgId(supabase, user);
   if (!orgId) return NextResponse.json({ error: "No workspace selected" }, { status: 400 });
 
-  const { entitlements } = await getWorkspacePlanAndEntitlements(service, orgId);
+  const { entitlements } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
   if (!entitlements.canInviteMembers) {
     return NextResponse.json(
       {

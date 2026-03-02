@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getCurrentOrgId } from "@/lib/org";
-import { getWorkspacePlanAndEntitlements } from "@/lib/entitlements/workspace";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
 import { NextResponse } from "next/server";
 
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   const is_shared = Boolean(body.is_shared);
 
   const service = createServiceRoleClient();
-  const { entitlements } = await getWorkspacePlanAndEntitlements(service, orgId);
+  const { entitlements } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
   if (entitlements.maxPortfolios != null) {
     const { count } = await service
       .from("portfolio_views")
