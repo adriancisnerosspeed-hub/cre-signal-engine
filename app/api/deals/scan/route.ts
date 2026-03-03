@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
 import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { parseAndNormalizeDealScan } from "@/lib/dealScanContract";
 import { normalizeAssumptionsForScoringWithFlags } from "@/lib/assumptionNormalization";
 import { DEAL_SCAN_SYSTEM_PROMPT, DEAL_SCAN_PROMPT_VERSION } from "@/lib/prompts/dealScanPrompt";
@@ -33,7 +34,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No workspace selected" }, { status: 400 });
   }
 
-  let body: { deal_id?: string; deal_input_id?: string; force?: number };
+  let body: {
+    deal_id?: string;
+    deal_input_id?: string;
+    force?: number;
+    override_method_lock?: boolean;
+    override_reason?: string;
+    portfolio_view_id?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -46,6 +54,9 @@ export async function POST(request: Request) {
   }
 
   const forceRescan = body.force === 1;
+  const overrideMethodLock = body.override_method_lock === true;
+  const overrideReason = typeof body.override_reason === "string" ? body.override_reason.trim() || null : null;
+  const portfolioViewId = typeof body.portfolio_view_id === "string" ? body.portfolio_view_id.trim() || null : null;
 
   const { data: deal, error: dealError } = await supabase
     .from("deals")
@@ -57,7 +68,61 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Deal not found" }, { status: 404 });
   }
 
+  const dealOrgId = (deal as { organization_id: string }).organization_id;
   const service = createServiceRoleClient();
+
+  // Methodology lock: only when portfolio_view_id is provided (scan within locked portfolio context).
+  if (portfolioViewId) {
+    const { data: portfolioView, error: viewError } = await service
+      .from("portfolio_views")
+      .select("id, organization_id, locked_method_version")
+      .eq("id", portfolioViewId)
+      .maybeSingle();
+
+    if (viewError || !portfolioView) {
+      return NextResponse.json(
+        { error: "Portfolio view not found", code: ENTITLEMENT_ERROR_CODES.PORTFOLIO_VIEW_NOT_FOUND },
+        { status: 404 }
+      );
+    }
+
+    const viewOrgId = (portfolioView as { organization_id: string }).organization_id;
+    if (viewOrgId !== dealOrgId) {
+      return NextResponse.json(
+        {
+          error: "Portfolio view does not belong to the deal's workspace.",
+          code: ENTITLEMENT_ERROR_CODES.PORTFOLIO_CONTEXT_FORBIDDEN,
+        },
+        { status: 403 }
+      );
+    }
+
+    const lockedVersion = (portfolioView as { locked_method_version: string | null }).locked_method_version;
+    if (lockedVersion) {
+      const { RISK_INDEX_VERSION } = await import("@/lib/riskIndex");
+      if (lockedVersion !== RISK_INDEX_VERSION) {
+        if (!overrideMethodLock) {
+          return NextResponse.json(
+            {
+              error: "Portfolio locked to an older methodology version. Use override to rescore.",
+              code: ENTITLEMENT_ERROR_CODES.METHOD_VERSION_LOCKED,
+            },
+            { status: 403 }
+          );
+        }
+        const { error: logErr } = await service.from("governance_decision_log").insert({
+          organization_id: orgId,
+          deal_id: dealId,
+          snapshot_id: null,
+          policy_id: null,
+          action_type: "override",
+          note: overrideReason ?? "Override and rescore (method version lock)",
+          user_id: user.id,
+        });
+        if (logErr) console.warn("[deal_scan] governance_decision_log override insert failed:", logErr);
+      }
+    }
+  }
 
   const { data: inputs } = await supabase
     .from("deal_inputs")
@@ -188,18 +253,18 @@ export async function POST(request: Request) {
   if (!row.ok && row.code === "PLAN_LIMIT_REACHED") {
     return NextResponse.json(
       {
+        error: "Workspace has reached the free plan scan limit.",
         code: ENTITLEMENT_ERROR_CODES.PLAN_LIMIT_REACHED,
-        message: "Workspace has reached the free plan scan limit.",
         required_plan: "PRO",
       },
       { status: 403 }
     );
   }
   if (!row.ok && row.code === "ORGANIZATION_NOT_FOUND") {
-    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    return NextResponse.json({ error: "Workspace not found", code: "ORGANIZATION_NOT_FOUND" }, { status: 404 });
   }
   if (!row.ok) {
-    return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to save scan", code: "SCAN_SAVE_FAILED" }, { status: 500 });
   }
   const scanId = row.scan_id as string;
   if (!scanId) {
@@ -338,16 +403,30 @@ export async function POST(request: Request) {
   const score = Math.max(0, Math.min(100, riskIndex.score));
   const band = ["Low", "Moderate", "Elevated", "High"].includes(riskIndex.band) ? riskIndex.band : "Moderate";
 
-  await service
-    .from("deal_scans")
-    .update({
-      risk_index_score: score,
-      risk_index_band: band,
-      risk_index_breakdown: breakdown,
-      risk_index_version: RISK_INDEX_VERSION,
-      macro_linked_count: macroLinkedCount,
-    })
-    .eq("id", scan.id);
+  const { data: finalizeRows, error: finalizeError } = await service.rpc("finalize_scan_risk_and_history", {
+    p_scan_id: scan.id,
+    p_deal_id: dealId,
+    p_score: score,
+    p_band: band,
+    p_completed_at: completedAt,
+    p_breakdown: breakdown,
+    p_version: RISK_INDEX_VERSION,
+    p_macro_linked_count: macroLinkedCount,
+    p_percentile: null,
+    p_snapshot_id: null,
+  });
+  if (finalizeError) {
+    console.warn("[deal_scan] finalize_scan_risk_and_history RPC error (scan result still persisted):", finalizeError);
+  } else {
+    const result = Array.isArray(finalizeRows) && finalizeRows.length > 0 ? finalizeRows[0] : null;
+    if (result && typeof result.scan_updated === "boolean" && typeof result.history_inserted === "boolean") {
+      if (!result.history_inserted) {
+        console.warn("[deal_scan] finalize: scan_updated=true, history_inserted=false (idempotent conflict or non-fatal insert failure)", {
+          scan_id: scan.id,
+        });
+      }
+    }
+  }
 
   const auditInsert = await service.from("risk_audit_log").insert({
     deal_id: dealId,

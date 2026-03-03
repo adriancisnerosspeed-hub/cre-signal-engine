@@ -1,21 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import type { Plan } from "@/lib/entitlements";
+import type { PricingDisplayPlan } from "@/app/pricing/types";
 import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 import { toast } from "@/lib/toast";
 
-export default function PricingClient({ plan, workspaceId }: { plan: Plan; workspaceId?: string }) {
+export default function PricingClient({
+  displayPlan,
+  workspaceId,
+  slot,
+}: {
+  displayPlan: PricingDisplayPlan;
+  workspaceId?: string;
+  slot: "pro" | "pro_plus" | "enterprise";
+}) {
   const [loading, setLoading] = useState<"checkout" | "portal" | null>(null);
 
-  async function handleUpgrade() {
+  async function handleUpgrade(plan?: "PRO" | "PRO+" | "ENTERPRISE") {
     setLoading("checkout");
     try {
       const url = workspaceId
         ? "/api/billing/create-checkout-session"
         : "/api/stripe/checkout";
-      const body = workspaceId ? JSON.stringify({ workspace_id: workspaceId }) : undefined;
+      const body = workspaceId
+        ? JSON.stringify({ workspace_id: workspaceId, ...(plan && { plan }) })
+        : undefined;
       const r = await fetchJsonWithTimeout(url, {
         method: "POST",
         headers: body ? { "Content-Type": "application/json" } : undefined,
@@ -51,11 +60,38 @@ export default function PricingClient({ plan, workspaceId }: { plan: Plan; works
     }
   }
 
-  if (plan === "pro" || plan === "platform_admin") {
+  if (slot === "pro_plus") {
+    if (displayPlan === "pro_plus") {
+      return (
+        <button
+          type="button"
+          onClick={handleManageBilling}
+          disabled={!!loading}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#3b82f6",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            fontWeight: 600,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          {loading === "portal" ? "Opening…" : "Manage billing"}
+        </button>
+      );
+    }
+    if (displayPlan === "platform_admin" || displayPlan === "enterprise") {
+      return (
+        <span style={{ color: "#71717a", fontSize: 14 }}>
+          {displayPlan === "platform_admin" ? "Included in your Enterprise access (Platform Admin)" : "Included in your Enterprise plan"}
+        </span>
+      );
+    }
     return (
       <button
         type="button"
-        onClick={handleManageBilling}
+        onClick={() => handleUpgrade("PRO+")}
         disabled={!!loading}
         style={{
           padding: "10px 20px",
@@ -67,27 +103,89 @@ export default function PricingClient({ plan, workspaceId }: { plan: Plan; works
           cursor: loading ? "not-allowed" : "pointer",
         }}
       >
-        {loading === "portal" ? "Opening…" : "Manage billing"}
+        {loading === "checkout" ? "Redirecting…" : "Upgrade to PRO+"}
       </button>
     );
   }
 
-  return (
-    <button
-      type="button"
-      onClick={handleUpgrade}
-      disabled={!!loading}
-      style={{
-        padding: "10px 20px",
-        backgroundColor: "#3b82f6",
-        color: "#fff",
-        border: "none",
-        borderRadius: 8,
-        fontWeight: 600,
-        cursor: loading ? "not-allowed" : "pointer",
-      }}
-    >
-      {loading === "checkout" ? "Redirecting…" : "Start Institutional Plan"}
-    </button>
-  );
+  if (slot === "enterprise") {
+    if (displayPlan === "enterprise") {
+      return (
+        <button
+          type="button"
+          onClick={handleManageBilling}
+          disabled={!!loading}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#3b82f6",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            fontWeight: 600,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          {loading === "portal" ? "Opening…" : "Manage billing"}
+        </button>
+      );
+    }
+    return null;
+  }
+
+  if (slot === "pro") {
+    if (displayPlan === "pro") {
+      return (
+        <button
+          type="button"
+          onClick={handleManageBilling}
+          disabled={!!loading}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#3b82f6",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            fontWeight: 600,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          {loading === "portal" ? "Opening…" : "Manage billing"}
+        </button>
+      );
+    }
+    if (displayPlan === "platform_admin") {
+      return (
+        <span style={{ color: "#71717a", fontSize: 14 }}>
+          Included in your Enterprise access (Platform Admin)
+        </span>
+      );
+    }
+    if (displayPlan === "enterprise") {
+      return (
+        <span style={{ color: "#71717a", fontSize: 14 }}>
+          Included in your Enterprise plan
+        </span>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => handleUpgrade("PRO")}
+        disabled={!!loading}
+        style={{
+          padding: "10px 20px",
+          backgroundColor: "#3b82f6",
+          color: "#fff",
+          border: "none",
+          borderRadius: 8,
+          fontWeight: 600,
+          cursor: loading ? "not-allowed" : "pointer",
+        }}
+      >
+        {loading === "checkout" ? "Redirecting…" : "Start Institutional Plan"}
+      </button>
+    );
+  }
+
+  return null;
 }

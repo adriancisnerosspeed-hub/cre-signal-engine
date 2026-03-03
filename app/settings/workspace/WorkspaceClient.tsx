@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 type Member = { user_id: string; role: string; email: string | null };
 type Invite = { id: string; email: string; role: string; expires_at: string };
@@ -12,12 +13,14 @@ export default function WorkspaceClient({
   currentUserId,
   canManage,
   canInvite,
+  memberLimitLabel,
 }: {
   members: Member[];
   invites: Invite[];
   currentUserId: string;
   canManage: boolean;
   canInvite: boolean;
+  memberLimitLabel?: string;
 }) {
   const router = useRouter();
   const [inviteEmail, setInviteEmail] = useState("");
@@ -35,12 +38,12 @@ export default function WorkspaceClient({
     if (!email) return;
     setInviteLoading(true);
     try {
-      const res = await fetch("/api/org/invite", {
+      const res = await fetchJsonWithTimeout("/api/org/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, role: inviteRole }),
-      });
-      const data = await res.json().catch(() => ({}));
+      }, 15000);
+      const data = res.json ?? {};
       if (!res.ok) {
         setInviteError((data as { error?: string }).error || `Error ${res.status}`);
         return;
@@ -57,11 +60,11 @@ export default function WorkspaceClient({
   async function handleRoleChange(userId: string, role: string) {
     setUpdating(userId);
     try {
-      const res = await fetch(`/api/org/members/${userId}`, {
+      const res = await fetchJsonWithTimeout(`/api/org/members/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role }),
-      });
+      }, 15000);
       if (res.ok) router.refresh();
     } finally {
       setUpdating(null);
@@ -71,7 +74,7 @@ export default function WorkspaceClient({
   async function handleRemove(userId: string) {
     if (!confirm("Remove this member from the workspace?")) return;
     try {
-      const res = await fetch(`/api/org/members/${userId}`, { method: "DELETE" });
+      const res = await fetchJsonWithTimeout(`/api/org/members/${userId}`, { method: "DELETE" }, 15000);
       if (res.ok) router.refresh();
     } catch {}
   }
@@ -81,7 +84,12 @@ export default function WorkspaceClient({
   return (
     <div>
       <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
-        Members ({members.length})
+        Workspace members ({members.length})
+        {memberLimitLabel && (
+          <span style={{ fontWeight: 400, color: "#71717a", fontSize: 14, marginLeft: 8 }}>
+            · {memberLimitLabel}
+          </span>
+        )}
       </h2>
       <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px" }}>
         {members.map((m) => (
@@ -189,14 +197,14 @@ export default function WorkspaceClient({
             Invite by email
             {!canInvite && (
               <span style={{ marginLeft: 8, fontSize: 14, color: "#71717a", fontWeight: 400 }}>
-                Pro access required.
+                Workspace invites require a paid plan.
               </span>
             )}
           </h2>
           <form onSubmit={handleInvite} style={{ marginBottom: 24 }}>
             {!canInvite && (
               <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 12 }}>
-                Pro access required.
+                Workspace invites require a paid plan.
               </p>
             )}
             {inviteError && (

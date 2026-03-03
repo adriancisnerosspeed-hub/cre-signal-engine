@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ensureProfile } from "@/lib/auth";
-import { getEntitlementsForUser } from "@/lib/entitlements";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getCurrentOrgId } from "@/lib/org";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import Link from "next/link";
 import WorkspaceClient from "./WorkspaceClient";
 
@@ -18,9 +18,6 @@ export default async function WorkspacePage() {
   await ensureProfile(supabase, user);
 
   const orgId = await getCurrentOrgId(supabase, user);
-  const entitlements = await getEntitlementsForUser(service, user.id);
-  const plan = entitlements.plan;
-
   if (!orgId) {
     return (
       <main style={{ maxWidth: 600, margin: "0 auto", padding: 24 }}>
@@ -29,7 +26,13 @@ export default async function WorkspacePage() {
     );
   }
 
-  const canInvite = entitlements.workspace_invites_enabled;
+  const { plan, entitlements } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
+  const memberLimitLabel =
+    entitlements.maxMembers == null
+      ? "Unlimited members"
+      : `Up to ${entitlements.maxMembers} members included`;
+
+  const canInvite = entitlements.canInviteMembers;
 
   const { data: org } = await supabase
     .from("organizations")
@@ -77,7 +80,7 @@ export default async function WorkspacePage() {
         {(org as { name?: string })?.name ?? "Workspace"}
       </p>
       <p style={{ color: "#71717a", fontSize: 13, marginBottom: 24 }}>
-        Plan: <span style={{ fontWeight: 600, color: plan === "pro" || plan === "platform_admin" ? "#22c55e" : "#e4e4e7" }}>{plan === "platform_admin" ? "Pro" : plan === "pro" ? "Pro" : "Free"}</span>
+        Plan: <span style={{ fontWeight: 600, color: plan !== "FREE" ? "#22c55e" : "#e4e4e7" }}>{plan}</span> · {memberLimitLabel}
       </p>
 
       {!canInvite ? (
@@ -91,10 +94,10 @@ export default async function WorkspacePage() {
           }}
         >
           <p style={{ color: "#e4e4e7", marginBottom: 8 }}>
-            Workspace collaboration is a Pro feature.
+            Workspace invites require a paid plan.
           </p>
           <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 12 }}>
-            Upgrade to invite team members and share deal scans.
+            Upgrade to invite workspace members and share deal scans.
           </p>
           <Link
             href="/pricing"
@@ -120,6 +123,7 @@ export default async function WorkspacePage() {
         currentUserId={user.id}
         canManage={canManage ?? false}
         canInvite={canInvite}
+        memberLimitLabel={memberLimitLabel}
       />
     </main>
   );
