@@ -10,7 +10,7 @@ import PricingClient from "./PricingClient";
 
 // Avoid real fetch and toast in tests
 vi.mock("@/lib/fetchJsonWithTimeout", () => ({ fetchJsonWithTimeout: vi.fn() }));
-vi.mock("@/lib/toast", () => ({ toast: vi.fn() });
+vi.mock("@/lib/toast", () => ({ toast: vi.fn() }));
 
 describe("PricingClient displayPlan", () => {
   beforeEach(() => {
