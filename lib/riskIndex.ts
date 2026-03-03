@@ -140,6 +140,14 @@ export function scoreToBand(score: number): RiskIndexBand {
   return "High";
 }
 
+/** Minimum score for each band. When tier is forced up (e.g. DSCR), score is raised to this so score and band agree. */
+const BAND_MIN_SCORE: Record<RiskIndexBand, number> = {
+  Low: 0,
+  Moderate: 35,
+  Elevated: 55,
+  High: 70,
+};
+
 function getAssumptionValue(
   assumptions: DealScanAssumptions | undefined,
   key: keyof DealScanAssumptions
@@ -484,7 +492,7 @@ export function computeRiskIndex(
     rawScore += 2;
   }
 
-  const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+  let score = Math.max(0, Math.min(100, Math.round(rawScore)));
   let band = scoreToBand(score);
 
   if (ltv != null && ltv > 90) {
@@ -518,6 +526,12 @@ export function computeRiskIndex(
     const bandIdx = order.indexOf(band);
     const modIdx = order.indexOf("Moderate");
     if (bandIdx < modIdx) band = "Moderate";
+  }
+
+  // When tier was forced up (e.g. DSCR, LTV, compression), raise score to the minimum for that band so score and band agree.
+  const minScoreForBand = BAND_MIN_SCORE[band];
+  if (score < minScoreForBand) {
+    score = minScoreForBand;
   }
 
   // Breakdown: structural/market as % of effective contribution; structural floor 10% when any risks
