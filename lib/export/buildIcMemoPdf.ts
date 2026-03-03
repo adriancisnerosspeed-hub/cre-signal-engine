@@ -211,30 +211,29 @@ export async function buildIcMemoPdf(params: {
 
   // ── Risk Index ─────────────────────────────────────────────────────────────
   drawText("CRE Signal Risk Index(TM)", MARGIN, 10, fontBold, rgb(0.2, 0.2, 0.2));
-  y -= 20;
+  y -= 32;
 
   const bandColor =
     riskIndexBand && BAND_COLORS[riskIndexBand]
       ? rgb(...BAND_COLORS[riskIndexBand])
       : rgb(0.45, 0.45, 0.45);
 
-  // Fix B: score and band are stacked vertically so they never overlap.
-  // Score: 30pt bold on its own line. Band label: 13pt bold on the line below.
+  // Score (large) and band label (small) on same line, side by side; extra gap above so score doesn't cover title.
   if (riskIndexScore != null) {
-    ensureSpace(60);
+    ensureSpace(44);
     const scoreStr = String(riskIndexScore);
     page().drawText(scoreStr, { x: MARGIN, y, size: 30, font: fontBold, color: bandColor });
-    y -= 36;
+    const scoreW = fontBold.widthOfTextAtSize(scoreStr, 30);
     if (riskIndexBand) {
       page().drawText(sanitizeForPdf(riskIndexBand), {
-        x: MARGIN,
+        x: MARGIN + scoreW + 14,
         y,
         size: 13,
         font: fontBold,
         color: bandColor,
       });
-      y -= 18;
     }
+    y -= 38;
   } else if (riskIndexBand) {
     ensureSpace(28);
     drawText(riskIndexBand, MARGIN, 14, fontBold, bandColor);
