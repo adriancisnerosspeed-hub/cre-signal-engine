@@ -30,8 +30,9 @@ export function buildIcMemoUserPrompt(params: {
   dealName?: string | null;
   market?: string | null;
   assetType?: string | null;
+  marketIntelligence?: string | null;
 }): string {
-  const { assumptions, risks, riskIndexScore, riskIndexBand, dealName, market, assetType } = params;
+  const { assumptions, risks, riskIndexScore, riskIndexBand, dealName, market, assetType, marketIntelligence } = params;
   const assumptionLines = Object.entries(assumptions || {}).map(
     ([k, v]) => `  ${k}: ${v.value != null ? v.value : "Data not provided"}${v.unit ? ` ${v.unit}` : ""} (confidence: ${v.confidence ?? "—"})`
   );
@@ -52,6 +53,6 @@ ${assumptionLines.length ? assumptionLines.join("\n") : "  (none provided)"}
 
 Primary risks:
 ${riskLines.length ? riskLines.join("\n") : "  (none identified)"}
-
+${marketIntelligence ? `\nMarket Intelligence (use in Market Context section):\n${marketIntelligence}` : ""}
 Write the memo using the required section headers. Reference the CRE Signal Risk Index™ in the Executive Summary. In the Market Context section, you must reference "${market ?? "the specific market"}" and "${assetType ?? "the asset type"}" by name with conditions specific to that city and asset class. Keep total length to 300–400 words.`;
 }

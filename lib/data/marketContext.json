@@ -1,0 +1,152 @@
+{
+  "austin": {
+    "office_vacancy_range": "22-26%",
+    "office_cap_rate_range": "7.0-8.5%",
+    "multifamily_cap_rate_range": "5.5-6.5%",
+    "industrial_cap_rate_range": "5.5-6.5%",
+    "retail_cap_rate_range": "6.5-7.5%",
+    "market_trend": "softening",
+    "last_updated": "Q4 2025",
+    "notes": "Tech-driven demand slowdown has elevated sublease availability; large multifamily pipeline is moderating rent growth across the metro."
+  },
+  "dallas": {
+    "office_vacancy_range": "20-24%",
+    "office_cap_rate_range": "7.0-8.0%",
+    "multifamily_cap_rate_range": "5.5-6.5%",
+    "industrial_cap_rate_range": "5.0-6.0%",
+    "retail_cap_rate_range": "6.5-7.5%",
+    "market_trend": "stable",
+    "last_updated": "Q4 2025",
+    "notes": "Corporate relocations support absorption but a large suburban pipeline keeps overall vacancy elevated."
+  },
+  "phoenix": {
+    "office_vacancy_range": "18-22%",
+    "office_cap_rate_range": "7.0-8.0%",
+    "multifamily_cap_rate_range": "5.0-6.0%",
+    "industrial_cap_rate_range": "4.5-5.5%",
+    "retail_cap_rate_range": "6.0-7.0%",
+    "market_trend": "stable",
+    "last_updated": "Q4 2025",
+    "notes": "Diversifying economy and steady in-migration support demand; industrial and multifamily outperform office."
+  },
+  "miami": {
+    "office_vacancy_range": "12-16%",
+    "office_cap_rate_range": "6.5-7.5%",
+    "multifamily_cap_rate_range": "4.5-5.5%",
+    "industrial_cap_rate_range": "4.5-5.5%",
+    "retail_cap_rate_range": "5.5-6.5%",
+    "market_trend": "tightening",
+    "last_updated": "Q4 2025",
+    "notes": "Financial services and tech migration has driven Class A office demand with limited new supply coming online."
+  },
+  "atlanta": {
+    "office_vacancy_range": "20-25%",
+    "office_cap_rate_range": "7.0-8.0%",
+    "multifamily_cap_rate_range": "5.5-6.5%",
+    "industrial_cap_rate_range": "5.0-6.0%",
+    "retail_cap_rate_range": "6.5-7.5%",
+    "market_trend": "softening",
+    "last_updated": "Q4 2025",
+    "notes": "Sublease pressure weighs on Class B/C assets; Midtown remains the most active submarket for new leasing activity."
+  },
+  "denver": {
+    "office_vacancy_range": "20-25%",
+    "office_cap_rate_range": "7.5-8.5%",
+    "multifamily_cap_rate_range": "5.5-6.5%",
+    "industrial_cap_rate_range": "5.5-6.5%",
+    "retail_cap_rate_range": "6.5-7.5%",
+    "market_trend": "softening",
+    "last_updated": "Q4 2025",
+    "notes": "Energy sector volatility and sustained remote work adoption have weakened office fundamentals across the metro."
+  },
+  "charlotte": {
+    "office_vacancy_range": "14-18%",
+    "office_cap_rate_range": "6.5-7.5%",
+    "multifamily_cap_rate_range": "5.0-6.0%",
+    "industrial_cap_rate_range": "5.0-6.0%",
+    "retail_cap_rate_range": "6.0-7.0%",
+    "market_trend": "stable",
+    "last_updated": "Q4 2025",
+    "notes": "Banking and fintech sector anchors demand; Uptown and South End continue to outperform suburban submarkets."
+  },
+  "nashville": {
+    "office_vacancy_range": "16-20%",
+    "office_cap_rate_range": "6.5-7.5%",
+    "multifamily_cap_rate_range": "5.0-6.0%",
+    "industrial_cap_rate_range": "5.0-6.0%",
+    "retail_cap_rate_range": "6.0-7.0%",
+    "market_trend": "stable",
+    "last_updated": "Q4 2025",
+    "notes": "Healthcare and entertainment tenants provide stable base demand; large apartment pipeline is moderating multifamily rent growth."
+  },
+  "chicago": {
+    "office_vacancy_range": "20-26%",
+    "office_cap_rate_range": "7.5-9.0%",
+    "multifamily_cap_rate_range": "5.5-6.5%",
+    "industrial_cap_rate_range": "4.5-5.5%",
+    "retail_cap_rate_range": "7.0-8.5%",
+    "market_trend": "softening",
+    "last_updated": "Q4 2025",
+    "notes": "Downtown office faces elevated sublease supply and limited new leasing; suburban demand remains mixed."
+  },
+  "nyc": {
+    "office_vacancy_range": "16-20%",
+    "office_cap_rate_range": "5.5-7.0%",
+    "multifamily_cap_rate_range": "4.0-5.0%",
+    "industrial_cap_rate_range": "4.5-5.5%",
+    "retail_cap_rate_range": "5.0-6.5%",
+    "market_trend": "stable",
+    "last_updated": "Q4 2025",
+    "notes": "Trophy and Class A Midtown assets recovering; outer boroughs and Class B product face continued headwinds."
+  },
+  "los angeles": {
+    "office_vacancy_range": "20-26%",
+    "office_cap_rate_range": "6.5-8.0%",
+    "multifamily_cap_rate_range": "4.0-5.0%",
+    "industrial_cap_rate_range": "4.0-5.0%",
+    "retail_cap_rate_range": "5.5-6.5%",
+    "market_trend": "softening",
+    "last_updated": "Q4 2025",
+    "notes": "Entertainment and tech pullback has significantly expanded sublease availability across West LA and Century City."
+  },
+  "seattle": {
+    "office_vacancy_range": "22-28%",
+    "office_cap_rate_range": "7.0-8.5%",
+    "multifamily_cap_rate_range": "4.5-5.5%",
+    "industrial_cap_rate_range": "4.5-5.5%",
+    "retail_cap_rate_range": "6.0-7.0%",
+    "market_trend": "softening",
+    "last_updated": "Q4 2025",
+    "notes": "Tech sector downsizing has produced significant sublease overhang; South Lake Union is the most severely affected submarket."
+  },
+  "boston": {
+    "office_vacancy_range": "14-18%",
+    "office_cap_rate_range": "6.0-7.5%",
+    "multifamily_cap_rate_range": "4.5-5.5%",
+    "industrial_cap_rate_range": "5.0-6.0%",
+    "retail_cap_rate_range": "6.0-7.0%",
+    "market_trend": "stable",
+    "last_updated": "Q4 2025",
+    "notes": "Life sciences demand supports lab/office hybrid product; traditional suburban office faces elevated vacancy."
+  },
+  "washington": {
+    "office_vacancy_range": "18-22%",
+    "office_cap_rate_range": "6.5-8.0%",
+    "multifamily_cap_rate_range": "4.5-5.5%",
+    "industrial_cap_rate_range": "5.0-6.0%",
+    "retail_cap_rate_range": "6.5-7.5%",
+    "market_trend": "softening",
+    "last_updated": "Q4 2025",
+    "notes": "Federal agency consolidations and lease contractions are increasing available space in core downtown submarkets."
+  },
+  "houston": {
+    "office_vacancy_range": "22-26%",
+    "office_cap_rate_range": "7.5-9.0%",
+    "multifamily_cap_rate_range": "5.5-6.5%",
+    "industrial_cap_rate_range": "5.5-6.5%",
+    "retail_cap_rate_range": "6.5-7.5%",
+    "market_trend": "softening",
+    "last_updated": "Q4 2025",
+    "notes": "Energy sector cyclicality and sustained corporate downsizing keep sublease pressure elevated across the metro."
+  }
+}

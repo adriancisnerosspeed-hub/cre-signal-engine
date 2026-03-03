@@ -9,6 +9,8 @@ import {
   buildIcMemoUserPrompt,
 } from "@/lib/prompts/icMemoNarrative";
 import { checkBandConsistency } from "@/lib/bandConsistency";
+import { lookupMarketContext, capRateForAssetType } from "@/lib/marketContextLookup";
+import { fetchMacroSnapshot } from "@/lib/macroData";
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 
@@ -133,15 +135,48 @@ export async function POST(
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
 
+  const dealTyped = deal as { name?: string; asset_type?: string | null; market?: string | null };
+
+  // Fetch market context + live macro data concurrently; both fail silently
+  const [macro, marketCtx] = await Promise.all([
+    fetchMacroSnapshot(),
+    Promise.resolve(lookupMarketContext(dealTyped.market)),
+  ]);
+
+  // Build the market intelligence block injected into the user prompt
+  let marketIntelligence: string | null = null;
+  if (marketCtx) {
+    const capRate = capRateForAssetType(marketCtx, dealTyped.asset_type);
+    const lines: string[] = [
+      `- Office Vacancy: ${marketCtx.office_vacancy_range} | Cap Rate (${dealTyped.asset_type ?? "market"}): ${capRate}`,
+      `- Market Trend: ${marketCtx.market_trend} (as of ${marketCtx.last_updated})`,
+      `- Local Context: ${marketCtx.notes}`,
+    ];
+    if (macro.treasury_10yr) {
+      lines.push(`- 10-Year Treasury: ${macro.treasury_10yr}% (current debt market reference)`);
+    }
+    if (macro.cpi_yoy) {
+      lines.push(`- CPI YoY: ${macro.cpi_yoy}% (expense escalation reference)`);
+    }
+    marketIntelligence = lines.join("\n");
+  } else if (macro.treasury_10yr || macro.cpi_yoy) {
+    // No static market match but live macro data is available
+    const lines: string[] = [];
+    if (macro.treasury_10yr) lines.push(`- 10-Year Treasury: ${macro.treasury_10yr}% (current debt market reference)`);
+    if (macro.cpi_yoy) lines.push(`- CPI YoY: ${macro.cpi_yoy}% (expense escalation reference)`);
+    marketIntelligence = lines.join("\n");
+  }
+
   const client = new OpenAI({ apiKey });
   const userPrompt = buildIcMemoUserPrompt({
     assumptions,
     risks,
     riskIndexScore: s.risk_index_score,
-    riskIndexBand: s.risk_index_band,
-    dealName:  (deal as { name?: string; asset_type?: string | null; market?: string | null }).name,
-    market:    (deal as { name?: string; asset_type?: string | null; market?: string | null }).market,
-    assetType: (deal as { name?: string; asset_type?: string | null; market?: string | null }).asset_type,
+    riskIndexBand:  s.risk_index_band,
+    dealName:           dealTyped.name,
+    market:             dealTyped.market,
+    assetType:          dealTyped.asset_type,
+    marketIntelligence,
   });
 
   const completion = await client.chat.completions.create({
