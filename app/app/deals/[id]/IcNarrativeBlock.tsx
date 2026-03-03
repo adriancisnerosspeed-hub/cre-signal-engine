@@ -110,13 +110,16 @@ export default function IcNarrativeBlock({
     setTimeout(() => setCopyDone(false), 2000);
   }
 
-  function handleDownload() {
-    if (!narrativeContent || !scanExportEnabled) return;
-    const blob = new Blob([getExportText()], { type: "text/plain" });
+  async function handleDownload() {
+    if (!narrativeContent || !scanExportEnabled || !scanId) return;
+    const res = await fetch(`/api/deals/scans/${scanId}/narrative/export-pdf`);
+    if (!res.ok) return;
+    const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `ic-memo-${dealName ? dealName.replace(/\s+/g, "-").slice(0, 30) : "deal"}-${new Date().toISOString().slice(0, 10)}.txt`;
+    const safeName = dealName ? dealName.replace(/[^a-z0-9]/gi, "-").slice(0, 30).toLowerCase() : "deal";
+    a.download = `ic-memo-${safeName}-${new Date().toISOString().slice(0, 10)}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -197,7 +200,7 @@ export default function IcNarrativeBlock({
                 cursor: "pointer",
               }}
             >
-              Download as .txt
+              Download as PDF
             </button>
           </div>
         )}
