@@ -169,7 +169,7 @@ export async function POST(
       stored_band: s.risk_index_band,
       expected_band: bandCheck.expectedBand,
     });
-    content = `${content}\n\n[Band mismatch detected: expected band for this score is ${bandCheck.expectedBand}.]`;
+    // Do not append debug strings to user-facing narrative content
   }
 
   const { error: upsertError } = await service

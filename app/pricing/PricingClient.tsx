@@ -129,7 +129,31 @@ export default function PricingClient({
         </button>
       );
     }
-    return null;
+    if (displayPlan === "platform_admin") {
+      return (
+        <span style={{ color: "#22c55e", fontSize: 14, fontWeight: 600 }}>
+          You have Enterprise access (Platform Admin)
+        </span>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => handleUpgrade("ENTERPRISE")}
+        disabled={!!loading}
+        style={{
+          padding: "10px 20px",
+          backgroundColor: "#3b82f6",
+          color: "#fff",
+          border: "none",
+          borderRadius: 8,
+          fontWeight: 600,
+          cursor: loading ? "not-allowed" : "pointer",
+        }}
+      >
+        {loading === "checkout" ? "Redirecting…" : "Get Enterprise"}
+      </button>
+    );
   }
 
   if (slot === "pro") {

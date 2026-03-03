@@ -163,41 +163,18 @@ export default async function PricingPage() {
           <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
             Designed for institutional portfolios and multi-strategy platforms.
           </p>
-          {profilePlan === "platform_admin" && (
-            <p style={{ color: "#22c55e", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-              You have Enterprise access (Platform Admin)
-            </p>
-          )}
           <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 8 }}>Includes everything in PRO, plus:</p>
           <ul style={{ margin: "0 0 16px", paddingLeft: 20, fontSize: 14, color: "#a1a1aa" }}>
             <li>Custom cohort creation</li>
             <li>Snapshot build control</li>
-            <li>Multiple active governance policies</li>
+            <li>Multiple active governance policies (unlimited)</li>
             <li>Unlimited workspace members</li>
             <li>API access</li>
             <li>Custom reporting</li>
             <li>Priority support</li>
             <li>Contract-level SLA</li>
           </ul>
-          {displayPlan === "enterprise" && (
-            <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise" />
-          )}
-          {displayPlan !== "platform_admin" && displayPlan !== "enterprise" && (
-            <Link
-              href="mailto:sales@cre-signal-engine.com"
-              style={{
-                display: "inline-block",
-                padding: "10px 20px",
-                backgroundColor: "#3b82f6",
-                color: "#fff",
-                borderRadius: 8,
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              Contact Sales
-            </Link>
-          )}
+          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise" />
         </section>
       </div>
 

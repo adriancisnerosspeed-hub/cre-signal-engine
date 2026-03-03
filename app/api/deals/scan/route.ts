@@ -3,7 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
 import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
-import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
+import { getPlanForUser } from "@/lib/entitlements";
 import { parseAndNormalizeDealScan } from "@/lib/dealScanContract";
 import { normalizeAssumptionsForScoringWithFlags } from "@/lib/assumptionNormalization";
 import { DEAL_SCAN_SYSTEM_PROMPT, DEAL_SCAN_PROMPT_VERSION } from "@/lib/prompts/dealScanPrompt";
@@ -236,39 +236,82 @@ export async function POST(request: Request) {
     evidence_snippets: r.evidence_snippets,
   }));
 
-  const { data: rpcRows, error: rpcError } = await service.rpc("create_deal_scan_with_usage_check", {
-    p_workspace_id: (deal as { organization_id: string }).organization_id,
-    p_deal_id: dealId,
-    p_scan_row,
-    p_risks,
-  });
-  if (rpcError) {
-    console.error("create_deal_scan_with_usage_check error:", rpcError);
-    return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
-  }
-  const row = Array.isArray(rpcRows) && rpcRows.length > 0 ? rpcRows[0] : null;
-  if (!row || typeof row.ok !== "boolean") {
-    return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
-  }
-  if (!row.ok && row.code === "PLAN_LIMIT_REACHED") {
-    return NextResponse.json(
-      {
-        error: "Workspace has reached the free plan scan limit.",
-        code: ENTITLEMENT_ERROR_CODES.PLAN_LIMIT_REACHED,
-        required_plan: "PRO",
-      },
-      { status: 403 }
-    );
-  }
-  if (!row.ok && row.code === "ORGANIZATION_NOT_FOUND") {
-    return NextResponse.json({ error: "Workspace not found", code: "ORGANIZATION_NOT_FOUND" }, { status: 404 });
-  }
-  if (!row.ok) {
-    return NextResponse.json({ error: "Failed to save scan", code: "SCAN_SAVE_FAILED" }, { status: 500 });
-  }
-  const scanId = row.scan_id as string;
-  if (!scanId) {
-    return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
+  // Platform admin bypass: skip scan limit enforcement entirely
+  const platformPlan = await getPlanForUser(service, user.id);
+  const isPlatformAdmin = platformPlan === "platform_admin";
+
+  let scanId: string;
+
+  if (isPlatformAdmin) {
+    const { data: scanInsert, error: scanInsertError } = await service
+      .from("deal_scans")
+      .insert({
+        deal_id: dealId,
+        deal_input_id: p_scan_row.deal_input_id ?? null,
+        input_text_hash: p_scan_row.input_text_hash ?? null,
+        extraction: p_scan_row.extraction as Record<string, unknown>,
+        status: p_scan_row.status,
+        completed_at: p_scan_row.completed_at,
+        model: p_scan_row.model,
+        prompt_version: p_scan_row.prompt_version,
+        cap_rate_in: p_scan_row.cap_rate_in ?? null,
+        exit_cap: p_scan_row.exit_cap ?? null,
+        noi_year1: p_scan_row.noi_year1 ?? null,
+        ltv: p_scan_row.ltv ?? null,
+        hold_period_years: p_scan_row.hold_period_years ?? null,
+        asset_type: p_scan_row.asset_type ?? null,
+        market: p_scan_row.market ?? null,
+      })
+      .select("id")
+      .single();
+
+    if (scanInsertError || !scanInsert) {
+      console.error("[deal_scan] platform_admin direct insert error:", scanInsertError);
+      return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
+    }
+
+    scanId = (scanInsert as { id: string }).id;
+
+    if (p_risks.length > 0) {
+      await service.from("deal_risks").insert(
+        p_risks.map((r) => ({ ...r, deal_scan_id: scanId }))
+      );
+    }
+  } else {
+    const { data: rpcRows, error: rpcError } = await service.rpc("create_deal_scan_with_usage_check", {
+      p_workspace_id: (deal as { organization_id: string }).organization_id,
+      p_deal_id: dealId,
+      p_scan_row,
+      p_risks,
+    });
+    if (rpcError) {
+      console.error("create_deal_scan_with_usage_check error:", rpcError);
+      return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
+    }
+    const row = Array.isArray(rpcRows) && rpcRows.length > 0 ? rpcRows[0] : null;
+    if (!row || typeof row.ok !== "boolean") {
+      return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
+    }
+    if (!row.ok && row.code === "PLAN_LIMIT_REACHED") {
+      return NextResponse.json(
+        {
+          error: "Workspace has reached the free plan scan limit.",
+          code: ENTITLEMENT_ERROR_CODES.PLAN_LIMIT_REACHED,
+          required_plan: "PRO",
+        },
+        { status: 403 }
+      );
+    }
+    if (!row.ok && row.code === "ORGANIZATION_NOT_FOUND") {
+      return NextResponse.json({ error: "Workspace not found", code: "ORGANIZATION_NOT_FOUND" }, { status: 404 });
+    }
+    if (!row.ok) {
+      return NextResponse.json({ error: "Failed to save scan", code: "SCAN_SAVE_FAILED" }, { status: 500 });
+    }
+    scanId = row.scan_id as string;
+    if (!scanId) {
+      return NextResponse.json({ error: "Failed to save scan" }, { status: 500 });
+    }
   }
 
   const scan = { id: scanId };

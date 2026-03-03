@@ -16,7 +16,7 @@ function UpgradeButton({ workspaceId }: { workspaceId?: string }) {
       const r = await fetchJsonWithTimeout(url, {
         method: "POST",
         headers: workspaceId ? { "Content-Type": "application/json" } : undefined,
-        body: workspaceId ? JSON.stringify({ workspace_id: workspaceId }) : undefined,
+        body: workspaceId ? JSON.stringify({ workspace_id: workspaceId, plan: "PRO" }) : undefined,
       }, CHECKOUT_TIMEOUT_MS);
       const checkoutUrl = r?.json?.url as string | undefined;
       if (!r.ok || !checkoutUrl) {
@@ -46,27 +46,29 @@ function UpgradeButton({ workspaceId }: { workspaceId?: string }) {
         fontSize: 14,
       }}
     >
-      {loading ? "Redirecting…" : "Upgrade to Pro"}
+      {loading ? "Redirecting…" : "Upgrade to PRO"}
     </button>
   );
 }
 
 const PRO_BENEFITS = [
-  "Higher daily scan limits",
-  "IC Memorandum Narrative generation",
-  "Scan history",
-  "Institutional export",
-  "Workspace collaboration",
+  "Unlimited deal scans",
+  "Full CRE Signal Risk Index™ (Institutional Stable)",
+  "Snapshot-based benchmark percentiles",
+  "IC-ready PDF export & support bundle export",
+  "Portfolio dashboard & risk movement tracking",
+  "1 active governance policy",
+  "Up to 5 workspace members",
 ];
 
 const LIFETIME_LIMIT_BULLETS = [
   "Unlimited deal scans",
-  "Full CRE Signal Risk Index™",
-  "Full macro signal overlay",
-  "IC Memorandum PDF export",
-  "Risk percentile benchmarking",
-  "Scenario comparison tools",
-  "Workspace collaboration",
+  "Full CRE Signal Risk Index™ (Institutional Stable)",
+  "Snapshot-based benchmark percentiles",
+  "IC-ready PDF export & support bundle export",
+  "Portfolio dashboard & risk movement tracking",
+  "1 active governance policy",
+  "Up to 5 workspace members",
 ];
 
 export default function PaywallModal({
@@ -133,14 +135,14 @@ export default function PaywallModal({
           <p style={{ fontSize: 14, color: "#a1a1aa", marginBottom: 12 }}>
             CRE Signal Engine is built for real capital decisions — not casual exploration.
           </p>
-          <p style={{ fontSize: 14, color: "#e4e4e7", marginBottom: 6 }}>Upgrade to Pro to unlock:</p>
+          <p style={{ fontSize: 14, color: "#e4e4e7", marginBottom: 6 }}>Upgrade to PRO to unlock:</p>
           <ul style={{ margin: "0 0 12px", paddingLeft: 20, fontSize: 13, color: "#a1a1aa" }}>
             {LIFETIME_LIMIT_BULLETS.map((b) => (
               <li key={b}>{b}</li>
             ))}
           </ul>
           <p style={{ fontSize: 14, color: "#a1a1aa", marginBottom: 8 }}>
-            At $99/month, Pro is a rounding error relative to underwriting risk.
+            At $299/workspace/month, PRO is a rounding error relative to underwriting risk.
           </p>
           <p style={{ fontSize: 13, color: "#71717a", marginBottom: 4 }}>
             Used by underwriting teams evaluating institutional real estate.
@@ -221,7 +223,7 @@ export default function PaywallModal({
             <div style={{ marginTop: 8, fontSize: 12, color: "#a1a1aa" }}>[Pro feature]</div>
           </div>
         )}
-        <p style={{ fontSize: 13, color: "#e4e4e7", marginBottom: 8 }}>Pro includes:</p>
+        <p style={{ fontSize: 13, color: "#e4e4e7", marginBottom: 8 }}>PRO includes:</p>
         <ul style={{ margin: "0 0 16px", paddingLeft: 20, fontSize: 13, color: "#a1a1aa" }}>
           {PRO_BENEFITS.map((b) => (
             <li key={b}>{b}</li>

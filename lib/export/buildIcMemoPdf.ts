@@ -51,19 +51,34 @@ function wrapText(text: string, maxWidth: number, fontSize: number, f: PDFFont):
   return lines.length ? lines : [""];
 }
 
+// Fix A: patterns that identify internal debug strings — never rendered in the PDF
+const DEBUG_LINE_PATTERNS: RegExp[] = [
+  /^\[Band mismatch/i,
+  /^\[band_consistency/i,
+  /^\[EDGE_/i,
+  /^\[internal/i,
+];
+
+function isDebugLine(raw: string): boolean {
+  const trimmed = raw.trim();
+  return DEBUG_LINE_PATTERNS.some((re) => re.test(trimmed));
+}
+
 type MarkdownLine =
   | { type: "h1" | "h2" | "h3"; text: string }
   | { type: "body"; text: string }
   | { type: "blank" };
 
 function parseMarkdownLines(narrative: string): MarkdownLine[] {
-  return narrative.split("\n").map((raw): MarkdownLine => {
-    if (raw.startsWith("### ")) return { type: "h3", text: raw.slice(4) };
-    if (raw.startsWith("## "))  return { type: "h2", text: raw.slice(3) };
-    if (raw.startsWith("# "))   return { type: "h1", text: raw.slice(2) };
-    if (raw.trim() === "")      return { type: "blank" };
+  return narrative.split("\n").flatMap((raw): MarkdownLine[] => {
+    // Fix A: drop internal debug strings from PDF output
+    if (isDebugLine(raw)) return [];
+    if (raw.startsWith("### ")) return [{ type: "h3", text: raw.slice(4) }];
+    if (raw.startsWith("## "))  return [{ type: "h2", text: raw.slice(3) }];
+    if (raw.startsWith("# "))   return [{ type: "h1", text: raw.slice(2) }];
+    if (raw.trim() === "")      return [{ type: "blank" }];
     // Strip inline bold markers — section labels in body will be rendered as-is
-    return { type: "body", text: raw.replace(/\*\*([^*]+)\*\*/g, "$1") };
+    return [{ type: "body", text: raw.replace(/\*\*([^*]+)\*\*/g, "$1") }];
   });
 }
 
@@ -183,7 +198,7 @@ export async function buildIcMemoPdf(params: {
     subParts.push(`Scan date: ${new Date(scanCreatedAt).toISOString().slice(0, 10)}`);
   }
   if (scanId) {
-    subParts.push(`Scan ID: ${scanId.slice(0, 8)}...`);
+    subParts.push(`ID: ${scanId.slice(0, 8)}`);
   }
   if (subParts.length) {
     drawText(subParts.join("   |   "), MARGIN, 9, font, rgb(0.45, 0.45, 0.45));
@@ -203,23 +218,27 @@ export async function buildIcMemoPdf(params: {
       ? rgb(...BAND_COLORS[riskIndexBand])
       : rgb(0.45, 0.45, 0.45);
 
+  // Fix B: score and band are stacked vertically so they never overlap.
+  // Score: 30pt bold on its own line. Band label: 13pt bold on the line below.
   if (riskIndexScore != null) {
+    ensureSpace(60);
     const scoreStr = String(riskIndexScore);
-    page().drawText(scoreStr, { x: MARGIN, y, size: 36, font: fontBold, color: bandColor });
-    const scoreW = fontBold.widthOfTextAtSize(scoreStr, 36);
+    page().drawText(scoreStr, { x: MARGIN, y, size: 30, font: fontBold, color: bandColor });
+    y -= 36;
     if (riskIndexBand) {
       page().drawText(sanitizeForPdf(riskIndexBand), {
-        x: MARGIN + scoreW + 12,
-        y: y + 10,
-        size: 14,
+        x: MARGIN,
+        y,
+        size: 13,
         font: fontBold,
         color: bandColor,
       });
+      y -= 18;
     }
-    y -= 44;
   } else if (riskIndexBand) {
-    drawText(riskIndexBand, MARGIN, 16, fontBold, bandColor);
-    y -= 24;
+    ensureSpace(28);
+    drawText(riskIndexBand, MARGIN, 14, fontBold, bandColor);
+    y -= 22;
   }
 
   y -= 8;
@@ -231,11 +250,12 @@ export async function buildIcMemoPdf(params: {
 
   for (const line of mdLines) {
     switch (line.type) {
+      // Fix C: h1/h2 at 13pt, h3 at 12pt, body at 10pt — comfortable reading sizes
       case "h1":
       case "h2": {
-        ensureSpace(30);
+        ensureSpace(34);
         y -= 6;
-        drawWrapped(line.text, MARGIN, MAX_W, 12, fontBold, 16, rgb(0.05, 0.05, 0.05));
+        drawWrapped(line.text, MARGIN, MAX_W, 13, fontBold, 17, rgb(0.05, 0.05, 0.05));
         page().drawLine({
           start: { x: MARGIN, y: y + 4 },
           end:   { x: PAGE_W - MARGIN, y: y + 4 },
@@ -246,9 +266,9 @@ export async function buildIcMemoPdf(params: {
         break;
       }
       case "h3": {
-        ensureSpace(20);
+        ensureSpace(24);
         y -= 4;
-        drawWrapped(line.text, MARGIN, MAX_W, 11, fontBold, 15, rgb(0.15, 0.15, 0.15));
+        drawWrapped(line.text, MARGIN, MAX_W, 12, fontBold, 16, rgb(0.15, 0.15, 0.15));
         y -= 4;
         break;
       }
