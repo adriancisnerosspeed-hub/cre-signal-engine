@@ -143,9 +143,9 @@ export async function POST(
   });
 
   const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     temperature: 0.3,
-    max_tokens: 600,
+    max_tokens: 1200,
     messages: [
       { role: "system", content: IC_MEMO_SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
@@ -154,7 +154,7 @@ export async function POST(
 
   let content =
     completion.choices?.[0]?.message?.content?.trim() ?? "";
-  const model = completion.model ?? "gpt-4o-mini";
+  const model = completion.model ?? "gpt-4o";
 
   const bandCheck = checkBandConsistency(
     s.risk_index_score,
