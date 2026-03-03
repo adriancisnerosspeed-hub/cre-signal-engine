@@ -210,34 +210,29 @@ export async function buildIcMemoPdf(params: {
   y -= 18;
 
   // ── Risk Index ─────────────────────────────────────────────────────────────
-  drawText("CRE Signal Risk Index(TM)", MARGIN, 10, fontBold, rgb(0.2, 0.2, 0.2));
-  y -= 32;
+  // Three separate lines: label → score → band (each 8pt gap between)
+  // Total block ≈ 80pt so ensureSpace before drawing.
+  ensureSpace(80);
 
   const bandColor =
     riskIndexBand && BAND_COLORS[riskIndexBand]
       ? rgb(...BAND_COLORS[riskIndexBand])
       : rgb(0.45, 0.45, 0.45);
 
-  // Score (large) and band label (small) on same line, side by side; extra gap above so score doesn't cover title.
+  // Line 1: label — 11pt, gray
+  drawText("CRE Signal Risk Index(TM)", MARGIN, 11, font, rgb(0.45, 0.45, 0.45));
+  y -= 19; // 11pt line + 8pt gap
+
+  // Line 2: score number — 32pt, bold, near-white
   if (riskIndexScore != null) {
-    ensureSpace(44);
-    const scoreStr = String(riskIndexScore);
-    page().drawText(scoreStr, { x: MARGIN, y, size: 30, font: fontBold, color: bandColor });
-    const scoreW = fontBold.widthOfTextAtSize(scoreStr, 30);
-    if (riskIndexBand) {
-      page().drawText(sanitizeForPdf(riskIndexBand), {
-        x: MARGIN + scoreW + 14,
-        y,
-        size: 13,
-        font: fontBold,
-        color: bandColor,
-      });
-    }
-    y -= 38;
-  } else if (riskIndexBand) {
-    ensureSpace(28);
-    drawText(riskIndexBand, MARGIN, 14, fontBold, bandColor);
-    y -= 22;
+    page().drawText(String(riskIndexScore), { x: MARGIN, y, size: 32, font: fontBold, color: rgb(0.95, 0.95, 0.95) });
+    y -= 40; // 32pt line + 8pt gap
+  }
+
+  // Line 3: band label — 13pt, band color
+  if (riskIndexBand) {
+    page().drawText(sanitizeForPdf(riskIndexBand), { x: MARGIN, y, size: 13, font: fontBold, color: bandColor });
+    y -= 21; // 13pt line + 8pt gap
   }
 
   y -= 8;

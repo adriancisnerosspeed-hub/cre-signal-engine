@@ -161,7 +161,7 @@ export async function POST(request: Request) {
 
   const client = new OpenAI({ apiKey });
   const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     temperature: 0.1,
     messages: [
       { role: "system", content: DEAL_SCAN_SYSTEM_PROMPT },
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
   });
 
   const content = completion.choices?.[0]?.message?.content ?? "";
-  const model = completion.model ?? "gpt-4o-mini";
+  const model = completion.model ?? "gpt-4o";
 
   const normalized = parseAndNormalizeDealScan(content);
   if (!normalized) {

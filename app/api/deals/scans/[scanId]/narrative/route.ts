@@ -112,7 +112,7 @@ export async function POST(
   const s = scan as ScanRow;
   const { data: deal } = await supabase
     .from("deals")
-    .select("id, name")
+    .select("id, name, asset_type, market")
     .eq("id", s.deal_id)
     .eq("organization_id", orgId)
     .single();
@@ -139,7 +139,9 @@ export async function POST(
     risks,
     riskIndexScore: s.risk_index_score,
     riskIndexBand: s.risk_index_band,
-    dealName: (deal as { name?: string }).name,
+    dealName:  (deal as { name?: string; asset_type?: string | null; market?: string | null }).name,
+    market:    (deal as { name?: string; asset_type?: string | null; market?: string | null }).market,
+    assetType: (deal as { name?: string; asset_type?: string | null; market?: string | null }).asset_type,
   });
 
   const completion = await client.chat.completions.create({

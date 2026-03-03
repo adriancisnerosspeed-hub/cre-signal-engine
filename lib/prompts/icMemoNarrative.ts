@@ -12,7 +12,13 @@ RULES:
 - Output must be 300–400 words.
 - Structure your response with these section headers exactly: Executive Summary | Investment Thesis | Key Assumptions | Primary Risks | Market Context | Recommendation.
 - Recommendation must be exactly one of: Proceed | Proceed with Conditions | Re-underwrite.
-- You must reference the CRE Signal Risk Index™ (score and band) in the Executive Summary.`;
+- You must reference the CRE Signal Risk Index™ (score and band) in the Executive Summary.
+
+MARKET CONTEXT RULES (strictly enforced):
+- In the Market Context section, you MUST reference the specific market field provided (e.g. "Austin, TX") and the asset_type (e.g. "Office") by name.
+- Describe supply/demand conditions, rent trends, vacancy dynamics, or cap rate environment specific to that city and that asset class.
+- Never write generic statements that could apply to any market or any property type (e.g. "the property is situated in a market where economic indicators suggest moderate growth potential" is forbidden).
+- If market-specific data is limited, state the specific market name and note that local broker validation is recommended for that submarket.`;
 
 export const IC_MEMO_PROMPT_VERSION = "1.0";
 
@@ -22,8 +28,10 @@ export function buildIcMemoUserPrompt(params: {
   riskIndexScore: number | null;
   riskIndexBand: string | null;
   dealName?: string | null;
+  market?: string | null;
+  assetType?: string | null;
 }): string {
-  const { assumptions, risks, riskIndexScore, riskIndexBand, dealName } = params;
+  const { assumptions, risks, riskIndexScore, riskIndexBand, dealName, market, assetType } = params;
   const assumptionLines = Object.entries(assumptions || {}).map(
     ([k, v]) => `  ${k}: ${v.value != null ? v.value : "Data not provided"}${v.unit ? ` ${v.unit}` : ""} (confidence: ${v.confidence ?? "—"})`
   );
@@ -34,6 +42,8 @@ export function buildIcMemoUserPrompt(params: {
   return `Write an IC Memorandum Narrative for this deal scan.
 
 Deal: ${dealName ?? "Unnamed"}
+Market: ${market ?? "Data not provided"}
+Asset Type: ${assetType ?? "Data not provided"}
 
 CRE Signal Risk Index™: ${riskIndexScore != null ? riskIndexScore : "Data not provided"} — ${riskIndexBand ?? "Data not provided"}
 
@@ -43,5 +53,5 @@ ${assumptionLines.length ? assumptionLines.join("\n") : "  (none provided)"}
 Primary risks:
 ${riskLines.length ? riskLines.join("\n") : "  (none identified)"}
 
-Write the memo using the required section headers. Reference the CRE Signal Risk Index™ in the Executive Summary. Keep total length to 300–400 words.`;
+Write the memo using the required section headers. Reference the CRE Signal Risk Index™ in the Executive Summary. In the Market Context section, you must reference "${market ?? "the specific market"}" and "${assetType ?? "the asset type"}" by name with conditions specific to that city and asset class. Keep total length to 300–400 words.`;
 }
