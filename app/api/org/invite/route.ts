@@ -28,16 +28,34 @@ export async function POST(request: Request) {
   const orgId = await getCurrentOrgId(supabase, user);
   if (!orgId) return NextResponse.json({ error: "No workspace selected" }, { status: 400 });
 
-  const { entitlements } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
+  const { plan, entitlements } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
   if (!entitlements.canInviteMembers) {
     return NextResponse.json(
       {
-        code: ENTITLEMENT_ERROR_CODES.ENTERPRISE_REQUIRED,
-        message: "Workspace invites require Enterprise plan.",
-        required_plan: "ENTERPRISE",
+        error: "Workspace invites require a paid plan.",
+        code: ENTITLEMENT_ERROR_CODES.FEATURE_NOT_AVAILABLE,
+        required_plan: "PRO",
       },
       { status: 403 }
     );
+  }
+
+  if (entitlements.maxMembers != null) {
+    const { count, error: countError } = await service
+      .from("organization_members")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId);
+    if (!countError && count != null && count >= entitlements.maxMembers) {
+      const required_plan = plan === "PRO" ? "PRO+" : "ENTERPRISE";
+      return NextResponse.json(
+        {
+          error: "Workspace member limit reached.",
+          code: ENTITLEMENT_ERROR_CODES.MEMBER_LIMIT_REACHED,
+          required_plan,
+        },
+        { status: 403 }
+      );
+    }
   }
 
   const { data: org } = await supabase

@@ -2,17 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-
-/** Single mapping source: env vars for Stripe price → plan. Unknown price_id must not change plan. */
-const PRICE_ID_PRO = process.env.STRIPE_PRICE_ID_PRO ?? "";
-const PRICE_ID_ENTERPRISE = process.env.STRIPE_PRICE_ID_ENTERPRISE ?? "";
-
-function planFromPriceId(priceId: string | null): "FREE" | "PRO" | "ENTERPRISE" | null {
-  if (!priceId) return null;
-  if (PRICE_ID_ENTERPRISE && priceId === PRICE_ID_ENTERPRISE) return "ENTERPRISE";
-  if (PRICE_ID_PRO && priceId === PRICE_ID_PRO) return "PRO";
-  return null;
-}
+import { planFromPriceId } from "@/lib/stripeWebhookPlan";
 
 /** Resolve organization id from subscription: metadata.workspace_id, or org by stripe_subscription_id, or org by stripe_customer_id. */
 async function resolveOrgIdFromSubscription(
@@ -189,6 +179,8 @@ async function updateOrgFromSubscription(
           : "inactive";
 
   const resolvedPlan = planFromPriceId(priceId);
+
+  // Audit unknown or missing price for visibility (diagnose config mistakes without reading logs)
   if (priceId != null && resolvedPlan == null) {
     await supabase.from("stripe_webhook_audit").insert({
       event_id: eventId,
@@ -198,6 +190,19 @@ async function updateOrgFromSubscription(
       metadata_json: { price_id: priceId },
       reason: "unknown_price_id",
     });
+  }
+  if (priceId == null) {
+    await supabase.from("stripe_webhook_audit").insert({
+      event_id: eventId,
+      event_type: "customer.subscription.created/updated",
+      subscription_id: sub.id,
+      customer_id: typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? null,
+      metadata_json: {},
+      reason: "missing_price_id",
+    });
+  }
+
+  if (priceId != null && resolvedPlan == null) {
     // Do not change plan when price_id is unknown; only update subscription identifiers and status
     const { data: before } = await supabase
       .from("organizations")

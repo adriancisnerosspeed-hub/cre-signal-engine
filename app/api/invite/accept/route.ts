@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 
@@ -124,25 +125,38 @@ export async function POST(request: Request) {
     );
   }
 
-  const workspaceRole = inv.role === "admin" ? "ADMIN" : "MEMBER";
-  const { error: insertError } = await service.from("organization_members").insert({
-    org_id: inv.org_id,
-    user_id: user.id,
-    role: workspaceRole,
+  const { data: rpcRows, error: rpcError } = await service.rpc("accept_organization_invite_with_cap", {
+    p_invite_id: inv.id,
+    p_user_id: user.id,
   });
 
-  if (insertError) {
-    if ((insertError as { code?: string }).code === "23505") {
-      return NextResponse.json({ success: true, org_id: inv.org_id });
-    }
-    console.error("organization_members insert error:", insertError);
+  if (rpcError) {
+    console.error("accept_organization_invite_with_cap error:", rpcError);
     return NextResponse.json({ error: "Failed to join workspace" }, { status: 500 });
   }
 
-  await service
-    .from("organization_invites")
-    .update({ status: "accepted", accepted_at: new Date().toISOString() })
-    .eq("id", inv.id);
+  const row = Array.isArray(rpcRows) && rpcRows.length > 0 ? rpcRows[0] : null;
+  if (!row || typeof row.ok !== "boolean") {
+    return NextResponse.json({ error: "Failed to join workspace" }, { status: 500 });
+  }
+
+  if (!row.ok && row.code === "MEMBER_LIMIT_REACHED") {
+    return NextResponse.json(
+      {
+        error: "Workspace member limit reached.",
+        code: ENTITLEMENT_ERROR_CODES.MEMBER_LIMIT_REACHED,
+        required_plan: row.required_plan ?? "ENTERPRISE",
+      },
+      { status: 403 }
+    );
+  }
+
+  if (!row.ok) {
+    return NextResponse.json(
+      { error: row.code === "INVITE_NOT_FOUND" ? "Invite not found" : "Failed to join workspace" },
+      { status: row.code === "INVITE_NOT_FOUND" ? 404 : 500 }
+    );
+  }
 
   return NextResponse.json({ success: true, org_id: inv.org_id });
 }

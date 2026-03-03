@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/org";
 import { getPlanForUser } from "@/lib/entitlements";
+import { getDisplayPlan } from "@/lib/pricingDisplayPlan";
 import PricingClient from "./PricingClient";
 
 export default async function PricingPage() {
@@ -9,8 +10,20 @@ export default async function PricingPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const plan = user ? await getPlanForUser(supabase, user.id) : "free";
+  const profilePlan = user ? await getPlanForUser(supabase, user.id) : "user";
   const orgId = user ? await getCurrentOrgId(supabase, user) : null;
+
+  let workspacePlan: string | null = null;
+  if (orgId) {
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("plan")
+      .eq("id", orgId)
+      .maybeSingle();
+    workspacePlan = (org as { plan?: string } | null)?.plan ?? null;
+  }
+
+  const displayPlan = getDisplayPlan(profilePlan, workspacePlan);
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
@@ -46,8 +59,9 @@ export default async function PricingPage() {
             <li>No benchmark access</li>
             <li>No governance policies</li>
             <li>No export</li>
+            <li>1 workspace member (creator only); no collaboration</li>
           </ul>
-          {plan === "free" && !user && (
+          {displayPlan === "free" && !user && (
             <Link
               href="/login"
               style={{
@@ -63,7 +77,7 @@ export default async function PricingPage() {
               Get Started
             </Link>
           )}
-          {plan === "free" && user && (
+          {displayPlan === "free" && user && (
             <span style={{ color: "#71717a", fontSize: 14 }}>Current plan</span>
           )}
         </section>
@@ -73,7 +87,7 @@ export default async function PricingPage() {
           style={{
             padding: 24,
             backgroundColor: "#18181b",
-            border: "2px solid #3b82f6",
+            border: displayPlan === "pro" ? "2px solid #3b82f6" : "1px solid #3f3f46",
             borderRadius: 12,
           }}
         >
@@ -97,9 +111,40 @@ export default async function PricingPage() {
             <li>1 active governance policy</li>
             <li>IC-ready PDF export</li>
             <li>Support bundle export (audit artifacts)</li>
-            <li>Workspace collaboration (up to 5 members)</li>
+            <li>Up to 5 workspace members</li>
           </ul>
-          <PricingClient plan={plan} workspaceId={orgId ?? undefined} />
+          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro" />
+        </section>
+
+        {/* PRO+ — Advanced governance */}
+        <section
+          style={{
+            padding: 24,
+            backgroundColor: "#18181b",
+            border: displayPlan === "pro_plus" ? "2px solid #3b82f6" : "1px solid #3f3f46",
+            borderRadius: 12,
+          }}
+        >
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 4 }}>
+            PRO+ — Advanced governance
+          </h2>
+          <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 4 }}>
+            $499 / workspace / month
+          </p>
+          <p style={{ color: "#71717a", fontSize: 13, marginBottom: 8 }}>
+            Annual: $4,988 / year — 15% savings
+          </p>
+          <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
+            Risk trajectory, governance export, and higher member and policy limits.
+          </p>
+          <ul style={{ margin: "0 0 16px", paddingLeft: 20, fontSize: 14, color: "#a1a1aa" }}>
+            <li>Everything in PRO</li>
+            <li>Up to 10 workspace members</li>
+            <li>Up to 3 active governance policies</li>
+            <li>Risk score trajectory (over time)</li>
+            <li>Governance export packet</li>
+          </ul>
+          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro_plus" />
         </section>
 
         {/* ENTERPRISE — Portfolio Infrastructure */}
@@ -107,7 +152,7 @@ export default async function PricingPage() {
           style={{
             padding: 24,
             backgroundColor: "#18181b",
-            border: "1px solid #3f3f46",
+            border: displayPlan === "platform_admin" || displayPlan === "enterprise" ? "2px solid #3b82f6" : "1px solid #3f3f46",
             borderRadius: 12,
           }}
         >
@@ -118,6 +163,11 @@ export default async function PricingPage() {
           <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
             Designed for institutional portfolios and multi-strategy platforms.
           </p>
+          {profilePlan === "platform_admin" && (
+            <p style={{ color: "#22c55e", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
+              You have Enterprise access (Platform Admin)
+            </p>
+          )}
           <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 8 }}>Includes everything in PRO, plus:</p>
           <ul style={{ margin: "0 0 16px", paddingLeft: 20, fontSize: 14, color: "#a1a1aa" }}>
             <li>Custom cohort creation</li>
@@ -129,20 +179,25 @@ export default async function PricingPage() {
             <li>Priority support</li>
             <li>Contract-level SLA</li>
           </ul>
-          <Link
-            href="mailto:sales@cre-signal-engine.com"
-            style={{
-              display: "inline-block",
-              padding: "10px 20px",
-              backgroundColor: "#3b82f6",
-              color: "#fff",
-              borderRadius: 8,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            Contact Sales
-          </Link>
+          {displayPlan === "enterprise" && (
+            <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise" />
+          )}
+          {displayPlan !== "platform_admin" && displayPlan !== "enterprise" && (
+            <Link
+              href="mailto:sales@cre-signal-engine.com"
+              style={{
+                display: "inline-block",
+                padding: "10px 20px",
+                backgroundColor: "#3b82f6",
+                color: "#fff",
+                borderRadius: 8,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              Contact Sales
+            </Link>
+          )}
         </section>
       </div>
 
