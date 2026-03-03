@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
 import { getEntitlementsForUser } from "@/lib/entitlements";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { getRecommendedActions } from "@/lib/icRecommendedActions";
 import { checkBandConsistency } from "@/lib/bandConsistency";
 import { computeExplainabilityDiff } from "@/lib/explainabilityDiff";
@@ -104,8 +106,16 @@ export default async function DealPage({
   let scan: DealScan | null = null;
   let risks: DealRisk[] = [];
 
-  const entitlements = await getEntitlementsForUser(supabase, user.id);
+  const [entitlements, workspaceEntitlements] = await Promise.all([
+    getEntitlementsForUser(supabase, user.id),
+    (async () => {
+      const service = createServiceRoleClient();
+      const { entitlements: ws } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
+      return ws;
+    })(),
+  ]);
   const plan = entitlements.plan;
+  const canUseTrajectory = workspaceEntitlements.canUseTrajectory;
 
   let narrativeContent: string | null = null;
   if (d.latest_scan_id) {
@@ -302,7 +312,7 @@ export default async function DealPage({
 
           {activeTab === "overview" && (
           <>
-          {last5Scans.length > 0 && (
+          {canUseTrajectory && last5Scans.length > 0 && (
             <section style={{ marginBottom: 32 }}>
               <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
                 Risk trajectory

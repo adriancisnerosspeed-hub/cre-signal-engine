@@ -22,7 +22,7 @@ export async function GET() {
 
   const { data: views, error } = await supabase
     .from("portfolio_views")
-    .select("id, name, config_json, is_shared, created_by, created_at, updated_at")
+    .select("id, name, config_json, is_shared, created_by, created_at, updated_at, locked_method_version")
     .eq("organization_id", orgId)
     .order("updated_at", { ascending: false });
 

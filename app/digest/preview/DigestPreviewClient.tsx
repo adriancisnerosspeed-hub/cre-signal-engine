@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 export default function DigestPreviewClient() {
   const [sending, setSending] = useState(false);
@@ -10,10 +11,10 @@ export default function DigestPreviewClient() {
     setSending(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/digest/send-now", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Send failed");
-      setMessage(data.message || "Risk Brief sent.");
+      const res = await fetchJsonWithTimeout("/api/digest/send-now", { method: "POST" }, 15000);
+      const data = res.json;
+      if (!res.ok) throw new Error((data?.error as string) || (data?.message as string) || "Send failed");
+      setMessage((data?.message as string) || "Risk Brief sent.");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Send failed");
     } finally {
@@ -45,7 +46,7 @@ export default function DigestPreviewClient() {
           fontWeight: 500,
         }}
       >
-        {sending ? "Sending…" : "Send test digest now"}
+        {sending ? "Sending…" : "Send test Risk Brief now"}
       </button>
       {message && (
         <span style={{ marginLeft: 12, color: message.startsWith("Risk Brief") || message.includes("24 hours") ? "#86efac" : "#fca5a5", fontSize: 14 }}>

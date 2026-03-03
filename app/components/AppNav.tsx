@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 const navStyle = {
   display: "flex",
@@ -59,10 +60,10 @@ export default function AppNav() {
       setCurrentOrg(null);
       return;
     }
-    fetch("/api/org/current")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.id && data.name) setCurrentOrg({ id: data.id, name: data.name });
+    fetchJsonWithTimeout("/api/org/current", {}, 15000)
+      .then((r) => {
+        const data = r.json as { id?: string; name?: string } | null;
+        if (data?.id && data?.name) setCurrentOrg({ id: data.id, name: data.name });
         else setCurrentOrg(null);
       })
       .catch(() => setCurrentOrg(null));
@@ -92,6 +93,8 @@ export default function AppNav() {
       <Link href="/app/deals" style={pathname?.startsWith("/app/deals") ? activeLinkStyle : linkStyle}>Deals</Link>
       <Link href="/app/portfolio" style={pathname === "/app/portfolio" ? activeLinkStyle : linkStyle}>Portfolio</Link>
       <Link href="/app/policy" style={pathname === "/app/policy" ? activeLinkStyle : linkStyle}>Governance</Link>
+      <Link href="/app/governance/dashboard" style={pathname?.startsWith("/app/governance") ? activeLinkStyle : linkStyle}>Governance dashboard</Link>
+      <Link href="/app/benchmarks/cohorts" style={pathname?.startsWith("/app/benchmarks") ? activeLinkStyle : linkStyle}>Benchmarks</Link>
       <Link href="/app/methodology" style={pathname === "/app/methodology" ? activeLinkStyle : linkStyle}>Methodology</Link>
       <Link href="/pricing" style={pathname === "/pricing" ? activeLinkStyle : linkStyle}>Pricing</Link>
       <Link href="/digest/preview" style={pathname === "/digest/preview" ? activeLinkStyle : linkStyle}>Risk Brief</Link>

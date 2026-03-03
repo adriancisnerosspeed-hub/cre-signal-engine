@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import PaywallModal from "@/app/components/PaywallModal";
+import { fetchWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 export default function ExportPdfButton({
   scanId,
@@ -22,11 +23,11 @@ export default function ExportPdfButton({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/deals/export-pdf", {
+      const res = await fetchWithTimeout("/api/deals/export-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scan_id: scanId }),
-      });
+      }, 15000);
       if (!res.ok) {
         const raw = await res.text();
         let data: { error?: string; detail?: string; code?: string } = {};

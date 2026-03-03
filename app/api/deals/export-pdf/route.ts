@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { getPlanForUser } from "@/lib/entitlements";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { buildExportPdf } from "@/lib/export/exportPdf";
 import {
   selectTopAssumptions,
@@ -48,11 +48,6 @@ export async function POST(request: Request) {
     }
 
     const service = createServiceRoleClient();
-    const plan = await getPlanForUser(service, user.id);
-
-  if (plan === "free") {
-    return NextResponse.json({ code: "PRO_REQUIRED_FOR_EXPORT" }, { status: 403 });
-  }
 
   const { data: scan, error: scanError } = await service
     .from("deal_scans")
@@ -84,6 +79,11 @@ export async function POST(request: Request) {
 
   if (!members?.length) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { ownerBypass, entitlements } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
+  if (!ownerBypass && !entitlements.canUseSupportBundle) {
+    return NextResponse.json({ code: "PRO_REQUIRED_FOR_EXPORT" }, { status: 403 });
   }
 
   const { data: risks } = await service

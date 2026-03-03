@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PaywallModal from "@/app/components/PaywallModal";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 type BenchmarkData = {
   risk_percentile: number;
@@ -38,9 +39,9 @@ export default function PercentileBlock({
 
     async function load() {
       try {
-        const cohortsRes = await fetch("/api/benchmarks/cohorts");
+        const cohortsRes = await fetchJsonWithTimeout("/api/benchmarks/cohorts", {}, 15000);
         if (cohortsRes.status !== 200 || cancelled) return;
-        const cohorts = (await cohortsRes.json()) as { id: string; key: string; scope: string }[];
+        const cohorts = (cohortsRes.json ?? []) as { id: string; key: string; scope: string }[];
         // Deterministic: API returns cohorts ordered by scope (SYSTEM, GLOBAL, WORKSPACE) then key asc
         const cohortId = cohorts[0]?.id;
         if (!cohortId) {
@@ -48,11 +49,13 @@ export default function PercentileBlock({
           return;
         }
 
-        const snapshotsRes = await fetch(
-          `/api/benchmarks/snapshots?cohort_id=${encodeURIComponent(cohortId)}&limit=5`
+        const snapshotsRes = await fetchJsonWithTimeout(
+          `/api/benchmarks/snapshots?cohort_id=${encodeURIComponent(cohortId)}&limit=5`,
+          {},
+          15000
         );
         if (snapshotsRes.status !== 200 || cancelled) return;
-        const snapshots = (await snapshotsRes.json()) as {
+        const snapshots = (snapshotsRes.json ?? []) as {
           snapshot_id: string;
           build_status: string;
           created_at: string;
@@ -64,12 +67,14 @@ export default function PercentileBlock({
           return;
         }
 
-        const benchmarkRes = await fetch(
-          `/api/deals/${encodeURIComponent(dealId)}/benchmark?snapshot_id=${encodeURIComponent(successSnapshot.snapshot_id)}`
+        const benchmarkRes = await fetchJsonWithTimeout(
+          `/api/deals/${encodeURIComponent(dealId)}/benchmark?snapshot_id=${encodeURIComponent(successSnapshot.snapshot_id)}`,
+          {},
+          15000
         );
         if (cancelled) return;
         if (benchmarkRes.status === 400) {
-          const body = await benchmarkRes.json();
+          const body = benchmarkRes.json ?? {};
           if (body.code === "VALUE_MISSING_FOR_DEAL") {
             setCode("VALUE_MISSING_FOR_DEAL");
             return;
@@ -88,8 +93,8 @@ export default function PercentileBlock({
           return;
         }
 
-        const benchmark = (await benchmarkRes.json()) as BenchmarkData;
-        if (!cancelled) setData(benchmark);
+        const benchmark = (benchmarkRes.json ?? null) as BenchmarkData | null;
+        if (!cancelled && benchmark) setData(benchmark);
       } catch {
         if (!cancelled) setCode("BENCHMARK_UNAVAILABLE");
       } finally {

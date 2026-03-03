@@ -81,11 +81,29 @@ export default async function SettingsPage() {
               )}
               <span style={{ color: "#71717a", marginLeft: 6 }}>View and download the methodology PDF.</span>
             </li>
-            <li>
+            <li style={{ marginBottom: 10 }}>
               <Link href="/app/policy" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
                 Governance
               </Link>
               <span style={{ color: "#71717a", marginLeft: 6 }}>Create and manage governance policies and run evaluations.</span>
+            </li>
+            <li style={{ marginBottom: 10 }}>
+              <Link href="/app/governance/dashboard" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+                Governance dashboard
+              </Link>
+              <span style={{ color: "#71717a", marginLeft: 6 }}>Portfolio risk trend, policy violations, overrides (PRO+ / Enterprise).</span>
+            </li>
+            <li style={{ marginBottom: 10 }}>
+              <Link href="/app/benchmarks/cohorts" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+                Benchmark cohorts &amp; snapshots
+              </Link>
+              <span style={{ color: "#71717a", marginLeft: 6 }}>View cohorts; Enterprise can create cohorts and build snapshots.</span>
+            </li>
+            <li>
+              <Link href="/settings/api-tokens" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+                API tokens
+              </Link>
+              <span style={{ color: "#71717a", marginLeft: 6 }}>Create tokens for the read-only API (Enterprise only).</span>
             </li>
           </ul>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import PaywallModal from "@/app/components/PaywallModal";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 type ScanOption = { id: string; created_at: string; risk_index_band: string | null };
 
@@ -38,11 +39,13 @@ export default function ScenarioComparisonBlock({
     setLoading(true);
     setDiff(null);
     try {
-      const res = await fetch(
-        `/api/deals/${dealId}/scenario-diff?base=${encodeURIComponent(baseId)}&conservative=${encodeURIComponent(conservativeId)}`
+      const res = await fetchJsonWithTimeout(
+        `/api/deals/${dealId}/scenario-diff?base=${encodeURIComponent(baseId)}&conservative=${encodeURIComponent(conservativeId)}`,
+        {},
+        15000
       );
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 403 && data.code === "PRO_REQUIRED_FOR_SCENARIO") {
+      const data = res.json ?? {};
+      if (res.status === 403 && (data as { code?: string }).code === "PRO_REQUIRED_FOR_SCENARIO") {
         setPaywallOpen(true);
         return;
       }

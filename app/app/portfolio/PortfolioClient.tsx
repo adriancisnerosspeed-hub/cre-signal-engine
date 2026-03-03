@@ -4,6 +4,7 @@ import { useMemo, useState, useCallback, Fragment, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import MethodologyDownloadLink from "@/app/components/MethodologyDownloadLink";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 const PORTFOLIO_STATE_KEY = "portfolioFilters";
 type RiskMovementFilter = "deteriorated" | "crossed_tiers" | "version_drift" | null;
@@ -57,6 +58,8 @@ type Props = {
   savedViews?: { id: string; name: string; config_json: PortfolioViewConfig }[];
   benchmarkEnabled?: boolean;
   backtestEnabled?: boolean;
+  governanceExportEnabled?: boolean;
+  advancedAnalyticsEnabled?: boolean;
 };
 
 function parsePortfolioState(params: URLSearchParams): Partial<{
@@ -123,6 +126,8 @@ export function PortfolioClient({
   savedViews = [],
   benchmarkEnabled = false,
   backtestEnabled = false,
+  governanceExportEnabled = false,
+  advancedAnalyticsEnabled = false,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -386,13 +391,13 @@ export function PortfolioClient({
       sort: { field: sortField, direction: sortDir },
       includeUnscanned,
     };
-    const res = await fetch("/api/portfolio-views", {
+    const res = await fetchJsonWithTimeout("/api/portfolio-views", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name.trim(), config_json }),
-    });
+    }, 15000);
     if (res.ok) router.refresh();
-    else console.error("Failed to save view", await res.text());
+    else console.error("Failed to save view", res.text);
   }, [assetTypes, markets, tiers, statusFilter, sortField, sortDir, includeUnscanned, router]);
 
   const wm: WeightedMetrics = summary.weightedMetrics;
@@ -686,6 +691,24 @@ export function PortfolioClient({
                 <div style={{ fontSize: 12, color: "#a1a1aa" }}>
                   {summary.benchmark.classification}
                 </div>
+                {summary.benchmark_context && (
+                  <div style={{ fontSize: 11, color: "#71717a", marginTop: 6, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 6 }}>
+                    {summary.benchmark_context.method_version && (
+                      <div>Method: {summary.benchmark_context.method_version}</div>
+                    )}
+                    {summary.benchmark_context.snapshot_id && (
+                      <div title={summary.benchmark_context.snapshot_id}>
+                        Snapshot: {summary.benchmark_context.snapshot_id.slice(0, 8)}…
+                      </div>
+                    )}
+                    {summary.benchmark_context.cohort_key && (
+                      <div>Cohort: {summary.benchmark_context.cohort_key}</div>
+                    )}
+                    {summary.benchmark_context.delta_comparable != null && (
+                      <div>{summary.benchmark_context.delta_comparable ? "Delta comparable" : "Delta not comparable"}</div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {summary.model_health != null && (
@@ -702,11 +725,30 @@ export function PortfolioClient({
                 </div>
               </div>
             )}
+            {advancedAnalyticsEnabled && (summary.model_health ?? summary.distributionByBand) && (
+              <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 160 }}>
+                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>Advanced analytics</div>
+                <div style={{ fontSize: 12, color: "#e4e4e7", marginBottom: 4 }}>
+                  {summary.model_health ? (
+                    <>
+                      P90+ (High) concentration: {Number(summary.model_health.pct_high).toFixed(1)}%
+                    </>
+                  ) : (
+                    <>
+                      High: {summary.counts.scanned ? Math.round(((summary.distributionByBand?.High ?? 0) / summary.counts.scanned) * 1000) / 10 : 0}%
+                    </>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: "#a1a1aa" }}>
+                  Band distribution: {["Low", "Moderate", "Elevated", "High"].map((b) => `${b} ${summary.distributionByBand?.[b] ?? 0}`).join(" · ")}
+                </div>
+              </div>
+            )}
             {summary.policy_status != null && (
               <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 180, maxWidth: 280 }}>
                 <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>Governance</div>
                 <div style={{ fontSize: 13, color: "#fafafa", marginBottom: 4 }}>
-                  {summary.policy_status.active_policy?.name ?? "Policy"}
+                  {summary.policy_status.active_policy?.name ?? "Governance"}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
                   <span
@@ -749,8 +791,30 @@ export function PortfolioClient({
                     href="/app/policy"
                     style={{ fontSize: 12, color: "#a78bfa", textDecoration: "none" }}
                   >
-                    Manage Policy
+                    Manage Governance
                   </Link>
+                  {governanceExportEnabled && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const { ok, json } = await fetchJsonWithTimeout("/api/portfolio/governance-export", { method: "GET" }, 15000);
+                          if (!ok || json == null) return;
+                          const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
+                          const a = document.createElement("a");
+                          a.href = URL.createObjectURL(blob);
+                          a.download = `governance-export-${new Date().toISOString().slice(0, 10)}.json`;
+                          a.click();
+                          URL.revokeObjectURL(a.href);
+                        } catch (e) {
+                          console.error("Governance export failed:", e);
+                        }
+                      }}
+                      style={{ fontSize: 12, color: "#a78bfa", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+                    >
+                      Export governance packet
+                    </button>
+                  )}
                   {summary.policy_status.evaluation?.violations?.some((v) => v.affected_deal_ids?.length) && (() => {
                     const allIds = summary.policy_status!.evaluation!.violations.flatMap((v) => v.affected_deal_ids ?? []);
                     const uniqueIds = [...new Set(allIds)];

@@ -6,6 +6,7 @@ import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
 import { buildSnapshot } from "@/lib/benchmark/snapshotBuilder";
 import { computeBatch } from "@/lib/benchmark/compute";
 import { METRIC_RISK_INDEX_V2, BENCHMARK_ERROR_CODES } from "@/lib/benchmark/constants";
+import { logSnapshotBuilt } from "@/lib/eventLog";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -34,6 +35,20 @@ export async function POST(request: Request) {
         message: "Snapshot building requires Enterprise plan.",
         required_plan: "ENTERPRISE",
       },
+      { status: 403 }
+    );
+  }
+
+  const { data: member } = await service
+    .from("organization_members")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const role = (member as { role?: string } | null)?.role;
+  if (role !== "OWNER" && role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Only workspace owners and admins can build snapshots.", code: "FORBIDDEN" },
       { status: 403 }
     );
   }
@@ -111,6 +126,15 @@ export async function POST(request: Request) {
       await computeBatch(service, { snapshotId: result.snapshotId, metricKey });
     }
   }
+
+  logSnapshotBuilt({
+    org_id: orgId,
+    user_id: user.id,
+    cohort_id: cohortId,
+    snapshot_id: result.snapshotId ?? "",
+    build_status: result.buildStatus,
+    n_eligible: result.nEligible,
+  });
 
   return NextResponse.json({
     snapshot_id: result.snapshotId,

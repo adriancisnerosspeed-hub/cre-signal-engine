@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { normalizeMarket } from "@/lib/normalizeMarket";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 export default function NewDealPage() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function NewDealPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await fetch("/api/deals", {
+      const res = await fetchJsonWithTimeout("/api/deals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -28,15 +29,16 @@ export default function NewDealPage() {
           market: market.trim() || null,
           raw_text: rawText.trim() || null,
         }),
-      });
+      }, 15000);
+      const data = (res.json ?? {}) as { id?: string; error?: string };
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         setError(data.error || `Error ${res.status}`);
         return;
       }
-      const data = await res.json();
-      router.push(`/app/deals/${data.id}`);
-      router.refresh();
+      if (data.id) {
+        router.push(`/app/deals/${data.id}`);
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create deal");
     } finally {

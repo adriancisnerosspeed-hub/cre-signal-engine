@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PaywallModal from "@/app/components/PaywallModal";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 type UsageToday = {
   used: number;
@@ -19,8 +20,8 @@ export default function UsageBanner() {
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/usage/today", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : null))
+    fetchJsonWithTimeout("/api/usage/today", { credentials: "include" }, 15000)
+      .then((r) => (r.ok && r.json ? r.json as UsageToday : null))
       .then((data: UsageToday | null) => {
         setUsage(data ?? null);
       })

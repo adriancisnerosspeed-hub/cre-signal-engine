@@ -6,7 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getPlanForUser } from "@/lib/entitlements";
 
-export type WorkspacePlan = "FREE" | "PRO" | "ENTERPRISE";
+export type WorkspacePlan = "FREE" | "PRO" | "PRO+" | "ENTERPRISE";
 
 export interface WorkspaceEntitlements {
   maxLifetimeScans: number | null;
@@ -17,8 +17,16 @@ export interface WorkspaceEntitlements {
   canUsePolicy: boolean;
   canUseSupportBundle: boolean;
   canInviteMembers: boolean;
-  /** PRO limit: 1 active policy per org (maxActivePoliciesPerOrg). Enforcement counts enabled policies per organization. */
+  /** PRO limit: 1 active policy per org (maxActivePoliciesPerOrg). PRO+: 3. Enterprise: unlimited. */
   maxActivePoliciesPerOrg: number | null;
+  /** Max members (including creator). FREE: 1. PRO: 5. PRO+: 10. ENTERPRISE: null (unlimited). */
+  maxMembers: number | null;
+  /** Score-over-time trajectory and advanced governance (PRO+ and ENTERPRISE). */
+  canUseTrajectory: boolean;
+  /** Governance export packet (PRO+ and ENTERPRISE). */
+  canUseGovernanceExport: boolean;
+  /** Snapshot version lock on portfolio view (PRO+ and ENTERPRISE). */
+  canLockMethodVersion: boolean;
 }
 
 export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlements {
@@ -34,6 +42,10 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canUseSupportBundle: false,
         canInviteMembers: false,
         maxActivePoliciesPerOrg: 0,
+        maxMembers: 1,
+        canUseTrajectory: false,
+        canUseGovernanceExport: false,
+        canLockMethodVersion: false,
       };
     case "PRO":
       return {
@@ -44,8 +56,28 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canCreateCohort: false,
         canUsePolicy: true,
         canUseSupportBundle: true,
-        canInviteMembers: false,
+        canInviteMembers: true,
         maxActivePoliciesPerOrg: 1,
+        maxMembers: 5,
+        canUseTrajectory: false,
+        canUseGovernanceExport: false,
+        canLockMethodVersion: false,
+      };
+    case "PRO+":
+      return {
+        maxLifetimeScans: null,
+        maxPortfolios: 3,
+        canUseBenchmark: true,
+        canBuildSnapshot: false,
+        canCreateCohort: false,
+        canUsePolicy: true,
+        canUseSupportBundle: true,
+        canInviteMembers: true,
+        maxActivePoliciesPerOrg: 3,
+        maxMembers: 10,
+        canUseTrajectory: true,
+        canUseGovernanceExport: true,
+        canLockMethodVersion: true,
       };
     case "ENTERPRISE":
       return {
@@ -58,6 +90,10 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canUseSupportBundle: true,
         canInviteMembers: true,
         maxActivePoliciesPerOrg: null,
+        maxMembers: null,
+        canUseTrajectory: true,
+        canUseGovernanceExport: true,
+        canLockMethodVersion: true,
       };
   }
 }
@@ -78,14 +114,19 @@ export async function getWorkspacePlanAndEntitlements(
 
   const raw = (row as { plan?: string | null } | null)?.plan;
   const plan: WorkspacePlan =
-    raw === "PRO" || raw === "ENTERPRISE" ? raw : "FREE";
+    raw === "PRO" || raw === "PRO+" || raw === "ENTERPRISE" ? raw : "FREE";
   const entitlements = getWorkspaceEntitlements(plan);
   return { plan, entitlements };
 }
 
 /**
- * Server-only. Same as getWorkspacePlanAndEntitlements, but with an OWNER bypass:
- * if the user has profiles.role = 'platform_admin', treat them as ENTERPRISE for workspace-gated features.
+ * Server-only. Resolves effective workspace plan and entitlements for a user.
+ * Always use this (not getWorkspacePlanAndEntitlements) when gating features for the current user.
+ *
+ * Platform admin bypass: if profiles.role = 'platform_admin', the user receives ENTERPRISE plan
+ * and full Enterprise entitlements (invites, policies, benchmark, support bundle, etc.) regardless
+ * of the organization's plan. This ensures the platform admin (e.g. you, when OWNER_EMAIL is set)
+ * always has Enterprise role.
  */
 export async function getWorkspacePlanAndEntitlementsForUser(
   supabase: SupabaseClient,

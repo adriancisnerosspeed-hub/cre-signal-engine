@@ -44,6 +44,30 @@ describe("getWorkspaceEntitlements", () => {
     });
   });
 
+  describe("PRO+", () => {
+    it("yields maxMembers=10 and maxActivePoliciesPerOrg=3", () => {
+      const e = getWorkspaceEntitlements("PRO+");
+      expect(e.maxMembers).toBe(10);
+      expect(e.maxActivePoliciesPerOrg).toBe(3);
+    });
+    it("allows trajectory and governance export", () => {
+      const e = getWorkspaceEntitlements("PRO+");
+      expect(e.canUseTrajectory).toBe(true);
+      expect(e.canUseGovernanceExport).toBe(true);
+    });
+    it("allows method version lock on portfolio view", () => {
+      const e = getWorkspaceEntitlements("PRO+");
+      expect(e.canLockMethodVersion).toBe(true);
+    });
+    it("has same baseline as PRO (benchmark, policy, support bundle, invites)", () => {
+      const e = getWorkspaceEntitlements("PRO+");
+      expect(e.canUseBenchmark).toBe(true);
+      expect(e.canUsePolicy).toBe(true);
+      expect(e.canUseSupportBundle).toBe(true);
+      expect(e.canInviteMembers).toBe(true);
+    });
+  });
+
   describe("ENTERPRISE", () => {
     it("has unlimited scans and portfolios", () => {
       const e = getWorkspaceEntitlements("ENTERPRISE");

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 export default function AcceptInviteClient({
   token,
@@ -18,23 +19,23 @@ export default function AcceptInviteClient({
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/invite/accept", {
+      const res = await fetchJsonWithTimeout("/api/invite/accept", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
-      });
-      const data = await res.json().catch(() => ({}));
+      }, 15000);
+      const data = (res.json ?? {}) as { org_id?: string; error?: string };
       if (!res.ok) {
-        setError((data as { error?: string }).error || `Error ${res.status}`);
+        setError(data.error || `Error ${res.status}`);
         return;
       }
-      const orgId = (data as { org_id?: string }).org_id;
+      const orgId = data.org_id;
       if (orgId) {
-        await fetch("/api/org/current", {
+        await fetchJsonWithTimeout("/api/org/current", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ current_org_id: orgId }),
-        });
+        }, 15000);
       }
       router.push("/app");
       router.refresh();

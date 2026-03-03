@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 export type IcStatus = "PRE_IC" | "APPROVED" | "APPROVED_WITH_CONDITIONS" | "REJECTED";
 
@@ -34,7 +35,7 @@ export default function IcStatusBlock({
     setError(null);
     setSaving(true);
     try {
-      const res = await fetch(`/api/deals/${dealId}`, {
+      const res = await fetchJsonWithTimeout(`/api/deals/${dealId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -42,9 +43,9 @@ export default function IcStatusBlock({
           ic_decision_date: date.trim() || null,
           ic_notes: notes.trim() || null,
         }),
-      });
+      }, 15000);
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+        const data = (res.json ?? {}) as { error?: string };
         setError(data.error ?? `Error ${res.status}`);
         return;
       }

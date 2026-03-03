@@ -67,7 +67,12 @@ export default function BillingCard({
 
   const dealScansPercent = dealScansLimit > 0 ? Math.round((dealScansToday / dealScansLimit) * 100) : 0;
 
-  const planLabel = plan === "pro" || plan === "platform_admin" ? "PRO — Institutional Workspace" : plan;
+  const planLabel =
+    plan === "platform_admin"
+      ? "ENTERPRISE — Platform Admin"
+      : plan === "pro"
+        ? "PRO — Institutional Workspace"
+        : plan;
 
   return (
     <div style={blockStyle}>

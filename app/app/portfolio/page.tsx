@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
 import { getPlanForUser, getEntitlementsForUser } from "@/lib/entitlements";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { getPortfolioSummary } from "@/lib/portfolioSummary";
 import { version as methodologyVersion } from "@/lib/methodology/methodologyContent";
 import { redirect } from "next/navigation";
@@ -27,10 +28,11 @@ export default async function PortfolioPage() {
     );
   }
 
-  const [plan, entitlements] = await Promise.all([
-    getPlanForUser(service, user.id),
+  const [entitlements, { plan: workspacePlan, entitlements: workspaceEntitlements, ownerBypass }] = await Promise.all([
     getEntitlementsForUser(supabase, user.id),
+    getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id),
   ]);
+  const isFree = !ownerBypass && workspacePlan === "FREE";
   const summary = await getPortfolioSummary(service, orgId, {
     benchmarkEnabled: entitlements.benchmark_enabled,
   });
@@ -73,11 +75,13 @@ export default async function PortfolioPage() {
     <main>
       <PortfolioClient
         summary={serializedSummary}
-        isFree={plan === "free"}
+        isFree={isFree}
         scanExportEnabled={entitlements.scan_export_enabled}
         methodologyPdfFilename={`cre-signal-risk-index-methodology-v${methodologyVersion}.pdf`}
         savedViews={savedViews}
         benchmarkEnabled={entitlements.benchmark_enabled}
+        governanceExportEnabled={workspaceEntitlements.canUseGovernanceExport}
+        advancedAnalyticsEnabled={workspaceEntitlements.canUseTrajectory}
         backtestEnabled={entitlements.backtest_enabled}
       />
     </main>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PaywallModal from "@/app/components/PaywallModal";
+import { fetchWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 /**
  * Small "Download PDF" link for methodology export. Used in Portfolio header and Settings.
@@ -21,7 +22,7 @@ export default function MethodologyDownloadLink({
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch("/api/methodology/export-pdf", { method: "GET" });
+      const res = await fetchWithTimeout("/api/methodology/export-pdf", { method: "GET" }, 15000);
       if (!res.ok) {
         const raw = await res.text();
         let data: { code?: string } = {};

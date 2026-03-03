@@ -6,6 +6,24 @@ export type FetchJsonResult = {
 };
 
 /**
+ * Fetch with abort after `ms`. Use for blob/stream responses (e.g. PDF export).
+ * Returns the Response; caller must read body (e.g. res.blob(), res.json()).
+ */
+export async function fetchWithTimeout(
+  url: string,
+  opts: RequestInit = {},
+  ms = 15000
+): Promise<Response> {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+/**
  * Fail-closed fetch helper:
  * - Aborts after `ms`
  * - Always returns a structured result (even for non-JSON / HTML error bodies)

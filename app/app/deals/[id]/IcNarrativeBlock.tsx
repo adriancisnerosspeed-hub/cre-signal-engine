@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PaywallModal from "@/app/components/PaywallModal";
 import { formatNarrativeAsText } from "@/lib/export/scanNarrative";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 const REDACTED_PREVIEW =
   "Based on the underwriting inputs and current macro signals, the primary investment risks are associated with exit cap compression and supply-driven rent growth assumptions. The capital structure introduces moderate refinancing exposure…";
@@ -40,7 +41,7 @@ export default function IcNarrativeBlock({
     if (!scanId) return;
     setGenerating(true);
     try {
-      const res = await fetch(`/api/deals/scans/${scanId}/narrative`, { method: "POST" });
+      const res = await fetchJsonWithTimeout(`/api/deals/scans/${scanId}/narrative`, { method: "POST" }, 15000);
       if (res.ok) router.refresh();
     } finally {
       setGenerating(false);

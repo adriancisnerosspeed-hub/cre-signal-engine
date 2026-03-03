@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 function friendlyMessage(
   res: Response,
@@ -44,19 +45,19 @@ export default function AnalyzePage() {
     setErrorMessage(null);
     setUpgradeUrl(null);
     try {
-      const res = await fetch("/api/analyze", {
+      const res = await fetchJsonWithTimeout("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ inputs }),
-      });
-      const data = await res.json().catch(() => ({}));
+      }, 15000);
+      const data = res.json ?? {};
       if (!res.ok) {
-        setErrorMessage(friendlyMessage(res, data));
-        if (res.status === 429 && data?.upgrade_url) setUpgradeUrl(data.upgrade_url);
+        setErrorMessage(friendlyMessage({ status: res.status } as Response, data as { error?: string; message?: string; upgrade_url?: string }));
+        if (res.status === 429 && (data as { upgrade_url?: string })?.upgrade_url) setUpgradeUrl((data as { upgrade_url?: string }).upgrade_url ?? null);
         return;
       }
-      setOutput(typeof data.output === "string" ? data.output : "");
+      setOutput(typeof (data as { output?: string }).output === "string" ? (data as { output: string }).output : "");
     } catch {
       setErrorMessage("Something went wrong. Please try again.");
     } finally {

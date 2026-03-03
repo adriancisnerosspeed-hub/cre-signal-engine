@@ -6,7 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PORTFOLIO_STALE_DAYS } from "./constants";
 import { exposureMarketKey, exposureMarketLabel } from "./normalizeMarket";
-import { computeRiskPenaltyContribution, describeStabilizers } from "./riskIndex";
+import { computeRiskPenaltyContribution, describeStabilizers, RISK_INDEX_VERSION } from "./riskIndex";
 import type { DealScanAssumptions } from "./dealScanContract";
 import { computeBacktestMetrics, type BacktestMetrics } from "./backtestEngine";
 import { getRiskModelMetadata } from "./modelGovernance";
@@ -133,6 +133,14 @@ export type BenchmarkClassification =
 export type BenchmarkContext = {
   cohort_type: "internal" | "industry" | "custom";
   percentile_rank: number;
+  /** Present when portfolio is evaluated against a specific snapshot. */
+  snapshot_id?: string;
+  /** Cohort key (e.g. benchmark_cohorts.key) for the snapshot in use. */
+  cohort_key?: string;
+  /** Methodology version for delta-comparable comparisons. */
+  method_version?: string;
+  /** True when current view uses same method version for valid deltas. */
+  delta_comparable?: boolean;
 };
 
 export type PortfolioSummary = {
@@ -524,7 +532,12 @@ export async function getPortfolioSummary(
         cohort_type: "internal",
         classification: getBenchmarkClassification(emptySummary),
       };
-      emptyResult.benchmark_context = { cohort_type: "internal", percentile_rank: 50 };
+      emptyResult.benchmark_context = {
+        cohort_type: "internal",
+        percentile_rank: 50,
+        method_version: RISK_INDEX_VERSION,
+        delta_comparable: true,
+      };
     }
     try {
       const { data: policies } = await service
@@ -1088,7 +1101,12 @@ export async function getPortfolioSummary(
       cohort_type: "internal",
       classification,
     };
-    result.benchmark_context = { cohort_type: "internal", percentile_rank };
+    result.benchmark_context = {
+      cohort_type: "internal",
+      percentile_rank,
+      method_version: RISK_INDEX_VERSION,
+      delta_comparable: true,
+    };
   }
 
   // Risk policy status: fetch enabled shared policies, pick one deterministically, evaluate

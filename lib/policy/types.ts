@@ -134,3 +134,22 @@ export type PolicyEvaluationResult = {
   };
   recommended_actions: PolicyAction[];
 };
+
+export type PolicyStatusSummary = {
+  overall: "pass" | "warn" | "block";
+  policyCount: number;
+  violationCount: number;
+};
+
+export type PolicyBreakdownItem = {
+  policyId: string;
+  policyName: string;
+  status: "PASS" | "WARN" | "BLOCK";
+  violations: PolicyViolation[];
+};
+
+export type EvaluateAllResult = {
+  policy_status_summary: PolicyStatusSummary;
+  results: PolicyEvaluationResult[];
+  breakdown: PolicyBreakdownItem[];
+};

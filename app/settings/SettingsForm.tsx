@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
+import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
 const SIGNAL_TYPES = [
   "Pricing",
@@ -72,13 +73,13 @@ export default function SettingsForm({
     setSaving(true);
     setSaveMessage(null);
     try {
-      const res = await fetch("/api/settings/preferences", {
+      const res = await fetchJsonWithTimeout("/api/settings/preferences", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(prefs),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Save failed");
+      }, 15000);
+      const data = res.json;
+      if (!res.ok) throw new Error((data?.error as string) || "Save failed");
       setSaveMessage("Preferences saved.");
     } catch (e) {
       setSaveMessage(e instanceof Error ? e.message : "Save failed");
@@ -91,10 +92,10 @@ export default function SettingsForm({
     setSending(true);
     setSendMessage(null);
     try {
-      const res = await fetch("/api/digest/send-now", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Send failed");
-      setSendMessage(data.message || "Risk Brief sent.");
+      const res = await fetchJsonWithTimeout("/api/digest/send-now", { method: "POST" }, 15000);
+      const data = res.json;
+      if (!res.ok) throw new Error((data?.error as string) || (data?.message as string) || "Send failed");
+      setSendMessage((data?.message as string) || "Risk Brief sent.");
     } catch (e) {
       setSendMessage(e instanceof Error ? e.message : "Send failed");
     } finally {
@@ -196,7 +197,7 @@ export default function SettingsForm({
       </div>
 
       <div style={blockStyle}>
-        <label style={labelStyle}>Daily digest time (local)</label>
+        <label style={labelStyle}>Daily Risk Brief time (local)</label>
         <input
           type="time"
           value={prefs.digest_time_local}
@@ -241,9 +242,9 @@ export default function SettingsForm({
       </div>
 
       <div style={{ ...blockStyle, borderColor: "#52525b" }}>
-        <span style={labelStyle}>Test digest</span>
+        <span style={labelStyle}>Test Risk Brief</span>
         <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
-          Send the digest for the last 24 hours to your email now (ignores schedule).
+          Send the Risk Brief for the last 24 hours to your email now (ignores schedule).
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <button
@@ -259,13 +260,13 @@ export default function SettingsForm({
               cursor: sending ? "not-allowed" : "pointer",
             }}
           >
-            {sending ? "Sending…" : "Send test digest now"}
+            {sending ? "Sending…" : "Send test Risk Brief now"}
           </button>
           <Link
             href="/digest/preview"
             style={{ color: "#3b82f6", fontSize: 14 }}
           >
-            Preview digest
+            Preview Risk Brief
           </Link>
           {sendMessage && (
             <span style={{ color: sendMessage.startsWith("Risk Brief") || sendMessage.includes("24 hours") ? "#86efac" : "#fca5a5", fontSize: 14 }}>

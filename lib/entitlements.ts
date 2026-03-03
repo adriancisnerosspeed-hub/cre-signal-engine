@@ -2,6 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type Plan = "free" | "pro" | "platform_admin";
 
+/** Result of getPlanForUser: bypass (platform_admin) or use workspace plan (user). */
+export type PlatformPlan = "platform_admin" | "user";
+
 export type Entitlements = {
   plan: Plan;
   analyze_calls_per_day: number;
@@ -72,12 +75,12 @@ const PLATFORM_ADMIN_ENTITLEMENTS: Entitlements = {
   workspace_enabled: true,
 };
 
-/** Server-only: get effective plan for user (from profiles.role). platform_admin bypass has all pro+ entitlements. */
-export async function getPlanForUser(supabase: SupabaseClient, userId: string): Promise<Plan> {
+/** Server-only: get effective platform plan for user (from profiles.role). Only platform_admin bypasses; else use workspace plan. */
+export async function getPlanForUser(supabase: SupabaseClient, userId: string): Promise<PlatformPlan> {
   const { data } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
-  const role = (data?.role as string) || "free";
-  if (role === "platform_admin" || role === "pro") return role as Plan;
-  return "free";
+  const role = (data?.role as string) || "user";
+  if (role === "platform_admin") return "platform_admin";
+  return "user";
 }
 
 /** Get entitlements for a plan. platform_admin gets highest limits. */
@@ -87,11 +90,12 @@ export function getEntitlements(plan: Plan): Entitlements {
   return { ...FREE_ENTITLEMENTS };
 }
 
-/** Server-only: get plan then entitlements for a user. */
+/** Server-only: get plan then entitlements for a user. User gets free-level unless platform_admin (bypass). */
 export async function getEntitlementsForUser(
   supabase: SupabaseClient,
   userId: string
 ): Promise<Entitlements> {
-  const plan = await getPlanForUser(supabase, userId);
-  return getEntitlements(plan);
+  const platformPlan = await getPlanForUser(supabase, userId);
+  if (platformPlan === "platform_admin") return getEntitlements("platform_admin");
+  return getEntitlements("free");
 }

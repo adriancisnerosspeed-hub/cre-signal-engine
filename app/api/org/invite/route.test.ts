@@ -124,8 +124,8 @@ describe("POST /api/org/invite", () => {
 
     expect(res.status).toBe(403);
     const data = await res.json();
-    expect(data.code).toBe("ENTERPRISE_REQUIRED");
-    expect(data.required_plan).toBe("ENTERPRISE");
+    expect(data.code).toBe("FEATURE_NOT_AVAILABLE");
+    expect(data.required_plan).toBe("PRO");
     expect(mockInviteInsert).not.toHaveBeenCalled();
     expect(mockOutboxInsert).not.toHaveBeenCalled();
   });

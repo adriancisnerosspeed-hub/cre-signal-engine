@@ -122,8 +122,8 @@ export async function PATCH(
           return NextResponse.json(
             {
               code: ENTITLEMENT_ERROR_CODES.POLICY_LIMIT_REACHED,
-              message: "Active policy limit reached for this plan (1 per org on PRO).",
-              required_plan: "ENTERPRISE",
+              message: `Active policy limit reached (${entitlements.maxActivePoliciesPerOrg} per org on this plan).`,
+              required_plan: entitlements.maxActivePoliciesPerOrg === 1 ? "PRO+" : "ENTERPRISE",
             },
             { status: 403 }
           );

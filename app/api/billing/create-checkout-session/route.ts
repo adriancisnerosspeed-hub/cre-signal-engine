@@ -19,7 +19,12 @@ export async function POST(request: Request) {
   } catch {
     body = {};
   }
-  const plan = body.plan === "ENTERPRISE" ? "ENTERPRISE" : "PRO";
+  const plan =
+    body.plan === "ENTERPRISE"
+      ? "ENTERPRISE"
+      : body.plan === "PRO+"
+        ? "PRO+"
+        : "PRO";
   let workspaceId = typeof body.workspace_id === "string" ? body.workspace_id.trim() : null;
   if (!workspaceId) {
     workspaceId = await getCurrentOrgId(supabase, user);
@@ -41,7 +46,9 @@ export async function POST(request: Request) {
   const priceId =
     plan === "ENTERPRISE"
       ? process.env.STRIPE_PRICE_ID_ENTERPRISE
-      : process.env.STRIPE_PRICE_ID_PRO;
+      : plan === "PRO+"
+        ? process.env.STRIPE_PRICE_ID_PRO_PLUS
+        : process.env.STRIPE_PRICE_ID_PRO;
   if (!priceId) {
     return NextResponse.json({ error: "Stripe not configured for this plan" }, { status: 500 });
   }

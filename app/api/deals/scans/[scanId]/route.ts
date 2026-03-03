@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { getPlanForUser } from "@/lib/entitlements";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -20,14 +20,6 @@ export async function PATCH(
   }
 
   const service = createServiceRoleClient();
-  const plan = await getPlanForUser(service, user.id);
-
-  if (plan === "free") {
-    return NextResponse.json(
-      { code: "PRO_REQUIRED_FOR_SCENARIO" },
-      { status: 403 }
-    );
-  }
 
   let body: { scenario_label?: string };
   try {
@@ -76,6 +68,14 @@ export async function PATCH(
 
   if (!members?.length) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { ownerBypass, plan } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
+  if (!ownerBypass && plan === "FREE") {
+    return NextResponse.json(
+      { code: "PRO_REQUIRED_FOR_SCENARIO" },
+      { status: 403 }
+    );
   }
 
   const { error } = await service

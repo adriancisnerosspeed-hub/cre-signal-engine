@@ -4,6 +4,7 @@ import { getCurrentOrgId } from "@/lib/org";
 import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
 import { computeRuleHash, validateRule } from "@/lib/benchmark/cohortRule";
+import { logCohortCreated } from "@/lib/eventLog";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -76,6 +77,20 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: member } = await service
+    .from("organization_members")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const role = (member as { role?: string } | null)?.role;
+  if (role !== "OWNER" && role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Only workspace owners and admins can create or edit cohorts.", code: "FORBIDDEN" },
+      { status: 403 }
+    );
+  }
+
   let body: {
     key?: string;
     name?: string;
@@ -139,6 +154,8 @@ export async function POST(request: Request) {
     console.error("[benchmarks/cohorts] create error", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  logCohortCreated({ org_id: orgId, user_id: user.id, cohort_id: (cohort as { id: string }).id, key });
 
   return NextResponse.json(cohort);
 }

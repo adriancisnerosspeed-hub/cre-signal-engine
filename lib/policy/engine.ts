@@ -12,6 +12,9 @@ import type {
   PolicyViolation,
   PolicyAction,
   PolicyActionCode,
+  PolicyStatusSummary,
+  PolicyBreakdownItem,
+  EvaluateAllResult,
 } from "./types";
 
 const PORTFOLIO_STALE_DAYS = 30;
@@ -380,5 +383,44 @@ export function evaluateRiskPolicy(params: {
     violations,
     summary,
     recommended_actions,
+  };
+}
+
+function overallFromResults(results: PolicyEvaluationResult[]): PolicyStatusSummary["overall"] {
+  const hasBlock = results.some((r) => r.overall_status === "BLOCK");
+  const hasWarn = results.some((r) => r.overall_status === "WARN");
+  if (hasBlock) return "block";
+  if (hasWarn) return "warn";
+  return "pass";
+}
+
+/**
+ * Evaluate all policies and return summary + per-policy breakdown. Used for PRO+ multi-policy.
+ */
+export function evaluateAllPolicies(params: {
+  policies: RiskPolicyRow[];
+  portfolio: PortfolioSummary;
+  nowIso: string;
+}): EvaluateAllResult {
+  const { policies, portfolio, nowIso } = params;
+  const results: PolicyEvaluationResult[] = [];
+  for (const policy of policies) {
+    results.push(evaluateRiskPolicy({ policy, portfolio, nowIso }));
+  }
+  const violationCount = results.reduce((s, r) => s + r.violation_count, 0);
+  const breakdown: PolicyBreakdownItem[] = results.map((r) => ({
+    policyId: r.policy_id,
+    policyName: r.policy_name,
+    status: r.overall_status,
+    violations: r.violations,
+  }));
+  return {
+    policy_status_summary: {
+      overall: overallFromResults(results),
+      policyCount: results.length,
+      violationCount,
+    },
+    results,
+    breakdown,
   };
 }

@@ -2,19 +2,26 @@ import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+/**
+ * Email that receives platform_admin role (full Enterprise workspace entitlements, fixture access, etc.).
+ * Set OWNER_EMAIL in .env to your email so you always have Enterprise as platform admin.
+ */
 export const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "";
 
-export type Role = "free" | "platform_admin" | "pro";
+/** Platform roles only. Entitlements from workspace plan; bypass only for platform_admin. */
+export type Role = "platform_admin" | "platform_dev" | "platform_support" | "user";
 
 function isOwnerEmail(email: string | undefined): boolean {
   if (!email || !OWNER_EMAIL.trim()) return false;
   return email.trim().toLowerCase() === OWNER_EMAIL.trim().toLowerCase();
 }
 
+const ALLOWED_ROLES: Role[] = ["platform_admin", "platform_dev", "platform_support", "user"];
+
 /**
  * Server-side: ensure a profile exists for the user (e.g. on first login).
- * If no profile exists, creates one; sets role to 'platform_admin' when user email matches OWNER_EMAIL.
- * If profile exists and user email matches OWNER_EMAIL, updates role to 'platform_admin'.
+ * When user email matches OWNER_EMAIL, sets or updates role to 'platform_admin' so you get
+ * Enterprise workspace role (invites, policies, benchmark, etc.) via getWorkspacePlanAndEntitlementsForUser.
  */
 export async function ensureProfile(
   supabase: SupabaseClient,
@@ -35,7 +42,7 @@ export async function ensureProfile(
     return;
   }
 
-  const role: Role = shouldBePlatformAdmin ? "platform_admin" : "free";
+  const role: Role = shouldBePlatformAdmin ? "platform_admin" : "user";
   await supabase.from("profiles").insert({ id: user.id, role });
 }
 
@@ -56,16 +63,16 @@ export async function getCurrentUserRole(): Promise<Role | null> {
     .single();
 
   const role = profile?.role as Role | undefined;
-  if (role && ["free", "platform_admin", "pro"].includes(role)) return role;
-  return "free";
+  if (role && ALLOWED_ROLES.includes(role)) return role;
+  return "user";
 }
 
-/** Server-side: returns true if role can bypass rate limits (e.g. platform_admin, pro). */
+/** Server-side: returns true if role can bypass rate limits (platform_admin only). */
 export function canBypassRateLimit(role: Role | null): boolean {
-  return role === "platform_admin" || role === "pro";
+  return role === "platform_admin";
 }
 
-/** Server-side: returns true if role is allowed to use Pro features (e.g. analyze without strict limit). */
+/** Server-side: returns true if role is allowed to use Pro features (platform_admin only). */
 export function canUseProFeature(role: Role | null): boolean {
-  return role === "platform_admin" || role === "pro";
+  return role === "platform_admin";
 }
