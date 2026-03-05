@@ -124,25 +124,42 @@ export default function LandingPage() {
         </p>
       </section>
 
-      {/* Pricing preview */}
+      {/* Pricing preview — matches /pricing plan names and prices */}
       <section className="landing-section">
         <h2 className="landing-section-title">Pricing</h2>
         <div className="landing-pricing">
           <div className="landing-plan">
             <h3 className="landing-plan-name">Free</h3>
+            <p className="landing-plan-price">3 lifetime scans</p>
             <p className="landing-plan-desc">
-              Evaluation and academic use · 3 lifetime full scans · Risk Index™ preview · Limited macro signals · Redacted IC memo
+              Evaluation and academic use · Risk Index™ preview · Limited macro signals · Redacted IC memo
             </p>
             <Link href="/login" className="landing-plan-cta secondary">Get started</Link>
           </div>
-          <div className="landing-plan featured">
-            <h3 className="landing-plan-name">Pro</h3>
+          <div className="landing-plan">
+            <h3 className="landing-plan-name">Starter</h3>
+            <p className="landing-plan-price">$97 <span style={{ fontWeight: 400, fontSize: 14 }}>/ workspace / month</span></p>
             <p className="landing-plan-desc">
-              Institutional Workspace · Unlimited scans · Full Risk Index™ · Snapshot benchmarking · Portfolio dashboard · 1 governance policy · IC-ready export
+              10 scans / month · Full Risk Index™ · IC-ready PDF export · 1 governance policy · 2 workspace members
             </p>
-            <Link href="/login" className="landing-plan-cta primary">
-              Get started
-            </Link>
+            <Link href="/pricing" className="landing-plan-cta secondary">View plans</Link>
+          </div>
+          <div className="landing-plan featured" style={{ position: "relative" }}>
+            <span style={{ position: "absolute", top: -10, left: 24, background: "var(--landing-accent)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 4, letterSpacing: "0.05em", textTransform: "uppercase" }}>Most popular</span>
+            <h3 className="landing-plan-name">Analyst</h3>
+            <p className="landing-plan-price">$297 <span style={{ fontWeight: 400, fontSize: 14 }}>/ workspace / month</span></p>
+            <p className="landing-plan-desc">
+              Unlimited scans · Risk trajectory · Benchmark percentiles · Up to 3 policies · 5 members · Governance export packet
+            </p>
+            <Link href="/pricing" className="landing-plan-cta primary">View plans</Link>
+          </div>
+          <div className="landing-plan">
+            <h3 className="landing-plan-name">Fund · Enterprise</h3>
+            <p className="landing-plan-price">$797 <span style={{ fontWeight: 400, fontSize: 14 }}>/ mo</span> · <span style={{ fontWeight: 400, fontSize: 14 }}>Custom</span></p>
+            <p className="landing-plan-desc">
+              Custom cohorts · Snapshot build · Unlimited policies · API access · Enterprise SLA
+            </p>
+            <Link href="/pricing" className="landing-plan-cta secondary">View plans</Link>
           </div>
         </div>
       </section>

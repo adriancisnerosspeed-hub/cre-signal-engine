@@ -219,6 +219,13 @@ body {
   color: var(--landing-fg);
 }
 
+.landing-plan-price {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--landing-fg);
+  margin: 0 0 6px;
+}
+
 .landing-plan-desc {
   font-size: 0.875rem;
   color: var(--landing-muted);
