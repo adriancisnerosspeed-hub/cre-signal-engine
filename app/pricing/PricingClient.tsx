@@ -12,11 +12,11 @@ export default function PricingClient({
 }: {
   displayPlan: PricingDisplayPlan;
   workspaceId?: string;
-  slot: "pro" | "pro_plus" | "enterprise";
+  slot: "pro" | "pro_plus" | "enterprise" | "founding";
 }) {
   const [loading, setLoading] = useState<"checkout" | "portal" | null>(null);
 
-  async function handleUpgrade(plan?: "PRO" | "PRO+" | "ENTERPRISE") {
+  async function handleUpgrade(plan?: "PRO" | "PRO+" | "ENTERPRISE" | "FOUNDING") {
     setLoading("checkout");
     try {
       const url = workspaceId
@@ -103,7 +103,7 @@ export default function PricingClient({
           cursor: loading ? "not-allowed" : "pointer",
         }}
       >
-        {loading === "checkout" ? "Redirecting…" : "Upgrade to PRO+"}
+        {loading === "checkout" ? "Redirecting…" : "Start Analyst Plan"}
       </button>
     );
   }
@@ -151,7 +151,7 @@ export default function PricingClient({
           cursor: loading ? "not-allowed" : "pointer",
         }}
       >
-        {loading === "checkout" ? "Redirecting…" : "Get Enterprise"}
+        {loading === "checkout" ? "Redirecting…" : "Start Fund Plan"}
       </button>
     );
   }
@@ -206,7 +206,36 @@ export default function PricingClient({
           cursor: loading ? "not-allowed" : "pointer",
         }}
       >
-        {loading === "checkout" ? "Redirecting…" : "Start Institutional Plan"}
+        {loading === "checkout" ? "Redirecting…" : "Start Starter Plan"}
+      </button>
+    );
+  }
+
+  if (slot === "founding") {
+    if (displayPlan === "pro_plus" || displayPlan === "platform_admin" || displayPlan === "enterprise") {
+      return (
+        <span style={{ color: "#71717a", fontSize: 14 }}>
+          Analyst tier already included in your plan
+        </span>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => handleUpgrade("FOUNDING")}
+        disabled={!!loading}
+        style={{
+          padding: "10px 20px",
+          backgroundColor: "#eab308",
+          color: "#000",
+          border: "none",
+          borderRadius: 8,
+          fontWeight: 700,
+          cursor: loading ? "not-allowed" : "pointer",
+          fontSize: 14,
+        }}
+      >
+        {loading === "checkout" ? "Redirecting…" : "Claim Founding Member — $147/mo"}
       </button>
     );
   }

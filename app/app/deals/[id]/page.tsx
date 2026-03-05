@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
+import { formatAssumptionValue } from "@/lib/utils/formatAssumption";
 import { getCurrentOrgId } from "@/lib/org";
 import { getEntitlementsForUser } from "@/lib/entitlements";
 import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
@@ -10,6 +11,7 @@ import { computeExplainabilityDiff } from "@/lib/explainabilityDiff";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import DealDetailClient from "./DealDetailClient";
+import DemoDealDeleteButton from "./DemoDealDeleteButton";
 import ExportPdfButton from "./ExportPdfButton";
 import IcNarrativeBlock from "./IcNarrativeBlock";
 import IcStatusBlock from "./IcStatusBlock";
@@ -27,6 +29,7 @@ type Deal = {
   ic_decision_date: string | null;
   ic_notes: string | null;
   created_at: string;
+  is_demo: boolean;
 };
 
 type DealScan = {
@@ -93,7 +96,7 @@ export default async function DealPage({
 
   const { data: deal, error: dealError } = await supabase
     .from("deals")
-    .select("id, name, asset_type, market, latest_scan_id, ic_status, ic_decision_date, ic_notes, created_at")
+    .select("id, name, asset_type, market, latest_scan_id, ic_status, ic_decision_date, ic_notes, created_at, is_demo")
     .eq("id", dealId)
     .eq("organization_id", orgId)
     .single();
@@ -240,6 +243,28 @@ export default async function DealPage({
         </Link>
       </div>
 
+      {d.is_demo && (
+        <div
+          style={{
+            padding: "12px 16px",
+            backgroundColor: "rgba(234, 179, 8, 0.12)",
+            border: "1px solid rgba(234, 179, 8, 0.35)",
+            borderRadius: 8,
+            marginBottom: 20,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <span style={{ color: "#eab308", fontSize: 14 }}>
+            This is a sample deal — replace with your own assumptions to get started.
+          </span>
+          <DemoDealDeleteButton dealId={d.id} />
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa", margin: 0 }}>
@@ -312,21 +337,37 @@ export default async function DealPage({
 
           {activeTab === "overview" && (
           <>
-          {canUseTrajectory && last5Scans.length > 0 && (
+          {last5Scans.length > 0 && (
             <section style={{ marginBottom: 32 }}>
               <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
                 Risk trajectory
               </h2>
-              <div
-                style={{
-                  padding: "16px 20px",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8,
-                  backgroundColor: "rgba(255,255,255,0.03)",
-                }}
-              >
-                <RiskTrajectoryChart scans={last5Scans} />
-              </div>
+              {canUseTrajectory ? (
+                <div
+                  style={{
+                    padding: "16px 20px",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 8,
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                  }}
+                >
+                  <RiskTrajectoryChart scans={last5Scans} />
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: "16px 20px",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 8,
+                    backgroundColor: "rgba(255,255,255,0.02)",
+                  }}
+                >
+                  <p style={{ color: "#a1a1aa", fontSize: 14, margin: 0 }}>
+                    Upgrade to PRO+ to see risk score movement over time.{" "}
+                    <Link href="/pricing" style={{ color: "#3b82f6" }}>View plans</Link>
+                  </p>
+                </div>
+              )}
             </section>
           )}
           {entitlements.explainability_enabled && explainabilityDiff.length > 0 && (
@@ -428,7 +469,7 @@ export default async function DealPage({
                       <tr key={key} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                         <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{key.replace(/_/g, " ")}</td>
                         <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
-                          {cell.value != null ? cell.value : "—"}
+                          {formatAssumptionValue(cell.value ?? null, cell.unit ?? null)}
                         </td>
                         <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.unit ?? "—"}</td>
                         <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.confidence ?? "—"}</td>
@@ -566,7 +607,7 @@ export default async function DealPage({
                             <tr key={key} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                               <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{key.replace(/_/g, " ")}</td>
                               <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
-                                {cell.value != null ? cell.value : "—"}
+                                {formatAssumptionValue(cell.value ?? null, cell.unit ?? null)}
                               </td>
                               <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.unit ?? "—"}</td>
                               <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.confidence ?? "—"}</td>

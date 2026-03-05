@@ -1,7 +1,7 @@
 import { RISK_INDEX_VERSION } from "../riskIndex";
 
 /** Publication date of this methodology document (credibility). */
-export const publishedAt = "2026-02-27";
+export const publishedAt = "2026-03-04";
 
 export const title = "CRE Signal Risk Index™ — Methodology";
 
@@ -15,93 +15,48 @@ export type MethodologySection = {
 
 export const sections: MethodologySection[] = [
   {
-    heading: "Purpose",
+    heading: "How the CRE Signal Risk Index Works",
     body:
-      "CRE Signal Risk Index™ is an underwriting support score designed to summarize risk drivers and data quality in a consistent, audit-friendly format. It is intended to accelerate review workflows and highlight areas that require diligence.",
+      "The CRE Signal Risk Index™ is a deterministic, rules-based scoring system that quantifies deal-level risk into a single 0–100 score. Unlike probabilistic models, every score is fully reproducible: given the same inputs and methodology version, the output is identical. The index is computed from four components: (1) Structural Risk — leverage, debt coverage, exit assumptions; (2) Operational Risk — vacancy, NOI stability, management complexity; (3) Macro Overlay — cross-referenced market signals tied to the deal's geography and asset class; and (4) Data Confidence — a penalty applied when critical inputs are missing, inferred, or flagged as outliers. Each component contributes a weighted penalty or stabilizer to a base score. The final score reflects cumulative risk exposure after all adjustments.",
   },
   {
-    heading: "Score Bands",
-    body: `Score bands are defined as follows:
-- Low: 0–34
-- Moderate: 35–54
-- Elevated: 55–69
-- High: 70+`,
-  },
-  {
-    heading: "Inputs and Data Coverage",
-    body:
-      "The score is computed from two sources: 1) Deal assumptions (e.g., LTV, vacancy, entry/exit cap rates, NOI, debt rate). 2) Risk observations extracted from the deal context and scan output (risk_type, severity, confidence), plus linked macro signals when available. Data Coverage summarizes presence of required assumption fields. Missing inputs increase uncertainty and may trigger review flags.",
-  },
-  {
-    heading: "Normalization Rules",
-    body:
-      "Percent-like fields are normalized using unit-aware logic. If the unit is percent (%), fractional values between 0 and 1 are interpreted as percentages (e.g., 0.05 → 5%). When units are missing and a percent-like field is between 0 and 1, the value may be inferred as a fraction and converted to percent. When this occurs, the scan is flagged for review and the output records EDGE_UNIT_INFERRED.",
-  },
-  {
-    heading: "Core Score Construction",
-    body:
-      "The Risk Index score is derived from: Base Score + Risk Penalties + Macro Penalty − Stabilizers. Penalties are influenced by severity and confidence. Stabilizers reduce score when conservative assumptions materially reduce leverage or exit risk.",
-  },
-  {
-    heading: "Confidence and Review Flags",
-    body:
-      "Confidence is reflected in both scoring and signaling. Low confidence increases uncertainty and may apply a small uncertainty premium. A scan may be flagged for review when: Critical inputs are missing, Units were inferred, Values are out of expected bounds, Extreme edge cases are detected.",
-  },
-  {
-    heading: "Tier Overrides and Reason Codes",
-    body:
-      "In certain extreme configurations, the score band may be overridden to prevent under-signaling. When applied, the output records tier driver reason codes (tier_drivers), such as:",
+    heading: "Risk Bands",
+    body: "Scores are mapped to four named risk bands, each reflecting a distinct underwriting posture:",
     bullets: [
-      "FORCED_HIGH_LTV_VACANCY",
-      "FORCED_ELEVATED_EXIT_CAP_COMPRESSION",
-      "FORCED_ELEVATED_DSCR",
-      "MISSING_DATA_CAP_APPLIED",
-      "FORCED_HIGH_LTV_90",
+      "Low (0–34): Deal exhibits conservative leverage, stable cash flow, and no material macro headwinds. Standard diligence applies.",
+      "Moderate (35–54): One or more risk factors present, but within manageable range. Enhanced review recommended for identified drivers.",
+      "Elevated (55–69): Multiple risk factors with meaningful exposure. IC-level scrutiny required; mitigation conditions likely.",
+      "High (70–100): Structural or market conditions indicate significant loss potential. Full committee review required before any advancement.",
     ],
   },
   {
-    heading: "Macro Signals (Overlay)",
+    heading: "Confidence Scores",
     body:
-      "Macro signals provide contextual market risk. Signals are: Deduplicated using stable normalization keys, Time-decayed to reduce influence of stale signals, Capped to prevent macro context from dominating structural risk. When macro timestamps are missing, the scan records EDGE_MACRO_TIMESTAMP_MISSING.",
-  },
-  {
-    heading: "Attribution and Explainability",
-    body:
-      "Each score includes attribution: major driver categories, top risk contributors, stabilizers applied, and review indicators. When a single driver would dominate explainability, driver shares may be capped for readability. When applied, the output records EDGE_DRIVER_SHARE_CAP_APPLIED and includes a note that the score itself is unchanged.",
-  },
-  {
-    heading: "Delta Comparability (Scan-to-Scan)",
-    body:
-      "Score deltas are only comparable when the prior scan was scored under the same methodology version. When version drift exists, the output records delta_comparable = false and the UI indicates 'Version drift — delta not comparable.'",
-  },
-  {
-    heading: "Stability Guarantees (Tested)",
-    body: "The implementation includes automated tests for:",
+      "Each extracted assumption carries a confidence rating that reflects data completeness and extraction certainty. Confidence affects both the score and the review flags surfaced in the IC memo.",
     bullets: [
-      "Score invariance to input ordering and formatting,",
-      "Decimal-vs-percent normalization consistency,",
-      "Monotonic behavior for key risk drivers (increasing leverage or vacancy should not reduce risk),",
-      "Smooth penalty ramps near thresholds where applicable.",
+      "High: Value was explicitly stated in the source document with a matching unit. No inference required.",
+      "Medium: Value was present but required unit normalization, contextual interpretation, or light inference.",
+      "Low: Value was absent or ambiguous; the system applied a default or estimated from comparable context.",
+      "DataMissing: A critical field (e.g., LTV, cap rate) was entirely absent. A fixed penalty is applied to the score and a review flag is set.",
     ],
   },
   {
-    heading: "Benchmarking",
-    body: `Benchmark percentiles and risk bands are computed against a frozen cohort snapshot for determinism and auditability. No changes are made to the core risk score; the benchmark layer consumes score outputs only.
-
-Cohort definition: A cohort is an institutional comparison set (e.g., by asset type, geography, vintage) defined by versioned, immutable rules. Eligibility uses only stable deal and scan fields.
-
-Snapshot semantics: Percentiles are computed against a snapshot—a frozen materialization at an as-of timestamp. For each eligible deal, the metric value is taken from the most recent completed scan with completed_at ≤ as_of_timestamp. The snapshot stores the sorted distribution and metadata; once built, results are deterministic.
-
-Percentile method: Midrank (method_version: midrank_v1). For value x in sorted distribution D of size N: count_lt = number of values < x, count_eq = number of values = x; rank = count_lt + 0.5 × count_eq; percentile = 100 × rank / N. Tie handling is deterministic; values are quantized for consistency.
-
-Classification bands (risk_band_v1, higher percentile = riskier): P90–P100: SEVERE; P75–P90: ELEVATED; P40–P75: TYPICAL; P10–P40: LOW; P0–P10: VERY_LOW.
-
-Determinism and auditability: Every benchmark result references a cohort snapshot id and methodology version. Snapshot hash is computed over cohort id, version, as_of_timestamp, method, quantization, and ordered metric arrays. Exports and support bundles include snapshot metadata and method identifiers.`,
+    heading: "Macro Signal Overlay",
+    body:
+      "The Macro Overlay cross-references live and historical macro signals — including rate environment, cap rate compression trends, vacancy absorption, and submarket supply pressure — against the deal's asset type and geography. Signals are deduplicated using stable normalization keys and time-decayed to reduce the influence of stale data. The overlay contribution is capped to prevent macro context from dominating structural risk: no single macro signal can contribute more than 15 points to the final score, and the total macro penalty is capped at 20 points. When macro timestamps are unavailable, the scan records EDGE_MACRO_TIMESTAMP_MISSING and applies a conservative default.",
   },
   {
-    heading: "Limitations",
+    heading: "What This Is Not",
     body:
-      "Risk Index™ is not a substitute for underwriting, sponsor diligence, third-party reports, or investment committee judgment. It summarizes risk signals present in the provided context and should be interpreted alongside primary documents.",
+      "The CRE Signal Risk Index™ is an underwriting support layer, not a replacement for institutional judgment. It does not perform sponsor diligence, legal review, property condition assessment, or appraisal. It does not predict default probability or model scenario-specific return distributions. The score reflects risk signals present in the provided deal context — its accuracy depends on the completeness and quality of the input data. Risk Index outputs should be interpreted alongside primary documents, third-party reports, and IC member expertise. All scores should be reviewed by a qualified professional before informing a capital decision.",
+  },
+  {
+    heading: "Version History",
+    body: "The methodology is versioned to ensure scan-to-scan comparability. Score deltas are only meaningful within the same version; cross-version comparisons are flagged in the UI.",
+    bullets: [
+      "v1.0 — Initial release. Base scoring framework with structural and operational components. No macro overlay.",
+      "v2.0 Institutional Stable — Added macro signal overlay, data confidence penalties, tier override logic, and benchmark percentile layer. All v2.0 scans are deterministic and audit-ready.",
+    ],
   },
 ];
 
