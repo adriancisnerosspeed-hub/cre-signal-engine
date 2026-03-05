@@ -11,7 +11,7 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const priceId = process.env.STRIPE_PRICE_ID_PRO;
+  const priceId = process.env.STRIPE_PRICE_ID_STARTER;
   if (!priceId) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
   }

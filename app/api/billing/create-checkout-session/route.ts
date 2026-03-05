@@ -47,12 +47,12 @@ export async function POST(request: Request) {
 
   const priceId =
     plan === "ENTERPRISE"
-      ? process.env.STRIPE_PRICE_ID_ENTERPRISE
+      ? process.env.STRIPE_PRICE_ID_FUND
       : plan === "PRO+"
-        ? process.env.STRIPE_PRICE_ID_PRO_PLUS
+        ? process.env.STRIPE_PRICE_ID_ANALYST
         : plan === "FOUNDING"
           ? process.env.STRIPE_PRICE_ID_FOUNDING
-          : process.env.STRIPE_PRICE_ID_PRO;
+          : process.env.STRIPE_PRICE_ID_STARTER;
   if (!priceId) {
     return NextResponse.json({ error: "Stripe not configured for this plan" }, { status: 500 });
   }

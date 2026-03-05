@@ -14,8 +14,9 @@ Plan is stored in `profiles.role` (`free` | `pro` | `owner`). Stripe webhook upd
 |----------|----------|-------------|
 | `STRIPE_SECRET_KEY` | Yes | Stripe secret key (server-only). |
 | `STRIPE_WEBHOOK_SECRET` | Yes | Webhook signing secret for `POST /api/stripe/webhook`. |
-| `STRIPE_PRICE_ID_PRO` | Yes | Stripe Price ID for Pro monthly (e.g. `price_xxx`). |
-| `STRIPE_PRICE_ID_PRO_PLUS` | Optional | Stripe Price ID for PRO+ monthly (Phase 1 institutional). When set, webhook maps this price to plan `PRO+`. |
+| `STRIPE_PRICE_ID_STARTER` | Yes | Stripe Price ID for Starter tier monthly (e.g. `price_xxx`). Maps to plan `PRO`. |
+| `STRIPE_PRICE_ID_ANALYST` | Optional | Stripe Price ID for Analyst tier monthly. When set, webhook maps this price to plan `PRO+`. |
+| `STRIPE_PRICE_ID_FUND` | Optional | Stripe Price ID for Fund tier monthly. When set, webhook maps this price to plan `ENTERPRISE`. |
 | `NEXT_PUBLIC_APP_URL` | Recommended | Root domain for checkout/portal return URLs (e.g. `https://yourdomain.com`). No trailing slash. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Used by webhook and analyze (usage_daily writes). |
 | `OWNER_EMAIL` | Optional | Email that gets owner role (bypass). |
@@ -30,7 +31,7 @@ Plan is stored in `profiles.role` (`free` | `pro` | `owner`). Stripe webhook upd
 
 1. **Products & prices**
    - Create a Product (e.g. "CRE Signal Engine Pro").
-   - Add a recurring Price (monthly), copy the Price ID → `STRIPE_PRICE_ID_PRO`.
+   - Add a recurring Price (monthly), copy the Price ID → `STRIPE_PRICE_ID_STARTER`.
 
 2. **Customers**
    - Customers are created on first checkout via `POST /api/stripe/checkout`; no manual creation needed.

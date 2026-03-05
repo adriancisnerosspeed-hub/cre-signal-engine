@@ -12,10 +12,8 @@ function LoginForm() {
   const [mode, setMode] = useState<"password" | "signup">("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [magicEmail, setMagicEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [showOtherOptions, setShowOtherOptions] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -107,31 +105,6 @@ function LoginForm() {
       setLoading(false);
       return;
     }
-  }
-
-  async function handleMagicLinkSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setMessage(null);
-    const trimmed = magicEmail.trim();
-    if (!trimmed) {
-      showError("Please enter your email for the magic link.");
-      return;
-    }
-    if (!EMAIL_REGEX.test(trimmed)) {
-      showError("Please enter a valid email address.");
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: trimmed,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) {
-      showError(error.message);
-    } else {
-      showSuccess("Open your email and click the link. You'll return here and be redirected to /app.");
-    }
-    setLoading(false);
   }
 
   const fg = "var(--foreground)";
@@ -263,50 +236,6 @@ function LoginForm() {
             {loading ? "Please wait..." : mode === "signup" ? "Create account" : "Sign in"}
           </button>
         </form>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          onClick={() => setShowOtherOptions(!showOtherOptions)}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            fontSize: 14,
-            color: linkColor,
-            cursor: "pointer",
-            textDecoration: "underline",
-            fontWeight: 500,
-          }}
-        >
-          {showOtherOptions ? "Hide other options" : "Other options"}
-        </button>
-        {showOtherOptions && (
-          <form onSubmit={handleMagicLinkSubmit} style={{ marginTop: 12 }}>
-            <input
-              type="email"
-              placeholder="Email for magic link"
-              value={magicEmail}
-              onChange={(e) => setMagicEmail(e.target.value)}
-              disabled={loading}
-              style={inputStyle}
-            />
-            <button
-              type="submit"
-              disabled={loading || !magicEmail.trim()}
-              style={{
-                ...buttonStyle,
-                backgroundColor: tabInactiveBg,
-                color: fg,
-                border: `1px solid ${border}`,
-                opacity: loading || !magicEmail.trim() ? 0.6 : 1,
-              }}
-            >
-              Send Magic Link
-            </button>
-          </form>
-        )}
       </div>
 
       {message && (
