@@ -8,9 +8,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import PricingClient from "./PricingClient";
 
-// Avoid real fetch and toast in tests
+// Avoid real fetch in tests
 vi.mock("@/lib/fetchJsonWithTimeout", () => ({ fetchJsonWithTimeout: vi.fn() }));
-vi.mock("@/lib/toast", () => ({ toast: vi.fn() }));
 
 describe("PricingClient displayPlan", () => {
   beforeEach(() => {
@@ -26,7 +25,7 @@ describe("PricingClient displayPlan", () => {
       />
     );
     expect(screen.getByRole("button", { name: /Manage billing/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Upgrade to PRO\+/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Start Analyst Plan/i })).not.toBeInTheDocument();
   });
 
   it("shows Upgrade to PRO+ for PRO+ slot when displayPlan is free", () => {
@@ -37,7 +36,7 @@ describe("PricingClient displayPlan", () => {
         slot="pro_plus"
       />
     );
-    expect(screen.getByRole("button", { name: /Upgrade to PRO\+/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Start Analyst Plan/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Manage billing/i })).not.toBeInTheDocument();
   });
 
@@ -49,6 +48,6 @@ describe("PricingClient displayPlan", () => {
       />
     );
     expect(screen.getByText(/Included in your Enterprise plan/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Upgrade to PRO\+/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Start Analyst Plan/i })).not.toBeInTheDocument();
   });
 });

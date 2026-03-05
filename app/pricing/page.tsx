@@ -26,6 +26,13 @@ export default async function PricingPage() {
 
   const displayPlan = getDisplayPlan(profilePlan, workspacePlan);
 
+  const checkoutAvailable = [
+    process.env.STRIPE_PRICE_ID_STARTER,
+    process.env.STRIPE_PRICE_ID_ANALYST,
+    process.env.STRIPE_PRICE_ID_FUND,
+    process.env.STRIPE_PRICE_ID_FOUNDING,
+  ].every((v) => typeof v === "string" && v.trim() !== "");
+
   return (
     <main style={{ maxWidth: 780, margin: "0 auto", padding: 24 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa", marginBottom: 8 }}>
@@ -62,7 +69,7 @@ export default async function PricingPage() {
             <li>1 active governance policy</li>
             <li>2 workspace members</li>
           </ul>
-          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro" />
+          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro" checkoutAvailable={checkoutAvailable} />
         </section>
 
         {/* Analyst — $297/mo */}
@@ -110,7 +117,7 @@ export default async function PricingPage() {
             <li>Up to 5 workspace members</li>
             <li>Governance export packet</li>
           </ul>
-          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro_plus" />
+          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro_plus" checkoutAvailable={checkoutAvailable} />
         </section>
 
         {/* Fund — $797/mo */}
@@ -143,7 +150,7 @@ export default async function PricingPage() {
             <li>Contract-level SLA</li>
             <li>Priority support</li>
           </ul>
-          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise" />
+          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise" checkoutAvailable={checkoutAvailable} />
         </section>
 
         {/* Enterprise — Custom */}
@@ -172,7 +179,7 @@ export default async function PricingPage() {
             <li>Unlimited workspace members</li>
             <li>Enterprise SLA</li>
           </ul>
-          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise_tier" />
+          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise_tier" checkoutAvailable={checkoutAvailable} />
         </section>
       </div>
 
@@ -200,6 +207,7 @@ export default async function PricingPage() {
             displayPlan={displayPlan}
             workspaceId={orgId ?? undefined}
             slot="founding"
+            checkoutAvailable={checkoutAvailable}
           />
         </div>
       </section>
