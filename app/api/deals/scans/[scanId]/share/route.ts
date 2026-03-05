@@ -16,26 +16,40 @@ export async function POST(_request: Request, { params }: Params) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { scanId } = await params;
+  if (!scanId || typeof scanId !== "string" || scanId.trim() === "") {
+    return NextResponse.json({ error: "Scan ID is required" }, { status: 400 });
+  }
   const orgId = await getCurrentOrgId(supabase, user);
   if (!orgId) return NextResponse.json({ error: "No workspace selected" }, { status: 400 });
 
   const service = createServiceRoleClient();
 
-  // Verify scan belongs to user's org
+  // Verify scan exists and belongs to user's org (two-step to avoid embed/join issues)
   const { data: scan, error: scanError } = await service
     .from("deal_scans")
-    .select("id, deal_id, deals!inner(organization_id)")
+    .select("id, deal_id")
     .eq("id", scanId)
-    .single();
+    .maybeSingle();
 
-  if (scanError || !scan) {
+  if (scanError) {
+    console.error("[share] deal_scans lookup error:", scanError);
+    return NextResponse.json({ error: "Scan not found" }, { status: 404 });
+  }
+  if (!scan) {
     return NextResponse.json({ error: "Scan not found" }, { status: 404 });
   }
 
-  const scanDeal = scan as unknown as { deals: { organization_id: string } | { organization_id: string }[] };
-  const dealOrg = Array.isArray(scanDeal.deals)
-    ? scanDeal.deals[0]?.organization_id
-    : scanDeal.deals.organization_id;
+  const dealId = (scan as { deal_id: string }).deal_id;
+  const { data: deal, error: dealError } = await service
+    .from("deals")
+    .select("organization_id")
+    .eq("id", dealId)
+    .maybeSingle();
+
+  if (dealError || !deal) {
+    return NextResponse.json({ error: "Scan not found" }, { status: 404 });
+  }
+  const dealOrg = (deal as { organization_id: string }).organization_id;
   if (dealOrg !== orgId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
