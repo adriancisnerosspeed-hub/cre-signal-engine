@@ -153,6 +153,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="landing-footer">
+        <Link href="/sample-report">Sample Report</Link>
         <Link href="/terms">Terms</Link>
         <Link href="/privacy">Privacy</Link>
       </footer>

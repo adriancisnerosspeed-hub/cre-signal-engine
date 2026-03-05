@@ -34,9 +34,11 @@ export async function runDemoScan(
     orgId: string;
   }
 ): Promise<string | null> {
+  console.info("[runDemoScan] starting", { dealId, dealInputId: dealInputId ?? "none" });
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.error("[runDemoScan] OPENAI_API_KEY not set");
+    console.error("[runDemoScan] OPENAI_API_KEY not set — scan aborted");
     return null;
   }
 
@@ -52,7 +54,7 @@ export async function runDemoScan(
       ],
     });
   } catch (err) {
-    console.error("[runDemoScan] OpenAI call failed:", err);
+    console.error("[runDemoScan] OpenAI call failed:", err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : undefined);
     return null;
   }
 
@@ -61,7 +63,7 @@ export async function runDemoScan(
 
   const normalized = parseAndNormalizeDealScan(content);
   if (!normalized) {
-    console.warn("[runDemoScan] Failed to parse scan output");
+    console.error("[runDemoScan] Failed to parse scan output — inserting failed scan row", { dealId });
     await service.from("deal_scans").insert({
       deal_id: dealId,
       deal_input_id: dealInputId,
@@ -109,7 +111,7 @@ export async function runDemoScan(
     .single();
 
   if (scanInsertError || !scanInsert) {
-    console.error("[runDemoScan] scan insert error:", scanInsertError);
+    console.error("[runDemoScan] scan insert error:", scanInsertError?.message ?? scanInsertError, scanInsertError?.code, { dealId });
     return null;
   }
 

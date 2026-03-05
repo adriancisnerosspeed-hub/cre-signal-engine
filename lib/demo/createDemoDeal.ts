@@ -50,13 +50,13 @@ export async function createDemoDeal(
     .single();
 
   if (dealError || !deal) {
-    console.error("[createDemoDeal] Failed to create demo deal:", dealError);
+    console.error("[createDemoDeal] Failed to create demo deal:", dealError?.message ?? dealError);
     return;
   }
 
   const dealId = (deal as { id: string }).id;
 
-  // Insert deal input
+  // Insert deal input — must complete before scan so scan pipeline has a deal_input row
   const { data: dealInput, error: inputError } = await service
     .from("deal_inputs")
     .insert({
@@ -67,19 +67,24 @@ export async function createDemoDeal(
     .single();
 
   if (inputError) {
-    console.error("[createDemoDeal] Failed to create deal input (non-fatal):", inputError);
+    console.error("[createDemoDeal] Failed to create deal input:", inputError.message, inputError.code);
+    // Continue: runDemoScan can run with rawText only; deal_input_id may be null
   }
 
   const dealInputId = dealInput ? (dealInput as { id: string }).id : null;
 
-  // Run scan bypassing usage limits
-  await runDemoScan(service, {
-    dealId,
-    dealInputId,
-    rawText: DEMO_RAW_TEXT,
-    assetType: DEMO_ASSET_TYPE,
-    market: DEMO_MARKET,
-    createdBy: user.id,
-    orgId,
-  });
+  try {
+    await runDemoScan(service, {
+      dealId,
+      dealInputId,
+      rawText: DEMO_RAW_TEXT,
+      assetType: DEMO_ASSET_TYPE,
+      market: DEMO_MARKET,
+      createdBy: user.id,
+      orgId,
+    });
+  } catch (err) {
+    console.error("[createDemoDeal] runDemoScan threw:", err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : undefined);
+    throw err;
+  }
 }

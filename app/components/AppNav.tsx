@@ -80,6 +80,7 @@ export default function AppNav() {
     return (
       <nav style={navStyle}>
         <Link href="/" style={pathname === "/" ? activeLinkStyle : linkStyle}>Home</Link>
+        <Link href="/sample-report" style={pathname === "/sample-report" ? activeLinkStyle : linkStyle}>Sample Report</Link>
         <Link href="/pricing" style={pathname === "/pricing" ? activeLinkStyle : linkStyle}>Pricing</Link>
         <Link href="/login" style={{ ...linkStyle, marginLeft: "auto", fontWeight: 600 }}>Sign in</Link>
       </nav>
@@ -89,6 +90,7 @@ export default function AppNav() {
   return (
     <nav style={navStyle}>
       <Link href="/" style={pathname === "/" ? activeLinkStyle : linkStyle}>Home</Link>
+      <Link href="/sample-report" style={pathname === "/sample-report" ? activeLinkStyle : linkStyle}>Sample Report</Link>
       <Link href="/app" style={pathname === "/app" ? activeLinkStyle : linkStyle}>Dashboard</Link>
       <Link href="/app/deals" style={pathname?.startsWith("/app/deals") ? activeLinkStyle : linkStyle}>Deals</Link>
       <Link href="/app/portfolio" style={pathname === "/app/portfolio" ? activeLinkStyle : linkStyle}>Portfolio</Link>

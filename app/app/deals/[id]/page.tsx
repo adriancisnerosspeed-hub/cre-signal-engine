@@ -12,6 +12,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import DealDetailClient from "./DealDetailClient";
 import DemoDealDeleteButton from "./DemoDealDeleteButton";
+import RefreshPageButton from "./RefreshPageButton";
 import ExportPdfButton from "./ExportPdfButton";
 import IcNarrativeBlock from "./IcNarrativeBlock";
 import IcStatusBlock from "./IcStatusBlock";
@@ -258,10 +259,24 @@ export default async function DealPage({
             gap: 12,
           }}
         >
-          <span style={{ color: "#eab308", fontSize: 14 }}>
-            This is a sample deal — replace with your own assumptions to get started.
-          </span>
-          <DemoDealDeleteButton dealId={d.id} />
+          {!d.latest_scan_id ? (
+            <>
+              <span style={{ color: "#eab308", fontSize: 14 }}>
+                Scan pending… The demo scan may still be running. Check back in a moment or refresh.
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <RefreshPageButton />
+                <DemoDealDeleteButton dealId={d.id} />
+              </div>
+            </>
+          ) : (
+            <>
+              <span style={{ color: "#eab308", fontSize: 14 }}>
+                This is a sample deal — replace with your own assumptions to get started.
+              </span>
+              <DemoDealDeleteButton dealId={d.id} />
+            </>
+          )}
         </div>
       )}
 

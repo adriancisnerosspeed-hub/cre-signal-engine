@@ -19,7 +19,7 @@ const SAMPLE_SCORE = 39;
 const SAMPLE_BAND = "Moderate";
 
 const SAMPLE_ASSUMPTIONS = [
-  { key: "Asset Type", value: "Industrial / Flex" },
+  { key: "Asset Type", value: "Office" },
   { key: "Market", value: "Austin, TX" },
   { key: "Purchase Price", value: "$14,200,000" },
   { key: "Cap Rate In", value: "6.1%" },
@@ -36,7 +36,7 @@ const SAMPLE_RISKS = [
     type: "ExitCapCompressionRisk",
     severity: "Medium",
     description:
-      "Exit cap of 6.6% against entry of 6.1% represents 50bps compression. Industrial absorption in Austin softening; cap rate spread to treasuries compressed.",
+      "Exit cap of 6.6% against entry of 6.1% represents 50bps compression. Office absorption in Austin softening; cap rate spread to treasuries compressed.",
   },
   {
     type: "RefinancingRisk",
@@ -48,13 +48,13 @@ const SAMPLE_RISKS = [
     type: "MarketLiquidityRisk",
     severity: "Low",
     description:
-      "Austin industrial market remains liquid with institutional buyer depth, though transaction velocity has slowed in the 50,000–100,000 SF segment.",
+      "Austin office market remains liquid with institutional buyer depth, though transaction velocity has slowed in the 50,000–100,000 SF segment.",
   },
   {
     type: "SupplyRisk",
     severity: "Medium",
     description:
-      "13.2M SF of industrial under construction in the Austin MSA. New deliveries concentrated in Southeast submarket, proximate to subject.",
+      "13.2M SF of office under construction in the Austin MSA. New deliveries concentrated in Southeast submarket, proximate to subject.",
   },
 ];
 
@@ -62,7 +62,7 @@ const SAMPLE_NARRATIVE = `# IC Memorandum — Riverside Commerce Center
 
 ## Executive Summary
 
-Riverside Commerce Center is a 98,400 SF Class B industrial/flex asset located in Southeast Austin, TX. The CRE Signal Risk Index™ scores this acquisition at **39 — Moderate**, reflecting adequate structural underwriting offset by supply-side pressure and mild exit cap compression risk.
+Riverside Commerce Center is a 98,400 SF Class B office asset located in Southeast Austin, TX. The CRE Signal Risk Index™ scores this acquisition at **39 — Moderate**, reflecting adequate structural underwriting offset by supply-side pressure and mild exit cap compression risk.
 
 ## Deal Assumptions and Structure
 
@@ -70,17 +70,17 @@ The acquisition is structured at a 6.1% going-in cap rate on a $14.2M purchase p
 
 ## Primary Risk Factors
 
-**Exit Cap Compression (Medium Confidence):** The 50bps spread between entry and exit cap rates is the primary source of score elevation. Industrial cap rate spreads to 10-year treasuries remain compressed historically, and the Austin market has seen softening buyer demand in the sub-100K SF segment over the trailing two quarters.
+**Exit Cap Compression (Medium Confidence):** The 50bps spread between entry and exit cap rates is the primary source of score elevation. Office cap rate spreads to 10-year treasuries remain compressed historically, and the Austin market has seen softening buyer demand in the sub-100K SF segment over the trailing two quarters.
 
-**Supply Exposure (Medium Confidence):** 13.2M SF of industrial space is under construction across the Austin MSA, with meaningful deliveries in the Southeast submarket through 2026. This supply concentration could pressure rents and occupancy assumptions during the hold.
+**Supply Exposure (Medium Confidence):** 13.2M SF of office space is under construction across the Austin MSA, with meaningful deliveries in the Southeast submarket through 2026. This supply concentration could pressure rents and occupancy assumptions during the hold.
 
 ## Stabilizing Factors
 
-Conservative LTV (68%) provides structural cushion. Class B industrial in Austin maintains strong tenant demand from last-mile logistics and light manufacturing sectors. In-place tenancy is diversified across three tenants with staggered lease expirations.
+Conservative LTV (68%) provides structural cushion. Class B office in Austin maintains strong tenant demand from professional services and regional headquarters. In-place tenancy is diversified across three tenants with staggered lease expirations.
 
 ## Macro Signal Context
 
-Two active CRE Signal macro alerts are cross-referenced to this deal: (1) rising industrial vacancy in Sun Belt secondary markets, and (2) softening rent growth projections for flex/industrial in high-supply corridors. These signals are reflected in the score.
+Two active CRE Signal macro alerts are cross-referenced to this deal: (1) rising office vacancy in Sun Belt secondary markets, and (2) softening rent growth projections for office in high-supply corridors. These signals are reflected in the score.
 
 ## Recommendation Framework
 
@@ -139,7 +139,7 @@ export default function SampleReportPage() {
           <div style={{ fontSize: 14, fontWeight: 600, color: "#e4e4e7" }}>
             Riverside Commerce Center
           </div>
-          <div style={{ fontSize: 13, color: "#a1a1aa" }}>Austin, TX · Industrial/Flex</div>
+          <div style={{ fontSize: 13, color: "#a1a1aa" }}>Austin, TX · Office</div>
         </div>
       </div>
 
