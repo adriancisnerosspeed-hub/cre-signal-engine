@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type ShareLink = {
   token: string;
   url: string;
   view_count: number;
 };
+
+function getFullUrl(urlPath: string): string {
+  if (typeof window === "undefined") return urlPath;
+  return `${window.location.origin}${urlPath}`;
+}
 
 export default function ShareMemoModal({ scanId }: { scanId: string }) {
   const [open, setOpen] = useState(false);
@@ -15,30 +20,65 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
   const [revoking, setRevoking] = useState(false);
   const [copied, setCopied] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
 
   // On open, check for existing link
   useEffect(() => {
-    if (!open || checked) return;
+    if (!open || !scanId) return;
+    if (checked) return;
+    setError(null);
     setLoading(true);
     fetch(`/api/deals/scans/${scanId}/share`)
       .then((r) => r.json())
       .then((json) => {
-        const j = json as { link?: ShareLink | null };
-        if (j.link) setLink(j.link);
+        const j = json as { link?: ShareLink | null; error?: string };
+        if (j.error) setError(j.error);
+        else if (j.link) setLink(j.link);
         setChecked(true);
       })
-      .catch(() => setChecked(true))
+      .catch(() => {
+        setError("Failed to load share link");
+        setChecked(true);
+      })
       .finally(() => setLoading(false));
   }, [open, checked, scanId]);
 
+  // Reset checked when modal closes so we refetch next open
+  useEffect(() => {
+    if (!open) {
+      setChecked(false);
+      setError(null);
+    }
+  }, [open]);
+
   async function handleCreate() {
+    if (!scanId) return;
+    setError(null);
     setLoading(true);
     try {
       const res = await fetch(`/api/deals/scans/${scanId}/share`, { method: "POST" });
-      const json = await res.json() as { token?: string; url?: string; view_count?: number };
-      if (json.token && json.url) {
-        setLink({ token: json.token, url: json.url, view_count: json.view_count ?? 0 });
+      const json = (await res.json()) as { token?: string; url?: string; view_count?: number; error?: string };
+      if (!res.ok) {
+        setError(json.error ?? "Failed to create share link");
+        return;
       }
+      if (json.token && json.url) {
+        const newLink: ShareLink = { token: json.token, url: json.url, view_count: json.view_count ?? 0 };
+        setLink(newLink);
+        setError(null);
+        // Auto-copy so user gets link formed and copied in one step
+        const fullUrl = getFullUrl(newLink.url);
+        const didCopy = await copyToClipboard(fullUrl);
+        if (didCopy) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
+      } else {
+        setError("Invalid response from server");
+      }
+    } catch {
+      setError("Failed to create share link");
     } finally {
       setLoading(false);
     }
@@ -54,12 +94,45 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
     }
   }
 
+  async function copyToClipboard(text: string): Promise<boolean> {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+      // fall through to fallback
+    }
+    try {
+      const input = urlInputRef.current ?? document.createElement("input");
+      input.value = text;
+      if (input !== urlInputRef.current) {
+        input.setAttribute("readonly", "");
+        input.style.position = "fixed";
+        input.style.left = "-9999px";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+      }
+      input.select();
+      input.setSelectionRange(0, text.length);
+      const ok = document.execCommand("copy");
+      if (input !== urlInputRef.current) document.body.removeChild(input);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
   async function handleCopy() {
     if (!link) return;
-    const fullUrl = `${window.location.origin}${link.url}`;
-    await navigator.clipboard.writeText(fullUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const fullUrl = getFullUrl(link.url);
+    const ok = await copyToClipboard(fullUrl);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      setError("Could not copy to clipboard. Select and copy the link manually.");
+    }
   }
 
   const buttonStyle: React.CSSProperties = {
@@ -115,6 +188,9 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
               </button>
             </div>
 
+            {error && (
+              <p style={{ color: "#ef4444", fontSize: 13, marginBottom: 12 }}>{error}</p>
+            )}
             {loading ? (
               <p style={{ color: "#a1a1aa", fontSize: 14 }}>Loading…</p>
             ) : link ? (
@@ -124,8 +200,9 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
                 </p>
                 <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                   <input
+                    ref={urlInputRef}
                     readOnly
-                    value={`${typeof window !== "undefined" ? window.location.origin : ""}${link.url}`}
+                    value={getFullUrl(link.url)}
                     style={{
                       flex: 1,
                       padding: "8px 12px",
