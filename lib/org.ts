@@ -221,4 +221,9 @@ export async function ensureDefaultOrganization(
     console.error("Failed to set profiles.current_org_id:", profileError);
     throw profileError;
   }
+
+  // Fire-and-forget: create demo deal for new org (does not block signup)
+  import("@/lib/demo/createDemoDeal")
+    .then(({ createDemoDeal }) => createDemoDeal(supabase, user, org.id))
+    .catch((err) => console.error("[org] demo deal creation failed:", err));
 }

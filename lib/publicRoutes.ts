@@ -12,6 +12,8 @@ export const PUBLIC_ROUTES = [
   "/terms",
   "/privacy",
   "/auth/callback",
+  "/sample-report",
+  "/shared",
 ] as const;
 
 /** API routes that must be public (e.g. Stripe webhook cannot send auth cookies). */

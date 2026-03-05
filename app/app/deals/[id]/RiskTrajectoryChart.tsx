@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
+
 export type TrajectoryScan = {
   id: string;
   created_at: string;
   risk_index_score: number | null;
   risk_index_band: string | null;
+  risk_index_version?: string | null;
   risk_index_breakdown?: {
     delta_comparable?: boolean;
     tier_drivers?: string[];
@@ -31,6 +34,8 @@ function getBandColor(band: string | null): string {
 }
 
 export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[] }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
   const withScore = scans.filter((s) => s.risk_index_score != null);
   const sorted = [...withScore].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -71,10 +76,42 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
 
   return (
     <div style={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}>
+      <div style={{ position: "relative" }}>
+      {/* Hover tooltip */}
+      {hoveredIndex !== null && (
+        <div
+          style={{
+            position: "absolute",
+            left: `${(points[hoveredIndex].x / VIEW_WIDTH) * 100}%`,
+            top: `${(points[hoveredIndex].y / VIEW_HEIGHT) * 100}%`,
+            transform: "translate(-50%, calc(-100% - 10px))",
+            padding: "8px 12px",
+            backgroundColor: "#27272a",
+            border: "1px solid rgba(255,255,255,0.2)",
+            borderRadius: 6,
+            fontSize: 12,
+            color: "#e4e4e7",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            zIndex: 10,
+          }}
+        >
+          <div style={{ fontWeight: 700, color: getBandColor(points[hoveredIndex].scan.risk_index_band) }}>
+            Score: {points[hoveredIndex].scan.risk_index_score}
+          </div>
+          <div style={{ color: "#a1a1aa" }}>{points[hoveredIndex].scan.risk_index_band ?? "Unknown"}</div>
+          {points[hoveredIndex].scan.risk_index_version && (
+            <div style={{ color: "#52525b", fontSize: 11 }}>v{points[hoveredIndex].scan.risk_index_version}</div>
+          )}
+          <div style={{ color: "#52525b", fontSize: 11 }}>
+            {new Date(points[hoveredIndex].scan.created_at).toLocaleDateString()}
+          </div>
+        </div>
+      )}
       <svg
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
         preserveAspectRatio="xMidYMid meet"
-        style={{ width: "100%", height: "auto", minHeight: 120 }}
+        style={{ width: "100%", height: "auto", minHeight: 120, display: "block" }}
         aria-label="Risk score over time"
       >
         {/* Y-axis band background (0–34 Low, 35–54 Moderate, 55–69 Elevated, 70+ High) */}
@@ -133,7 +170,18 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
 
         {/* Points */}
         {points.map((p) => (
-          <g key={p.scan.id}>
+          <g
+            key={p.scan.id}
+            onMouseEnter={() => setHoveredIndex(p.i)}
+            onMouseLeave={() => setHoveredIndex(null)}
+            style={{ cursor: "pointer" }}
+          >
+            <circle
+              cx={p.x}
+              cy={p.y}
+              r={POINT_R + 4}
+              fill="transparent"
+            />
             <circle
               cx={p.x}
               cy={p.y}
@@ -193,6 +241,14 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
           0
         </text>
       </svg>
+      </div>{/* end position:relative wrapper */}
+
+      {/* Single-scan prompt */}
+      {sorted.length === 1 && (
+        <p style={{ fontSize: 13, color: "#71717a", marginTop: 8, fontStyle: "italic" }}>
+          Re-scan this deal to track risk over time.
+        </p>
+      )}
 
       {/* X-axis: dates below chart */}
       <div

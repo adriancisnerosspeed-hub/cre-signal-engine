@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "stress:risk": "npx tsx scripts/stressRiskIndexV2.ts"
+    "stress:risk": "npx tsx scripts/stressRiskIndexV2.ts",
+    "generate:sample-pdf": "npx tsx scripts/generateSamplePdf.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
