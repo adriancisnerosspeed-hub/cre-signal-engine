@@ -12,7 +12,7 @@ export default function PricingClient({
 }: {
   displayPlan: PricingDisplayPlan;
   workspaceId?: string;
-  slot: "pro" | "pro_plus" | "enterprise" | "founding";
+  slot: "pro" | "pro_plus" | "enterprise" | "enterprise_tier" | "founding";
 }) {
   const [loading, setLoading] = useState<"checkout" | "portal" | null>(null);
 
@@ -131,8 +131,8 @@ export default function PricingClient({
     }
     if (displayPlan === "platform_admin") {
       return (
-        <span style={{ color: "#22c55e", fontSize: 14, fontWeight: 600 }}>
-          You have Enterprise access (Platform Admin)
+        <span style={{ color: "#71717a", fontSize: 14 }}>
+          Included in your Enterprise access (Platform Admin)
         </span>
       );
     }
@@ -153,6 +153,53 @@ export default function PricingClient({
       >
         {loading === "checkout" ? "Redirecting…" : "Start Fund Plan"}
       </button>
+    );
+  }
+
+  if (slot === "enterprise_tier") {
+    if (displayPlan === "platform_admin") {
+      return (
+        <span style={{ color: "#22c55e", fontSize: 14, fontWeight: 600 }}>
+          You have Enterprise access (Platform Admin)
+        </span>
+      );
+    }
+    if (displayPlan === "enterprise") {
+      return (
+        <button
+          type="button"
+          onClick={handleManageBilling}
+          disabled={!!loading}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#3b82f6",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            fontWeight: 600,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          {loading === "portal" ? "Opening…" : "Manage billing"}
+        </button>
+      );
+    }
+    return (
+      <a
+        href="mailto:sales@cresignalengine.com"
+        style={{
+          display: "inline-block",
+          padding: "10px 20px",
+          backgroundColor: "#27272a",
+          color: "#e4e4e7",
+          borderRadius: 8,
+          fontWeight: 600,
+          textDecoration: "none",
+          fontSize: 14,
+        }}
+      >
+        Contact sales
+      </a>
     );
   }
 

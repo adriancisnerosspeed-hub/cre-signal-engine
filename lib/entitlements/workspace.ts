@@ -123,10 +123,11 @@ export async function getWorkspacePlanAndEntitlements(
  * Server-only. Resolves effective workspace plan and entitlements for a user.
  * Always use this (not getWorkspacePlanAndEntitlements) when gating features for the current user.
  *
- * Platform admin bypass: if profiles.role = 'platform_admin', the user receives ENTERPRISE plan
- * and full Enterprise entitlements (invites, policies, benchmark, support bundle, etc.) regardless
- * of the organization's plan. This ensures the platform admin (e.g. you, when OWNER_EMAIL is set)
- * always has Enterprise role.
+ * Platform admin has full Enterprise abilities: if profiles.role = 'platform_admin', the user
+ * receives plan ENTERPRISE and full Enterprise workspace entitlements (API tokens, custom cohorts,
+ * snapshot build, unlimited policies, trajectory, governance export, support bundle, etc.) in any
+ * org, regardless of the organization's plan. Use this for all workspace-gated features so
+ * platform_admin is treated as Enterprise.
  */
 export async function getWorkspacePlanAndEntitlementsForUser(
   supabase: SupabaseClient,

@@ -119,7 +119,7 @@ export default async function PricingPage() {
             padding: 24,
             backgroundColor: "#18181b",
             border:
-              displayPlan === "platform_admin" || displayPlan === "enterprise"
+              displayPlan === "enterprise"
                 ? "2px solid #3b82f6"
                 : "1px solid #3f3f46",
             borderRadius: 12,
@@ -151,7 +151,10 @@ export default async function PricingPage() {
           style={{
             padding: 24,
             backgroundColor: "#18181b",
-            border: "1px solid #3f3f46",
+            border:
+              displayPlan === "platform_admin" || displayPlan === "enterprise"
+                ? "2px solid #3b82f6"
+                : "1px solid #3f3f46",
             borderRadius: 12,
           }}
         >
@@ -169,21 +172,7 @@ export default async function PricingPage() {
             <li>Unlimited workspace members</li>
             <li>Enterprise SLA</li>
           </ul>
-          <a
-            href="mailto:sales@cresignalengine.com"
-            style={{
-              display: "inline-block",
-              padding: "10px 20px",
-              backgroundColor: "#27272a",
-              color: "#e4e4e7",
-              borderRadius: 8,
-              fontWeight: 600,
-              textDecoration: "none",
-              fontSize: 14,
-            }}
-          >
-            Contact sales
-          </a>
+          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise_tier" />
         </section>
       </div>
 

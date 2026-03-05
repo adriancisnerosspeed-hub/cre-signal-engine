@@ -2,7 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type Plan = "free" | "pro" | "platform_admin";
 
-/** Result of getPlanForUser: bypass (platform_admin) or use workspace plan (user). */
+/**
+ * Result of getPlanForUser: bypass (platform_admin) or use workspace plan (user).
+ * platform_admin is granted full Enterprise abilities (see getWorkspacePlanAndEntitlementsForUser in entitlements/workspace.ts).
+ */
 export type PlatformPlan = "platform_admin" | "user";
 
 export type Entitlements = {
@@ -58,14 +61,15 @@ const PRO_ENTITLEMENTS: Entitlements = {
   workspace_enabled: true,
 };
 
+/** Enterprise-level limits for platform_admin. They also receive full ENTERPRISE workspace entitlements via getWorkspacePlanAndEntitlementsForUser. */
 const PLATFORM_ADMIN_ENTITLEMENTS: Entitlements = {
   plan: "platform_admin",
   analyze_calls_per_day: 1000,
-  deal_scans_per_day: 50,
+  deal_scans_per_day: 500,
   lifetime_full_scan_limit: null,
   digest_manual_send: true,
   digest_scheduled: true,
-  email_digest_max_signals: 12,
+  email_digest_max_signals: 24,
   ic_narrative_enabled: true,
   scan_export_enabled: true,
   workspace_invites_enabled: true,
@@ -83,7 +87,7 @@ export async function getPlanForUser(supabase: SupabaseClient, userId: string): 
   return "user";
 }
 
-/** Get entitlements for a plan. platform_admin gets highest limits. */
+/** Get entitlements for a plan. platform_admin gets full Enterprise-level limits. */
 export function getEntitlements(plan: Plan): Entitlements {
   if (plan === "platform_admin") return { ...PLATFORM_ADMIN_ENTITLEMENTS };
   if (plan === "pro") return { ...PRO_ENTITLEMENTS };
