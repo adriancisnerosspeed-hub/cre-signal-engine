@@ -57,13 +57,15 @@ export async function GET(
     return NextResponse.json({ error: "Scan not found" }, { status: 404 });
   }
 
-  const s = scan as {
+  type ScanRow = {
     id: string;
     created_at: string;
     risk_index_score: number | null;
     risk_index_band: string | null;
-    deals: { name: string; asset_type: string | null; market: string | null };
+    deals: { name: string; asset_type: string | null; market: string | null } | { name: string; asset_type: string | null; market: string | null }[];
   };
+  const s = scan as unknown as ScanRow;
+  const dealData = Array.isArray(s.deals) ? s.deals[0] : s.deals;
 
   // Fetch narrative (public to link holders)
   const { data: narrativeRow } = await service
@@ -75,9 +77,9 @@ export async function GET(
   const narrativeContent = (narrativeRow as { content?: string } | null)?.content ?? null;
 
   return NextResponse.json({
-    deal_name: s.deals.name,
-    asset_type: s.deals.asset_type,
-    market: s.deals.market,
+    deal_name: dealData?.name ?? null,
+    asset_type: dealData?.asset_type ?? null,
+    market: dealData?.market ?? null,
     scan_date: s.created_at,
     risk_index_score: s.risk_index_score,
     risk_index_band: s.risk_index_band,

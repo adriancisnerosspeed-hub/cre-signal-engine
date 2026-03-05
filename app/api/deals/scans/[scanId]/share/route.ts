@@ -32,8 +32,11 @@ export async function POST(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Scan not found" }, { status: 404 });
   }
 
-  const scanDeal = scan as { deals: { organization_id: string } };
-  if (scanDeal.deals.organization_id !== orgId) {
+  const scanDeal = scan as unknown as { deals: { organization_id: string } | { organization_id: string }[] };
+  const dealOrg = Array.isArray(scanDeal.deals)
+    ? scanDeal.deals[0]?.organization_id
+    : scanDeal.deals.organization_id;
+  if (dealOrg !== orgId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

@@ -86,13 +86,15 @@ export default async function SharedMemoPage({
 
   if (!scan) notFound();
 
-  const s = scan as {
+  type ScanRow = {
     id: string;
     created_at: string;
     risk_index_score: number | null;
     risk_index_band: string | null;
-    deals: { name: string; asset_type: string | null; market: string | null };
+    deals: { name: string; asset_type: string | null; market: string | null } | { name: string; asset_type: string | null; market: string | null }[];
   };
+  const s = scan as unknown as ScanRow;
+  const dealData = Array.isArray(s.deals) ? s.deals[0] : s.deals;
 
   const { data: narrativeRow } = await service
     .from("deal_scan_narratives")
@@ -122,10 +124,10 @@ export default async function SharedMemoPage({
       {/* Deal header */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, color: "#fafafa", marginBottom: 4 }}>
-          {s.deals.name}
+          {dealData?.name}
         </h1>
         <p style={{ fontSize: 14, color: "#a1a1aa", margin: 0 }}>
-          {[s.deals.asset_type, s.deals.market].filter(Boolean).join(" · ")} · Scanned {scanDate}
+          {[dealData?.asset_type, dealData?.market].filter(Boolean).join(" · ")} · Scanned {scanDate}
         </p>
       </div>
 
