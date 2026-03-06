@@ -34,34 +34,29 @@ export default async function PricingPage() {
   ].every((v) => typeof v === "string" && v.trim() !== "");
 
   return (
-    <main style={{ maxWidth: 780, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa", marginBottom: 8 }}>
+    <main className="max-w-[780px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
+      <h1 className="text-[28px] font-bold text-gray-900 dark:text-white mb-2">
         CRE Signal Engine — Plans
       </h1>
-      <p style={{ color: "#a1a1aa", marginBottom: 32 }}>
+      <p className="text-gray-500 dark:text-gray-400 mb-8">
         Built for underwriting teams deploying real capital.
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div className="flex flex-col gap-6">
         {/* Starter — $97/mo */}
         <section
-          style={{
-            padding: 24,
-            backgroundColor: "#18181b",
-            border: displayPlan === "pro" ? "2px solid #3b82f6" : "1px solid #3f3f46",
-            borderRadius: 12,
-          }}
+          className={`p-6 rounded-xl bg-gray-100 dark:bg-zinc-900 border ${displayPlan === "pro" ? "border-2 border-[#3b82f6]" : "border-gray-300 dark:border-zinc-600"}`}
         >
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 4 }}>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
             Starter
           </h2>
-          <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 4 }}>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">
             $97 / workspace / month
           </p>
-          <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
+          <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
             For individual underwriters and small teams getting started with risk governance.
           </p>
-          <ul style={{ margin: "0 0 16px", paddingLeft: 20, fontSize: 14, color: "#a1a1aa" }}>
+          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc">
             <li>10 scans / month</li>
             <li>Full CRE Signal Risk Index™</li>
             <li>IC-ready PDF export</li>
@@ -74,41 +69,21 @@ export default async function PricingPage() {
 
         {/* Analyst — $297/mo */}
         <section
-          style={{
-            padding: 24,
-            backgroundColor: "#18181b",
-            border: displayPlan === "pro_plus" ? "2px solid #3b82f6" : "2px solid #3b82f6",
-            borderRadius: 12,
-            position: "relative",
-          }}
+          className="relative p-6 rounded-xl bg-gray-100 dark:bg-zinc-900 border-2 border-[#3b82f6]"
         >
-          <div
-            style={{
-              position: "absolute",
-              top: -12,
-              left: 24,
-              backgroundColor: "#3b82f6",
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 700,
-              padding: "3px 10px",
-              borderRadius: 4,
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-            }}
-          >
+          <div className="absolute -top-3 left-6 bg-[#3b82f6] text-white text-[11px] font-bold py-0.5 px-2.5 rounded uppercase tracking-wider">
             Most Popular
           </div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 4 }}>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
             Analyst
           </h2>
-          <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 4 }}>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">
             $297 / workspace / month
           </p>
-          <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
+          <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
             For active underwriting teams who need trajectory, benchmarks, and governance controls.
           </p>
-          <ul style={{ margin: "0 0 16px", paddingLeft: 20, fontSize: 14, color: "#a1a1aa" }}>
+          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc">
             <li>Unlimited scans</li>
             <li>Everything in Starter</li>
             <li>Risk score trajectory (over time)</li>
@@ -122,26 +97,18 @@ export default async function PricingPage() {
 
         {/* Fund — $797/mo */}
         <section
-          style={{
-            padding: 24,
-            backgroundColor: "#18181b",
-            border:
-              displayPlan === "enterprise"
-                ? "2px solid #3b82f6"
-                : "1px solid #3f3f46",
-            borderRadius: 12,
-          }}
+          className={`p-6 rounded-xl bg-gray-100 dark:bg-zinc-900 border ${displayPlan === "enterprise" ? "border-2 border-[#3b82f6]" : "border-gray-300 dark:border-zinc-600"}`}
         >
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 4 }}>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
             Fund
           </h2>
-          <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 4 }}>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">
             $797 / workspace / month
           </p>
-          <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
+          <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
             For funds and institutional platforms managing multiple strategies.
           </p>
-          <ul style={{ margin: "0 0 16px", paddingLeft: 20, fontSize: 14, color: "#a1a1aa" }}>
+          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc">
             <li>Everything in Analyst</li>
             <li>Custom cohort creation</li>
             <li>Snapshot build control</li>
@@ -155,24 +122,16 @@ export default async function PricingPage() {
 
         {/* Enterprise — Custom */}
         <section
-          style={{
-            padding: 24,
-            backgroundColor: "#18181b",
-            border:
-              displayPlan === "platform_admin" || displayPlan === "enterprise"
-                ? "2px solid #3b82f6"
-                : "1px solid #3f3f46",
-            borderRadius: 12,
-          }}
+          className={`p-6 rounded-xl bg-gray-100 dark:bg-zinc-900 border ${displayPlan === "platform_admin" || displayPlan === "enterprise" ? "border-2 border-[#3b82f6]" : "border border-gray-300 dark:border-zinc-600"}`}
         >
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 4 }}>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
             Enterprise
           </h2>
-          <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 8 }}>Custom pricing</p>
-          <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">Custom pricing</p>
+          <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
             For multi-strategy portfolios requiring API access, custom reporting, and enterprise SLA.
           </p>
-          <ul style={{ margin: "0 0 16px", paddingLeft: 20, fontSize: 14, color: "#a1a1aa" }}>
+          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc">
             <li>Everything in Fund</li>
             <li>API access</li>
             <li>Custom reporting</li>
@@ -184,23 +143,15 @@ export default async function PricingPage() {
       </div>
 
       {/* Founding Member Banner */}
-      <section
-        style={{
-          marginTop: 40,
-          padding: "20px 24px",
-          backgroundColor: "rgba(234,179,8,0.08)",
-          border: "1px solid rgba(234,179,8,0.3)",
-          borderRadius: 12,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+      <section className="mt-10 py-5 px-6 bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/30 rounded-xl">
+        <div className="flex justify-between items-center flex-wrap gap-4">
           <div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: "#eab308", marginBottom: 4 }}>
+            <p className="text-[15px] font-bold text-amber-500 dark:text-amber-500 mb-1">
               Founding Member Offer
             </p>
-            <p style={{ fontSize: 14, color: "#a1a1aa", margin: 0 }}>
+            <p className="text-sm text-gray-500 dark:text-gray-400 m-0">
               First 20 users get the Analyst tier for{" "}
-              <strong style={{ color: "#e4e4e7" }}>$147/month, locked for life.</strong>
+              <strong className="text-gray-900 dark:text-zinc-200">$147/month, locked for life.</strong>
             </p>
           </div>
           <PricingClient
@@ -216,42 +167,34 @@ export default async function PricingPage() {
       <PricingComparisonTable />
 
       {/* Free evaluation note */}
-      <section
-        style={{
-          marginTop: 16,
-          padding: "16px 20px",
-          backgroundColor: "#18181b",
-          border: "1px solid #3f3f46",
-          borderRadius: 10,
-        }}
-      >
-        <p style={{ fontSize: 13, color: "#71717a", margin: 0 }}>
-          <strong style={{ color: "#a1a1aa" }}>Free evaluation:</strong> Sign up free for 3
+      <section className="mt-4 py-4 px-5 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-600">
+        <p className="text-[13px] text-gray-500 dark:text-zinc-400 m-0">
+          <strong className="text-gray-600 dark:text-gray-400">Free evaluation:</strong> Sign up free for 3
           lifetime scans — no card required.{" "}
           {!user && (
-            <Link href="/login" style={{ color: "#3b82f6" }}>
+            <Link href="/login" className="text-[#3b82f6]">
               Start free →
             </Link>
           )}
           {user && displayPlan === "free" && (
-            <span style={{ color: "#71717a" }}>You are on the free plan.</span>
+            <span className="text-gray-500 dark:text-zinc-400">You are on the free plan.</span>
           )}
         </p>
       </section>
 
-      <section style={{ marginTop: 40, marginBottom: 24 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+      <section className="mt-10 mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-200 mb-3">
           Why $297 / Month Is Operational Insurance
         </h2>
-        <p style={{ color: "#a1a1aa", fontSize: 15, lineHeight: 1.6 }}>
+        <p className="text-gray-500 dark:text-gray-400 text-[15px] leading-relaxed">
           A single underwriting miss can cost six or seven figures. CRE Signal Engine enforces
           structural consistency, benchmark comparability, and portfolio-level guardrails. For
           institutional operators, governance discipline is not optional.
         </p>
       </section>
 
-      <p style={{ marginTop: 32 }}>
-        <Link href="/" style={{ color: "#3b82f6", fontSize: 14 }}>
+      <p className="mt-8">
+        <Link href="/" className="text-[#3b82f6] text-sm">
           Back to home
         </Link>
       </p>

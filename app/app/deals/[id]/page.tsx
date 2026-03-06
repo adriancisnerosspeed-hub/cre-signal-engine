@@ -89,8 +89,8 @@ export default async function DealPage({
   const orgId = await getCurrentOrgId(supabase, user);
   if (!orgId) {
     return (
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-        <p style={{ color: "#a1a1aa" }}>No workspace selected.</p>
+      <main className="max-w-[800px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
+        <p className="text-gray-500 dark:text-gray-400">No workspace selected.</p>
       </main>
     );
   }
@@ -237,7 +237,7 @@ export default async function DealPage({
   const bandMismatchExpectedBand = bandConsistency?.expectedBand;
 
   return (
-    <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
+    <main className="max-w-[800px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
       <div style={{ marginBottom: 24 }}>
         <Link href="/app/deals" style={{ color: "#a1a1aa", fontSize: 14, textDecoration: "none" }}>
           ← Back to deals

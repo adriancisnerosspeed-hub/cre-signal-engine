@@ -28,9 +28,9 @@ export default async function DealsPage() {
   const orgId = await getCurrentOrgId(supabase, user);
   if (!orgId) {
     return (
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>Deals</h1>
-        <p style={{ color: "#a1a1aa", marginTop: 8 }}>
+      <main className="max-w-[800px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
+        <h1 className="text-[28px] font-bold text-gray-900 dark:text-white">Deals</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-2">
           No workspace selected. Please sign in again or contact support.
         </p>
       </main>
@@ -52,63 +52,44 @@ export default async function DealsPage() {
   const list = (deals ?? []) as Deal[];
 
   return (
-    <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
+    <main className="max-w-[800px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
       <UsageBanner />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>Deals</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-[28px] font-bold text-gray-900 dark:text-white">Deals</h1>
         <Link
           href="/app/deals/new"
-          style={{
-            padding: "10px 20px",
-            backgroundColor: "var(--foreground)",
-            color: "var(--background)",
-            textDecoration: "none",
-            borderRadius: 6,
-            fontWeight: 600,
-            fontSize: 14,
-          }}
+          className="py-2.5 px-5 bg-gray-900 dark:bg-white text-white dark:text-black no-underline rounded-md font-semibold text-sm"
         >
           New deal
         </Link>
       </div>
 
       {list.length === 0 ? (
-        <p style={{ color: "#a1a1aa" }}>
+        <p className="text-gray-500 dark:text-gray-400">
           No deals yet.{" "}
           <Link href="/app/deals/new" style={{ color: "#3b82f6" }}>
             Create your first deal
           </Link>
         </p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        <ul className="list-none p-0 m-0">
           {list.map((deal) => (
             <li
               key={deal.id}
-              style={{
-                padding: "16px 20px",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 8,
-                marginBottom: 12,
-                backgroundColor: "rgba(255,255,255,0.03)",
-              }}
+              className="py-4 px-5 border border-gray-200 dark:border-white/10 rounded-lg mb-3 bg-gray-50 dark:bg-white/[0.03]"
             >
               <Link
                 href={`/app/deals/${deal.id}`}
-                style={{
-                  color: "var(--foreground)",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                  fontSize: 16,
-                }}
+                className="text-gray-900 dark:text-white no-underline font-semibold text-base"
               >
                 {deal.name}
               </Link>
               {(deal.asset_type || deal.market) && (
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "#a1a1aa" }}>
+                <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">
                   {[deal.asset_type, deal.market].filter(Boolean).join(" · ")}
                 </p>
               )}
-              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#71717a" }}>
+              <p className="mt-1 text-xs text-gray-500 dark:text-zinc-400">
                 {new Date(deal.created_at).toLocaleDateString()}
               </p>
             </li>

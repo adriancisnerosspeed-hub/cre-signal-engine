@@ -76,7 +76,7 @@ export default async function AppPage() {
   }
 
   return (
-    <main style={{ maxWidth: 1000, margin: "0 auto", padding: 24 }}>
+    <main className="max-w-[1000px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
       {showOnboarding && <OnboardingFlow demo={demoInfo} />}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>

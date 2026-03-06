@@ -93,79 +93,55 @@ export default function SampleReportPage() {
   const bandColor = BAND_COLORS[SAMPLE_BAND] ?? "#eab308";
 
   return (
-    <main style={{ maxWidth: 800, margin: "0 auto", padding: "40px 24px" }}>
+    <main className="max-w-[800px] mx-auto py-10 px-6 bg-white dark:bg-black text-gray-900 dark:text-white">
       {/* Header */}
-      <div style={{ marginBottom: 32, textAlign: "center" }}>
-        <p style={{ fontSize: 13, color: "#71717a", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      <div className="mb-8 text-center">
+        <p className="text-[13px] text-gray-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">
           CRE Signal Engine
         </p>
-        <h1 style={{ fontSize: 32, fontWeight: 700, color: "#fafafa", marginBottom: 12 }}>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
           See CRE Signal Engine in Action
         </h1>
-        <p style={{ color: "#a1a1aa", fontSize: 16, lineHeight: 1.6, maxWidth: 560, margin: "0 auto" }}>
+        <p className="text-gray-500 dark:text-gray-400 text-base leading-relaxed max-w-[560px] mx-auto">
           A live example of an AI-generated IC Memo with institutional risk scoring — no login required.
         </p>
       </div>
 
       {/* Risk Score Badge */}
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          padding: "16px 20px",
-          backgroundColor: "#18181b",
-          border: `1px solid ${bandColor}40`,
-          borderRadius: 10,
-          marginBottom: 24,
-        }}
+        className="flex items-center gap-4 py-4 px-5 rounded-lg mb-6 bg-gray-100 dark:bg-zinc-900 border"
+        style={{ borderColor: `${bandColor}40` }}
       >
-        <div
-          style={{
-            fontSize: 42,
-            fontWeight: 800,
-            color: bandColor,
-            lineHeight: 1,
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
+        <div className="text-[42px] font-extrabold tabular-nums leading-none" style={{ color: bandColor }}>
           {SAMPLE_SCORE}
         </div>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: bandColor }}>{SAMPLE_BAND}</div>
-          <div style={{ fontSize: 12, color: "#71717a", marginTop: 2 }}>CRE Signal Risk Index™</div>
+          <div className="text-lg font-bold" style={{ color: bandColor }}>{SAMPLE_BAND}</div>
+          <div className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">CRE Signal Risk Index™</div>
         </div>
-        <div style={{ marginLeft: "auto", textAlign: "right" }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#e4e4e7" }}>
+        <div className="ml-auto text-right">
+          <div className="text-sm font-semibold text-gray-900 dark:text-zinc-200">
             Riverside Commerce Center
           </div>
-          <div style={{ fontSize: 13, color: "#a1a1aa" }}>Austin, TX · Office</div>
+          <div className="text-[13px] text-gray-500 dark:text-gray-400">Austin, TX · Office</div>
         </div>
       </div>
 
       {/* Key Assumptions */}
-      <section style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+      <section className="mb-7">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-200 mb-3">
           Key Assumptions
         </h2>
-        <div
-          style={{
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 8,
-            overflow: "hidden",
-          }}
-        >
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+        <div className="border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden">
+          <table className="w-full border-collapse text-sm">
             <tbody>
               {SAMPLE_ASSUMPTIONS.map((a, i) => (
                 <tr
                   key={a.key}
-                  style={{
-                    borderBottom: i < SAMPLE_ASSUMPTIONS.length - 1 ? "1px solid rgba(255,255,255,0.07)" : undefined,
-                  }}
+                  className={i < SAMPLE_ASSUMPTIONS.length - 1 ? "border-b border-gray-200 dark:border-white/7" : ""}
                 >
-                  <td style={{ padding: "8px 14px", color: "#a1a1aa", width: "45%" }}>{a.key}</td>
-                  <td style={{ padding: "8px 14px", color: "#e4e4e7", fontWeight: 500 }}>{a.value}</td>
+                  <td className="py-2 px-3.5 text-gray-500 dark:text-gray-400 w-[45%]">{a.key}</td>
+                  <td className="py-2 px-3.5 text-gray-900 dark:text-zinc-200 font-medium">{a.value}</td>
                 </tr>
               ))}
             </tbody>
@@ -174,118 +150,66 @@ export default function SampleReportPage() {
       </section>
 
       {/* Primary Risks */}
-      <section style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+      <section className="mb-7">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-200 mb-3">
           Primary Risks
         </h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {SAMPLE_RISKS.map((r) => (
             <div
               key={r.type}
-              style={{
-                padding: "12px 16px",
-                backgroundColor: "#18181b",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 8,
-              }}
+              className="py-3 px-4 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-white/8"
             >
-              <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontSize: 12, color: "#71717a" }}>{r.type}</span>
+              <div className="flex gap-2.5 items-center mb-1.5">
+                <span className="text-xs text-gray-500 dark:text-zinc-400">{r.type}</span>
                 <span
+                  className="text-[11px] font-semibold py-0.5 px-1.5 rounded"
                   style={{
-                    fontSize: 11,
-                    fontWeight: 600,
                     color: r.severity === "High" ? "#ef4444" : r.severity === "Medium" ? "#eab308" : "#22c55e",
                     backgroundColor: r.severity === "High" ? "rgba(239,68,68,0.15)" : r.severity === "Medium" ? "rgba(234,179,8,0.15)" : "rgba(34,197,94,0.15)",
-                    padding: "1px 6px",
-                    borderRadius: 4,
                   }}
                 >
                   {r.severity}
                 </span>
               </div>
-              <p style={{ margin: 0, fontSize: 13, color: "#a1a1aa", lineHeight: 1.55 }}>{r.description}</p>
+              <p className="m-0 text-[13px] text-gray-500 dark:text-gray-400 leading-snug">{r.description}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* IC Narrative */}
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+      <section className="mb-8">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-200 mb-3">
           IC Memorandum Narrative
         </h2>
-        <div
-          style={{
-            padding: "20px 24px",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 8,
-            backgroundColor: "rgba(255,255,255,0.02)",
-            fontSize: 14,
-            color: "#e4e4e7",
-          }}
-        >
+        <div className="py-5 px-6 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-white/[0.02] text-sm text-gray-900 dark:text-zinc-200">
           {renderMarkdown(SAMPLE_NARRATIVE)}
         </div>
       </section>
 
       {/* CTAs */}
-      <div
-        style={{
-          display: "flex",
-          gap: 16,
-          flexWrap: "wrap",
-          marginBottom: 40,
-          padding: "20px 24px",
-          backgroundColor: "#18181b",
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: 10,
-        }}
-      >
+      <div className="flex gap-4 flex-wrap mb-10 py-5 px-6 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-white/10">
         <a
           href="/sample-report.pdf"
           download
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "12px 24px",
-            backgroundColor: "rgba(255,255,255,0.1)",
-            color: "#e4e4e7",
-            border: "1px solid rgba(255,255,255,0.2)",
-            borderRadius: 8,
-            fontWeight: 600,
-            fontSize: 14,
-            textDecoration: "none",
-          }}
+          className="inline-flex items-center gap-2 py-3 px-6 bg-gray-200 dark:bg-white/10 text-gray-900 dark:text-zinc-200 border border-gray-300 dark:border-white/20 rounded-lg font-semibold text-sm no-underline"
         >
           Download Sample PDF
         </a>
         <Link
           href="/login"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "12px 24px",
-            backgroundColor: "#3b82f6",
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            fontWeight: 600,
-            fontSize: 14,
-            textDecoration: "none",
-          }}
+          className="inline-flex items-center gap-2 py-3 px-6 bg-[#3b82f6] text-white border-0 rounded-lg font-semibold text-sm no-underline"
         >
           Analyze Your Own Deal →
         </Link>
       </div>
 
       {/* Footer */}
-      <div style={{ textAlign: "center", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 24 }}>
-        <p style={{ color: "#52525b", fontSize: 13 }}>
+      <div className="text-center border-t border-gray-200 dark:border-white/8 pt-6">
+        <p className="text-gray-500 dark:text-zinc-500 text-[13px]">
           Generated by{" "}
-          <Link href="/" style={{ color: "#71717a", textDecoration: "none" }}>
+          <Link href="/" className="text-gray-500 dark:text-zinc-400 no-underline">
             CRE Signal Engine
           </Link>{" "}
           · {new Date().getFullYear()} · Not investment advice

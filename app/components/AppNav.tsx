@@ -6,33 +6,6 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 
-const navStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: 20,
-  padding: "12px 24px",
-  borderBottom: "1px solid rgba(255,255,255,0.1)",
-  backgroundColor: "var(--background)",
-  flexWrap: "wrap" as const,
-};
-const linkStyle = {
-  color: "var(--foreground)",
-  textDecoration: "none",
-  fontSize: 14,
-  opacity: 0.9,
-};
-const activeLinkStyle = { ...linkStyle, fontWeight: 600, opacity: 1 };
-const buttonStyle = {
-  padding: "6px 12px",
-  fontSize: 14,
-  background: "transparent",
-  color: "var(--foreground)",
-  border: "1px solid rgba(255,255,255,0.3)",
-  borderRadius: 4,
-  cursor: "pointer" as const,
-  opacity: 0.9,
-};
-
 type CurrentOrg = { id: string; name: string } | null;
 
 export default function AppNav() {
@@ -75,38 +48,43 @@ export default function AppNav() {
     router.refresh();
   }
 
+  const navClassName = "flex items-center gap-5 py-3 px-6 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-black flex-wrap";
+  const linkClassName = "text-gray-900 dark:text-white text-sm no-underline opacity-90";
+  const activeClassName = "text-gray-900 dark:text-white text-sm no-underline font-semibold opacity-100";
+  const buttonClassName = "py-1.5 px-3 text-sm bg-transparent text-gray-900 dark:text-white border border-gray-300 dark:border-white/30 rounded cursor-pointer opacity-90";
+
   // Public-only nav when not logged in (bot-safe; no redirect)
   if (!user) {
     return (
-      <nav style={navStyle}>
-        <Link href="/" style={pathname === "/" ? activeLinkStyle : linkStyle}>Home</Link>
-        <Link href="/sample-report" style={pathname === "/sample-report" ? activeLinkStyle : linkStyle}>Sample Report</Link>
-        <Link href="/pricing" style={pathname === "/pricing" ? activeLinkStyle : linkStyle}>Pricing</Link>
-        <Link href="/login" style={{ ...linkStyle, marginLeft: "auto", fontWeight: 600 }}>Sign in</Link>
+      <nav className={navClassName}>
+        <Link href="/" className={pathname === "/" ? activeClassName : linkClassName}>Home</Link>
+        <Link href="/sample-report" className={pathname === "/sample-report" ? activeClassName : linkClassName}>Sample Report</Link>
+        <Link href="/pricing" className={pathname === "/pricing" ? activeClassName : linkClassName}>Pricing</Link>
+        <Link href="/login" className={`${linkClassName} ml-auto font-semibold`}>Sign in</Link>
       </nav>
     );
   }
 
   return (
-    <nav style={navStyle}>
-      <Link href="/" style={pathname === "/" ? activeLinkStyle : linkStyle}>Home</Link>
-      <Link href="/sample-report" style={pathname === "/sample-report" ? activeLinkStyle : linkStyle}>Sample Report</Link>
-      <Link href="/app" style={pathname === "/app" ? activeLinkStyle : linkStyle}>Dashboard</Link>
-      <Link href="/app/deals" style={pathname?.startsWith("/app/deals") ? activeLinkStyle : linkStyle}>Deals</Link>
-      <Link href="/app/portfolio" style={pathname === "/app/portfolio" ? activeLinkStyle : linkStyle}>Portfolio</Link>
-      <Link href="/app/policy" style={pathname === "/app/policy" ? activeLinkStyle : linkStyle}>Governance</Link>
-      <Link href="/app/governance/dashboard" style={pathname?.startsWith("/app/governance") ? activeLinkStyle : linkStyle}>Governance dashboard</Link>
-      <Link href="/app/benchmarks/cohorts" style={pathname?.startsWith("/app/benchmarks") ? activeLinkStyle : linkStyle}>Benchmarks</Link>
-      <Link href="/app/methodology" style={pathname === "/app/methodology" ? activeLinkStyle : linkStyle}>Methodology</Link>
-      <Link href="/pricing" style={pathname === "/pricing" ? activeLinkStyle : linkStyle}>Pricing</Link>
-      <Link href="/digest/preview" style={pathname === "/digest/preview" ? activeLinkStyle : linkStyle}>Risk Brief</Link>
-      <Link href="/settings" style={pathname === "/settings" ? activeLinkStyle : linkStyle}>Settings</Link>
+    <nav className={navClassName}>
+      <Link href="/" className={pathname === "/" ? activeClassName : linkClassName}>Home</Link>
+      <Link href="/sample-report" className={pathname === "/sample-report" ? activeClassName : linkClassName}>Sample Report</Link>
+      <Link href="/app" className={pathname === "/app" ? activeClassName : linkClassName}>Dashboard</Link>
+      <Link href="/app/deals" className={pathname?.startsWith("/app/deals") ? activeClassName : linkClassName}>Deals</Link>
+      <Link href="/app/portfolio" className={pathname === "/app/portfolio" ? activeClassName : linkClassName}>Portfolio</Link>
+      <Link href="/app/policy" className={pathname === "/app/policy" ? activeClassName : linkClassName}>Governance</Link>
+      <Link href="/app/governance/dashboard" className={pathname?.startsWith("/app/governance") ? activeClassName : linkClassName}>Governance dashboard</Link>
+      <Link href="/app/benchmarks/cohorts" className={pathname?.startsWith("/app/benchmarks") ? activeClassName : linkClassName}>Benchmarks</Link>
+      <Link href="/app/methodology" className={pathname === "/app/methodology" ? activeClassName : linkClassName}>Methodology</Link>
+      <Link href="/pricing" className={pathname === "/pricing" ? activeClassName : linkClassName}>Pricing</Link>
+      <Link href="/digest/preview" className={pathname === "/digest/preview" ? activeClassName : linkClassName}>Risk Brief</Link>
+      <Link href="/settings" className={pathname === "/settings" ? activeClassName : linkClassName}>Settings</Link>
       {currentOrg && (
-        <span style={{ fontSize: 13, opacity: 0.85, marginLeft: "auto", marginRight: 12 }}>
+        <span className="text-[13px] opacity-85 ml-auto mr-3 text-gray-600 dark:text-gray-400">
           Workspace: {currentOrg.name}
         </span>
       )}
-      <button type="button" onClick={handleSignOut} style={{ ...buttonStyle, marginLeft: currentOrg ? 0 : "auto" }}>
+      <button type="button" onClick={handleSignOut} className={`${buttonClassName} ${currentOrg ? "" : "ml-auto"}`}>
         Sign out
       </button>
     </nav>

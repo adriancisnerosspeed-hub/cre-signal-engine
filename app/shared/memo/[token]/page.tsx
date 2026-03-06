@@ -127,21 +127,21 @@ export default async function SharedMemoPage({
   });
 
   return (
-    <main style={{ maxWidth: 800, margin: "0 auto", padding: "40px 24px" }}>
+    <main className="max-w-[800px] mx-auto py-10 px-6 bg-white dark:bg-black text-gray-900 dark:text-white">
       {/* Watermark / brand */}
-      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Link href="/" style={{ textDecoration: "none" }}>
-          <span style={{ fontSize: 13, color: "#52525b", fontWeight: 600 }}>CRE Signal Engine</span>
+      <div className="mb-6 flex justify-between items-center">
+        <Link href="/" className="no-underline">
+          <span className="text-[13px] text-gray-500 dark:text-zinc-500 font-semibold">CRE Signal Engine</span>
         </Link>
-        <span style={{ fontSize: 12, color: "#52525b" }}>Shared IC Memo</span>
+        <span className="text-xs text-gray-500 dark:text-zinc-500">Shared IC Memo</span>
       </div>
 
       {/* Deal header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: "#fafafa", marginBottom: 4 }}>
+      <div className="mb-6">
+        <h1 className="text-[26px] font-bold text-gray-900 dark:text-white mb-1">
           {dealData?.name}
         </h1>
-        <p style={{ fontSize: 14, color: "#a1a1aa", margin: 0 }}>
+        <p className="text-sm text-gray-500 dark:text-gray-400 m-0">
           {[dealData?.asset_type, dealData?.market].filter(Boolean).join(" · ")} · Scanned {scanDate}
         </p>
       </div>
@@ -149,95 +149,56 @@ export default async function SharedMemoPage({
       {/* Risk score */}
       {s.risk_index_score != null && (
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            padding: "16px 20px",
-            backgroundColor: "#18181b",
-            border: `1px solid ${bandColor}40`,
-            borderRadius: 10,
-            marginBottom: 28,
-          }}
+          className="flex items-center gap-4 py-4 px-5 rounded-lg mb-7 bg-gray-100 dark:bg-zinc-900 border"
+          style={{ borderColor: `${bandColor}40` }}
         >
-          <div style={{ fontSize: 42, fontWeight: 800, color: bandColor, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+          <div className="text-[42px] font-extrabold tabular-nums leading-none" style={{ color: bandColor }}>
             {s.risk_index_score}
           </div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: bandColor }}>{s.risk_index_band}</div>
-            <div style={{ fontSize: 12, color: "#71717a", marginTop: 2 }}>CRE Signal Risk Index™</div>
+            <div className="text-lg font-bold" style={{ color: bandColor }}>{s.risk_index_band}</div>
+            <div className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">CRE Signal Risk Index™</div>
           </div>
         </div>
       )}
 
       {/* Narrative */}
       {narrativeContent ? (
-        <section style={{ marginBottom: 40 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: "#e4e4e7", marginBottom: 14 }}>
+        <section className="mb-10">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-200 mb-3.5">
             IC Memorandum Narrative
           </h2>
-          <div
-            style={{
-              padding: "20px 24px",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 8,
-              backgroundColor: "rgba(255,255,255,0.02)",
-              fontSize: 14,
-              color: "#e4e4e7",
-            }}
-          >
+          <div className="py-5 px-6 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-white/[0.02] text-sm text-gray-900 dark:text-zinc-200">
             {renderMarkdown(narrativeContent)}
           </div>
         </section>
       ) : (
-        <div
-          style={{
-            padding: "20px 24px",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 8,
-            marginBottom: 40,
-          }}
-        >
-          <p style={{ color: "#71717a", fontSize: 14, margin: 0 }}>
+        <div className="py-5 px-6 border border-gray-200 dark:border-white/8 rounded-lg mb-10">
+          <p className="text-gray-500 dark:text-zinc-400 text-sm m-0">
             IC memo narrative has not been generated for this scan.
           </p>
         </div>
       )}
 
       {/* Footer */}
-      <div
-        style={{
-          borderTop: "1px solid rgba(255,255,255,0.08)",
-          paddingTop: 24,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <p style={{ fontSize: 13, color: "#52525b", margin: 0 }}>
+      <div className="border-t border-gray-200 dark:border-white/8 pt-6 flex justify-between items-center flex-wrap gap-3">
+        <p className="text-[13px] text-gray-500 dark:text-zinc-500 m-0">
           Powered by{" "}
-          <Link href="/" style={{ color: "#71717a", textDecoration: "none" }}>
+          <Link href="/" className="text-gray-500 dark:text-zinc-400 no-underline">
             CRE Signal Engine
           </Link>{" "}
           · Institutional risk governance for CRE deals
         </p>
         <Link
           href="/login"
-          style={{
-            fontSize: 13,
-            color: "#3b82f6",
-            textDecoration: "none",
-            fontWeight: 600,
-          }}
+          className="text-[13px] text-[#3b82f6] no-underline font-semibold"
         >
           Analyze your own deals →
         </Link>
       </div>
 
       {/* Disclaimer */}
-      <p style={{ fontSize: 11, color: "#3f3f46", marginTop: 16, lineHeight: 1.5 }}>
+      <p className="text-[11px] text-gray-500 dark:text-zinc-500 mt-4 leading-relaxed">
         CRE Signal Engine is an underwriting support tool. This memo does not constitute investment advice.
         Financial assumptions are not displayed in shared memos.
       </p>

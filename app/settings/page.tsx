@@ -54,27 +54,27 @@ export default async function SettingsPage() {
     : defaults;
 
   return (
-    <main style={{ maxWidth: 1000, margin: "0 auto", padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>
+    <main className="max-w-[1000px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
+      <div className="mb-6">
+        <h1 className="text-[28px] font-bold text-gray-900 dark:text-white">
           Settings
         </h1>
-        <p style={{ color: "#a1a1aa", marginTop: 4 }}>
-          Signed in as <strong style={{ color: "#e4e4e7" }}>{user.email}</strong>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
+          Signed in as <strong className="text-gray-900 dark:text-zinc-200">{user.email}</strong>
         </p>
-        <div style={{ marginTop: 16, padding: "16px 20px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, maxWidth: 480 }}>
-          <p style={{ fontSize: 12, color: "#71717a", marginBottom: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+        <div className="mt-4 py-4 px-5 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/8 rounded-lg max-w-[480px]">
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mb-2.5 font-semibold uppercase tracking-wider">
             Quick links
           </p>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 14 }}>
-            <li style={{ marginBottom: 10 }}>
-              <Link href="/settings/workspace" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+          <ul className="list-none p-0 m-0 text-sm">
+            <li className="mb-2.5">
+              <Link href="/settings/workspace" className="text-[#3b82f6] no-underline font-medium">
                 Workspace — members &amp; invites
               </Link>
-              <span style={{ color: "#71717a", marginLeft: 6 }}>Manage your workspace and invite team members.</span>
+              <span className="text-gray-500 dark:text-zinc-400 ml-1.5">Manage your workspace and invite team members.</span>
             </li>
-            <li style={{ marginBottom: 10 }}>
-              <Link href="/app/methodology" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+            <li className="mb-2.5">
+              <Link href="/app/methodology" className="text-[#3b82f6] no-underline font-medium">
                 Risk Index Methodology
               </Link>
               {entitlements.scan_export_enabled && (
@@ -85,31 +85,31 @@ export default async function SettingsPage() {
                   />
                 </>
               )}
-              <span style={{ color: "#71717a", marginLeft: 6 }}>View and download the methodology PDF.</span>
+              <span className="text-gray-500 dark:text-zinc-400 ml-1.5">View and download the methodology PDF.</span>
             </li>
-            <li style={{ marginBottom: 10 }}>
-              <Link href="/app/policy" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+            <li className="mb-2.5">
+              <Link href="/app/policy" className="text-[#3b82f6] no-underline font-medium">
                 Governance
               </Link>
-              <span style={{ color: "#71717a", marginLeft: 6 }}>Create and manage governance policies and run evaluations.</span>
+              <span className="text-gray-500 dark:text-zinc-400 ml-1.5">Create and manage governance policies and run evaluations.</span>
             </li>
-            <li style={{ marginBottom: 10 }}>
-              <Link href="/app/governance/dashboard" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+            <li className="mb-2.5">
+              <Link href="/app/governance/dashboard" className="text-[#3b82f6] no-underline font-medium">
                 Governance dashboard
               </Link>
-              <span style={{ color: "#71717a", marginLeft: 6 }}>Portfolio risk trend, policy violations, overrides (Analyst / Fund / Enterprise).</span>
+              <span className="text-gray-500 dark:text-zinc-400 ml-1.5">Portfolio risk trend, policy violations, overrides (Analyst / Fund / Enterprise).</span>
             </li>
-            <li style={{ marginBottom: 10 }}>
-              <Link href="/app/benchmarks/cohorts" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+            <li className="mb-2.5">
+              <Link href="/app/benchmarks/cohorts" className="text-[#3b82f6] no-underline font-medium">
                 Benchmark cohorts &amp; snapshots
               </Link>
-              <span style={{ color: "#71717a", marginLeft: 6 }}>View cohorts; Enterprise can create cohorts and build snapshots.</span>
+              <span className="text-gray-500 dark:text-zinc-400 ml-1.5">View cohorts; Enterprise can create cohorts and build snapshots.</span>
             </li>
             <li>
-              <Link href="/settings/api-tokens" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+              <Link href="/settings/api-tokens" className="text-[#3b82f6] no-underline font-medium">
                 API tokens
               </Link>
-              <span style={{ color: "#71717a", marginLeft: 6 }}>Create tokens for the read-only API (Enterprise only).</span>
+              <span className="text-gray-500 dark:text-zinc-400 ml-1.5">Create tokens for the read-only API (Enterprise only).</span>
             </li>
           </ul>
         </div>
