@@ -87,7 +87,7 @@ export default function MethodologyDownloadButton({
             opacity: loading ? 0.7 : 1,
           }}
         >
-          {loading ? "Generating…" : scanExportEnabled ? "Download PDF" : "Download PDF (Pro required)"}
+          {loading ? "Generating…" : scanExportEnabled ? "Download PDF" : "Download PDF (Starter plan required)"}
         </button>
         {error && (
           <span style={{ fontSize: 12, color: "#f87171" }}>{error}</span>

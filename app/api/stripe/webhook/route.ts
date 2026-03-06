@@ -169,6 +169,22 @@ async function updateOrgFromSubscription(
   eventId: string
 ) {
   const priceId = sub.items?.data?.[0]?.price?.id ?? null;
+  const resolvedPlan = planFromPriceId(priceId);
+
+  // Diagnostic logging: remove after confirming plan update (price ID vs env)
+  const envFund = process.env.STRIPE_PRICE_ID_FUND ?? "";
+  const envAnalyst = process.env.STRIPE_PRICE_ID_ANALYST ?? "";
+  const envStarter = process.env.STRIPE_PRICE_ID_STARTER ?? "";
+  const envFounding = process.env.STRIPE_PRICE_ID_FOUNDING ?? "";
+  console.log("[stripe_webhook] Webhook price ID:", priceId);
+  console.log("[stripe_webhook] Matched plan slug:", resolvedPlan ?? "no match");
+  console.log("[stripe_webhook] ENV price IDs (last 6 chars):", {
+    FUND: envFund ? envFund.slice(-6) : "(unset)",
+    ANALYST: envAnalyst ? envAnalyst.slice(-6) : "(unset)",
+    STARTER: envStarter ? envStarter.slice(-6) : "(unset)",
+    FOUNDING: envFounding ? envFounding.slice(-6) : "(unset)",
+  });
+
   const billingStatus =
     sub.status === "active" || sub.status === "trialing"
       ? sub.status
@@ -177,8 +193,6 @@ async function updateOrgFromSubscription(
         : sub.status === "canceled" || sub.status === "unpaid"
           ? "canceled"
           : "inactive";
-
-  const resolvedPlan = planFromPriceId(priceId);
 
   // Audit unknown or missing price for visibility (diagnose config mistakes without reading logs)
   if (priceId != null && resolvedPlan == null) {
@@ -262,7 +276,8 @@ async function updateOrgFromSubscription(
   if (billingStatus === "active" || billingStatus === "trialing") {
     updates.plan_activated_at = new Date().toISOString();
   }
-  await supabase.from("organizations").update(updates).eq("id", orgId);
+  const { error: updateError } = await supabase.from("organizations").update(updates).eq("id", orgId);
+  console.log("[stripe_webhook] Database update result:", updateError ? { error: updateError.message } : { ok: true, plan: updates.plan });
 }
 
 async function recordUnmatchedEvent(

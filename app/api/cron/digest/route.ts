@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     console.log(JSON.stringify({
       digest_cron: true,
       scheduled_skipped_non_pro: inWindow.length - toProcess.length,
-      reason: "scheduled digest is Pro only",
+      reason: "scheduled digest is Starter and above",
     }));
   }
 

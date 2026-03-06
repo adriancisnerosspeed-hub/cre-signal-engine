@@ -2,9 +2,43 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Plan } from "@/lib/entitlements";
 import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
 import { toast } from "@/lib/toast";
+
+/** Map internal plan slug to user-facing display name. */
+function planDisplayName(plan: string): string {
+  switch (plan) {
+    case "free":
+    case "FREE":
+      return "Free (3 lifetime scans)";
+    case "PRO":
+      return "Starter";
+    case "pro":
+      return "Starter";
+    case "PRO+":
+      return "Analyst";
+    case "ENTERPRISE":
+      return "Fund";
+    case "ENTERPRISE_CUSTOM":
+      return "Enterprise";
+    case "platform_admin":
+      return "ENTERPRISE — Platform Admin";
+    default:
+      return plan || "Free (3 lifetime scans)";
+  }
+}
+
+/** True if plan is paid (show Manage billing). */
+function isPaidPlan(plan: string): boolean {
+  return (
+    plan === "platform_admin" ||
+    plan === "pro" ||
+    plan === "PRO" ||
+    plan === "PRO+" ||
+    plan === "ENTERPRISE" ||
+    plan === "ENTERPRISE_CUSTOM"
+  );
+}
 
 export default function BillingCard({
   plan,
@@ -14,7 +48,7 @@ export default function BillingCard({
   dealScansLimit,
   digestScheduledEnabled,
 }: {
-  plan: Plan;
+  plan: string;
   analyzeCallsToday: number;
   analyzeLimit: number;
   dealScansToday: number;
@@ -67,12 +101,7 @@ export default function BillingCard({
 
   const dealScansPercent = dealScansLimit > 0 ? Math.round((dealScansToday / dealScansLimit) * 100) : 0;
 
-  const planLabel =
-    plan === "platform_admin"
-      ? "ENTERPRISE — Platform Admin"
-      : plan === "pro"
-        ? "PRO — Institutional Workspace"
-        : plan;
+  const planLabel = planDisplayName(plan);
 
   return (
     <div style={blockStyle}>
@@ -85,7 +114,7 @@ export default function BillingCard({
       <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
         Plan: <strong style={{ color: "#e4e4e7" }}>{planLabel}</strong>
       </p>
-      {(plan === "pro" || plan === "platform_admin") && (
+      {isPaidPlan(plan) && (
         <>
           <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 4 }}>
             Active Policy: 1 / 1
@@ -106,10 +135,10 @@ export default function BillingCard({
         Analyzes today: {analyzeCallsToday} / {analyzeLimit}
       </p>
       <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
-        Scheduled Risk Brief: {digestScheduledEnabled ? "Enabled" : "Pro only"}
+        Scheduled Risk Brief: {digestScheduledEnabled ? "Enabled" : "Starter and above"}
       </p>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        {plan === "pro" || plan === "platform_admin" ? (
+        {isPaidPlan(plan) ? (
           <button
             type="button"
             onClick={handleManageBilling}

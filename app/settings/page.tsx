@@ -1,11 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ensureProfile } from "@/lib/auth";
 import { getDefaultPreferences } from "@/lib/digest";
 import { getEntitlementsForUser } from "@/lib/entitlements";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { getUsageToday } from "@/lib/usage";
-import { getCurrentOrg } from "@/lib/org";
+import { getCurrentOrg, getCurrentOrgId } from "@/lib/org";
 import { version as methodologyVersion } from "@/lib/methodology/methodologyContent";
 import SettingsForm from "./SettingsForm";
 import BillingCard from "./BillingCard";
@@ -23,11 +25,15 @@ export default async function SettingsPage() {
 
   await ensureProfile(supabase, user);
   const currentOrg = await getCurrentOrg(supabase, user);
+  const orgId = await getCurrentOrgId(supabase, user);
 
-  const [entitlements, usage] = await Promise.all([
+  const [entitlements, usage, workspacePlanResult] = await Promise.all([
     getEntitlementsForUser(supabase, user.id),
     getUsageToday(supabase, user.id),
+    orgId ? getWorkspacePlanAndEntitlementsForUser(createServiceRoleClient(), orgId, user.id).then((r) => r.plan).catch(() => null) : Promise.resolve(null),
   ]);
+
+  const planForDisplay = workspacePlanResult ?? entitlements.plan;
 
   const { data: row } = await supabase
     .from("user_preferences")
@@ -110,7 +116,7 @@ export default async function SettingsPage() {
       </div>
 
       <BillingCard
-        plan={entitlements.plan}
+        plan={planForDisplay}
         analyzeCallsToday={usage.analyze_calls}
         analyzeLimit={entitlements.analyze_calls_per_day}
         dealScansToday={usage.deal_scans}
