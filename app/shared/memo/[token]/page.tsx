@@ -50,13 +50,17 @@ export default async function SharedMemoPage({
   const { token } = await params;
   const service = createServiceRoleClient();
 
-  // Fetch share link
+  console.log("[shared/memo page] token:", token);
+
+  // Fetch share link: memo_share_links by token, revoked_at IS NULL
   const { data: link } = await service
     .from("memo_share_links")
     .select("id, scan_id, organization_id, view_count, expires_at")
     .eq("token", token)
     .is("revoked_at", null)
     .maybeSingle();
+
+  console.log("[shared/memo page] memo_share_links result:", link ?? null);
 
   if (!link) notFound();
 
@@ -77,24 +81,34 @@ export default async function SharedMemoPage({
     .eq("id", l.id)
     .then(() => {});
 
-  // Fetch public scan fields — NO financial extraction, NO raw_text
-  const { data: scan } = await service
+  // Fetch scan (two-step: deal_scans then deals — avoid embed/join failure)
+  const { data: scan, error: scanError } = await service
     .from("deal_scans")
-    .select("id, created_at, risk_index_score, risk_index_band, deals!inner(name, asset_type, market)")
+    .select("id, created_at, risk_index_score, risk_index_band, deal_id")
     .eq("id", l.scan_id)
-    .single();
+    .maybeSingle();
 
-  if (!scan) notFound();
+  if (scanError) {
+    console.error("[shared/memo page] deal_scans lookup error:", scanError);
+    notFound();
+  }
+  if (!scan) {
+    console.log("[shared/memo page] deal_scans: no row for scan_id", l.scan_id);
+    notFound();
+  }
 
-  type ScanRow = {
-    id: string;
-    created_at: string;
-    risk_index_score: number | null;
-    risk_index_band: string | null;
-    deals: { name: string; asset_type: string | null; market: string | null } | { name: string; asset_type: string | null; market: string | null }[];
-  };
-  const s = scan as unknown as ScanRow;
-  const dealData = Array.isArray(s.deals) ? s.deals[0] : s.deals;
+  const s = scan as { id: string; created_at: string; risk_index_score: number | null; risk_index_band: string | null; deal_id: string };
+  const { data: deal, error: dealError } = await service
+    .from("deals")
+    .select("name, asset_type, market")
+    .eq("id", s.deal_id)
+    .maybeSingle();
+
+  if (dealError || !deal) {
+    console.error("[shared/memo page] deals lookup error:", dealError);
+    notFound();
+  }
+  const dealData = deal as { name: string; asset_type: string | null; market: string | null };
 
   const { data: narrativeRow } = await service
     .from("deal_scan_narratives")
@@ -103,6 +117,7 @@ export default async function SharedMemoPage({
     .maybeSingle();
 
   const narrativeContent = (narrativeRow as { content?: string } | null)?.content ?? null;
+  console.log("[shared/memo page] narrative:", narrativeContent == null ? "null" : `${(narrativeContent as string).length} chars`);
 
   const bandColor = BAND_COLORS[s.risk_index_band ?? ""] ?? "#71717a";
   const scanDate = new Date(s.created_at).toLocaleDateString("en-US", {
