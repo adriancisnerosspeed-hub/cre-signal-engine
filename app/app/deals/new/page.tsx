@@ -14,10 +14,12 @@ export default function NewDealPage() {
   const [rawText, setRawText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [excerptWarning, setExcerptWarning] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setExcerptWarning(rawText.trim().length > 0 && rawText.trim().length < 50);
     setSubmitting(true);
     try {
       const res = await fetchJsonWithTimeout("/api/deals", {
@@ -136,7 +138,7 @@ export default function NewDealPage() {
             id="raw_text"
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            placeholder="Paste underwriting assumptions, memo excerpt, or notes..."
+            placeholder={`Paste your deal underwriting text here. Include:\n- Purchase price (e.g. $12,500,000)\n- Cap rate / NOI (e.g. 5.8% cap, $725,000 NOI)\n- LTV and debt rate (e.g. 65% LTV, 7.25% debt)\n- Vacancy rate (e.g. 8% vacancy)\n- Hold period (e.g. 5 year hold)\n- Rent and expense growth assumptions\n\nThe more detail you provide, the higher the confidence scores on your assumptions.`}
             rows={8}
             style={{
               width: "100%",
@@ -149,6 +151,11 @@ export default function NewDealPage() {
               resize: "vertical",
             }}
           />
+          {excerptWarning && (
+            <p style={{ marginTop: 6, fontSize: 13, color: "#f59e0b" }}>
+              Your underwriting excerpt looks too short. Add more detail for accurate assumption extraction and higher confidence scores.
+            </p>
+          )}
         </div>
         {error && (
           <p style={{ color: "#ef4444", fontSize: 14 }}>{error}</p>

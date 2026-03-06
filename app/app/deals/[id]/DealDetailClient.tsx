@@ -111,7 +111,7 @@ export default function DealDetailClient({
         onClose={() => { setPaywallOpen(false); setLifetimeLimitPaywall(false); }}
         variant={lifetimeLimitPaywall ? "lifetime_limit" : "default"}
         title={lifetimeLimitPaywall ? undefined : "Daily limit reached"}
-        subtitle={lifetimeLimitPaywall ? undefined : "Upgrade to Pro for higher scan limits, IC Memorandum Narrative, and more."}
+        subtitle={lifetimeLimitPaywall ? undefined : "Upgrade to Starter for higher scan limits, IC Memorandum Narrative, and more."}
         workspaceId={workspaceId}
       />
       <button

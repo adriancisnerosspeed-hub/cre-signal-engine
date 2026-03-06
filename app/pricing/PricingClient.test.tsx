@@ -28,7 +28,7 @@ describe("PricingClient displayPlan", () => {
     expect(screen.queryByRole("button", { name: /Start Analyst Plan/i })).not.toBeInTheDocument();
   });
 
-  it("shows Upgrade to PRO+ for PRO+ slot when displayPlan is free", () => {
+  it("shows Upgrade to Analyst for PRO+ slot when displayPlan is free", () => {
     render(
       <PricingClient
         displayPlan="free"
@@ -40,7 +40,7 @@ describe("PricingClient displayPlan", () => {
     expect(screen.queryByRole("button", { name: /Manage billing/i })).not.toBeInTheDocument();
   });
 
-  it("shows included text for PRO+ slot when displayPlan is enterprise (no Buy PRO+ button)", () => {
+  it("shows included text for PRO+ slot when displayPlan is enterprise (no Buy Analyst button)", () => {
     render(
       <PricingClient
         displayPlan="enterprise"

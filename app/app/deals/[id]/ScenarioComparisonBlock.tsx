@@ -79,7 +79,7 @@ export default function ScenarioComparisonBlock({
           </p>
         </div>
         <p style={{ marginTop: 12, fontSize: 14, color: "#a1a1aa" }}>
-          Pro access required.
+          Starter plan required.
         </p>
         <button
           type="button"
@@ -95,13 +95,13 @@ export default function ScenarioComparisonBlock({
             cursor: "pointer",
           }}
         >
-          Upgrade to Pro
+          Upgrade to Starter
         </button>
         <PaywallModal
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
-          title="Pro access required"
-          subtitle="Scenario comparison is a Pro feature."
+          title="Starter plan required"
+          subtitle="Scenario comparison is a Starter feature."
         />
       </section>
     );

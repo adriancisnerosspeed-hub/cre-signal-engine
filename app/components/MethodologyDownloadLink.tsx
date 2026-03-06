@@ -85,7 +85,7 @@ export default function MethodologyDownloadLink({
         open={paywallOpen}
         onClose={() => setPaywallOpen(false)}
         title="Export locked"
-        subtitle="Pro access required for PDF export."
+        subtitle="Starter plan required for PDF export."
       />
     </>
   );

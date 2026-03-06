@@ -87,7 +87,7 @@ export default function UsageBanner() {
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           title="Daily limit reached"
-          subtitle="Upgrade to Pro for higher scan limits, IC Memorandum Narrative, and more."
+          subtitle="Upgrade to Starter for higher scan limits, IC Memorandum Narrative, and more."
         />
       </>
     );
@@ -129,8 +129,8 @@ export default function UsageBanner() {
         <PaywallModal
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
-          title="Upgrade to Pro"
-          subtitle="Get higher daily limits and Pro features."
+          title="Upgrade to Starter"
+          subtitle="Get higher daily limits and Starter features."
         />
       </>
     );

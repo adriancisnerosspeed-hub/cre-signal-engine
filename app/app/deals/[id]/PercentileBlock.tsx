@@ -143,7 +143,7 @@ export default function PercentileBlock({
           </p>
         </div>
         <p style={{ marginTop: 12, fontSize: 14, color: "#a1a1aa" }}>
-          Upgrade to Pro for risk benchmarking.
+          Upgrade to Starter for risk benchmarking.
         </p>
         <button
           type="button"
@@ -159,13 +159,13 @@ export default function PercentileBlock({
             cursor: "pointer",
           }}
         >
-          Upgrade to Pro
+          Upgrade to Starter
         </button>
         <PaywallModal
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
-          title="Pro access required"
-          subtitle="Risk percentile benchmarking is a Pro feature."
+          title="Starter plan required"
+          subtitle="Risk percentile benchmarking is a Starter feature."
         />
       </section>
     );

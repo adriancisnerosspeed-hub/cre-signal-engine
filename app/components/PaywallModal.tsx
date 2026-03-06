@@ -74,7 +74,7 @@ const LIFETIME_LIMIT_BULLETS = [
 export default function PaywallModal({
   open,
   onClose,
-  title = "Upgrade to Pro",
+  title = "Upgrade to Starter",
   subtitle,
   redactedPreview,
   variant = "default",

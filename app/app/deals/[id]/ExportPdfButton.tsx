@@ -101,7 +101,7 @@ export default function ExportPdfButton({
         open={paywallOpen}
         onClose={() => setPaywallOpen(false)}
         title="Export locked"
-        subtitle="Pro access required for PDF export."
+        subtitle="Starter plan required for PDF export."
       />
     </>
   );

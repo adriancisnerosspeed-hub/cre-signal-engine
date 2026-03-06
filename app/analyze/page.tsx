@@ -155,7 +155,7 @@ export default function AnalyzePage() {
             <>
               {" "}
               <Link href={upgradeUrl} style={{ color: "#fcd34d", fontWeight: 600 }}>
-                Upgrade to Pro
+                Upgrade to Starter
               </Link>
             </>
           )}

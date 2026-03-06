@@ -112,7 +112,7 @@ export default async function WorkspacePage() {
               fontSize: 14,
             }}
           >
-            Upgrade to Pro
+            Upgrade to Starter
           </Link>
         </div>
       ) : null}

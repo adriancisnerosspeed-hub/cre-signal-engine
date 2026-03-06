@@ -444,7 +444,7 @@ export function PortfolioClient({
             borderRadius: 8,
           }}
         >
-          <p style={{ color: "#e4e4e7", margin: 0 }}>Pro access required.</p>
+          <p style={{ color: "#e4e4e7", margin: 0 }}>Starter plan required.</p>
           <Link
             href="/pricing"
             style={{
@@ -459,7 +459,7 @@ export function PortfolioClient({
               textDecoration: "none",
             }}
           >
-            Upgrade to Pro
+            Upgrade to Starter
           </Link>
         </div>
       )}
