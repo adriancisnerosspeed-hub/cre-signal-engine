@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   if (!canView) {
     return NextResponse.json(
       {
-        error: "Governance dashboard is available on PRO+ and Enterprise plans.",
+        error: "Governance dashboard is available on Analyst, Fund, and Enterprise plans.",
         code: ENTITLEMENT_ERROR_CODES.FEATURE_NOT_AVAILABLE,
         required_plan: "PRO+",
       },

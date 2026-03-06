@@ -33,7 +33,7 @@ export async function GET() {
   if (!entitlements.canUseGovernanceExport) {
     return NextResponse.json(
       {
-        error: "Governance export is available on PRO+ and ENTERPRISE only.",
+        error: "Governance export is available on Analyst, Fund, and Enterprise plans only.",
         code: ENTITLEMENT_ERROR_CODES.FEATURE_NOT_AVAILABLE,
         required_plan: "PRO+",
       },

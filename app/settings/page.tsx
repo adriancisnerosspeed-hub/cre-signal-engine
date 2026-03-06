@@ -91,7 +91,7 @@ export default async function SettingsPage() {
               <Link href="/app/governance/dashboard" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
                 Governance dashboard
               </Link>
-              <span style={{ color: "#71717a", marginLeft: 6 }}>Portfolio risk trend, policy violations, overrides (Analyst / Enterprise).</span>
+              <span style={{ color: "#71717a", marginLeft: 6 }}>Portfolio risk trend, policy violations, overrides (Analyst / Fund / Enterprise).</span>
             </li>
             <li style={{ marginBottom: 10 }}>
               <Link href="/app/benchmarks/cohorts" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>

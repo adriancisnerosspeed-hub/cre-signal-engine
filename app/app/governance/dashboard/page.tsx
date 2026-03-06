@@ -36,7 +36,7 @@ export default async function GovernanceDashboardPage() {
         </Link>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>Governance dashboard</h1>
         <p style={{ color: "#a1a1aa", marginTop: 8 }}>
-          Available on Analyst and Enterprise plans.
+          Available on Analyst, Fund, and Enterprise plans.
         </p>
       </main>
     );

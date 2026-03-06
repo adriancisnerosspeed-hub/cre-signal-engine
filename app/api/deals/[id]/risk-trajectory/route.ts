@@ -46,7 +46,7 @@ export async function GET(
   if (!entitlements.canUseTrajectory) {
     return NextResponse.json(
       {
-        error: "Risk trajectory is available on PRO+ and ENTERPRISE only.",
+        error: "Risk trajectory is available on Analyst, Fund, and Enterprise plans only.",
         code: ENTITLEMENT_ERROR_CODES.FEATURE_NOT_AVAILABLE,
         required_plan: "PRO+",
       },

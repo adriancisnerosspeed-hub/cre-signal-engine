@@ -172,6 +172,20 @@ export async function POST(request: Request) {
   const content = completion.choices?.[0]?.message?.content ?? "";
   const model = completion.model ?? "gpt-4o";
 
+  // If extraction returned insufficient_data, return 400 without consuming a scan.
+  try {
+    const raw = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+    const parsed = JSON.parse(raw) as { scan_status?: string; message?: string };
+    if (parsed?.scan_status === "insufficient_data" && typeof parsed?.message === "string") {
+      return NextResponse.json(
+        { error: parsed.message },
+        { status: 400 }
+      );
+    }
+  } catch {
+    // Not JSON or not insufficient_data; continue to normal parse.
+  }
+
   const normalized = parseAndNormalizeDealScan(content);
   if (!normalized) {
     const { data: failedScan } = await service

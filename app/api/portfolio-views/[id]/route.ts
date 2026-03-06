@@ -61,7 +61,7 @@ export async function PATCH(
   if (typeof body.is_shared === "boolean") updates.is_shared = body.is_shared;
   if (body.locked_method_version !== undefined) {
     if (!entitlements.canLockMethodVersion) {
-      return NextResponse.json({ error: "Snapshot version lock is available on PRO+ and ENTERPRISE only." }, { status: 403 });
+      return NextResponse.json({ error: "Snapshot version lock is available on Analyst, Fund, and Enterprise plans only." }, { status: 403 });
     }
     updates.locked_method_version =
       body.locked_method_version === null || body.locked_method_version === ""

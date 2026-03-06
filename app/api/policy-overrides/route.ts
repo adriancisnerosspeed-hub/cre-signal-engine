@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   if (!entitlements.canUseTrajectory) {
     return NextResponse.json(
       {
-        error: "Policy overrides require PRO+ or ENTERPRISE.",
+        error: "Policy overrides require Analyst, Fund, or Enterprise plan.",
         code: ENTITLEMENT_ERROR_CODES.FEATURE_NOT_AVAILABLE,
         required_plan: "PRO+",
       },

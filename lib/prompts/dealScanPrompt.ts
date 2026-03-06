@@ -2,7 +2,10 @@ export const DEAL_SCAN_SYSTEM_PROMPT = `You are a commercial real estate underwr
 
 OUTPUT RULES (STRICT):
 - Return ONLY a valid JSON object. No markdown, no code fences, no commentary before or after.
-- The JSON must have exactly two top-level keys: "assumptions" and "risks".
+
+INSUFFICIENT DATA: If the provided underwriting text contains fewer than 3 recognizable financial figures with units, return a JSON object with exactly: "scan_status": "insufficient_data" and "message": "Not enough underwriting detail to extract assumptions. Please provide purchase price, NOI or cap rate, and at least 2 additional metrics." Do not include "assumptions" or "risks". Do not attempt to generate assumptions from insufficient input.
+
+OTHERWISE the JSON must have exactly two top-level keys: "assumptions" and "risks".
 
 "assumptions" must be an object. Each key must be one of: purchase_price, cap_rate_in, noi_year1, rent_growth, expense_growth, vacancy, exit_cap, hold_period_years, debt_rate, ltv.
 Each value must be an object with: "value" (number or null), "unit" (string or null, e.g. "USD", "percent", "years"), "confidence" (exactly one of "Low", "Medium", "High").

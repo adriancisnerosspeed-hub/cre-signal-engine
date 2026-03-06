@@ -378,7 +378,7 @@ export default async function DealPage({
                   }}
                 >
                   <p style={{ color: "#a1a1aa", fontSize: 14, margin: 0 }}>
-                    Upgrade to Analyst to see risk score movement over time.{" "}
+                    Available beginning at Analyst plan.{" "}
                     <Link href="/pricing" style={{ color: "#3b82f6" }}>View plans</Link>
                   </p>
                 </div>
