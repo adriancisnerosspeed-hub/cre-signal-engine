@@ -83,25 +83,16 @@ export default function IcNarrativeBlock({
 
   return (
     <>
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+      <section className="mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
           IC Memorandum Narrative
         </h2>
         {narrativeContent ? (
-          <div
-            style={{
-              padding: "16px 20px",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 8,
-              backgroundColor: "rgba(255,255,255,0.03)",
-              fontSize: 14,
-              color: "#e4e4e7",
-            }}
-          >
+          <div className="py-4 px-5 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-white/[0.03] text-sm text-gray-800 dark:text-zinc-200">
             {renderMarkdown(narrativeContent)}
           </div>
         ) : (
-          <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 12 }}>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
             Generate a one-page institutional memo summarizing key assumptions, primary risks, and
             recommendation framework.
           </p>
@@ -111,51 +102,24 @@ export default function IcNarrativeBlock({
             type="button"
             onClick={handleGenerateClick}
             disabled={generating}
-            style={{
-              marginTop: 8,
-              padding: "10px 20px",
-              backgroundColor: "var(--foreground)",
-              color: "var(--background)",
-              border: "none",
-              borderRadius: 6,
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: generating ? "not-allowed" : "pointer",
-              opacity: generating ? 0.7 : 1,
-            }}
+            className="mt-2 py-2.5 px-5 bg-gray-900 dark:bg-white text-white dark:text-black border-0 rounded-md font-semibold text-sm disabled:cursor-not-allowed disabled:opacity-70"
           >
             {generating ? "Generating…" : narrativeContent ? "Regenerate IC Memorandum Narrative" : "Generate IC Memorandum Narrative"}
           </button>
         )}
         {narrativeContent && scanExportEnabled && (
-          <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+          <div className="flex gap-3 mt-3 flex-wrap">
             <button
               type="button"
               onClick={handleCopy}
-              style={{
-                padding: "8px 16px",
-                backgroundColor: "rgba(255,255,255,0.1)",
-                color: "#e4e4e7",
-                border: "1px solid rgba(255,255,255,0.2)",
-                borderRadius: 6,
-                fontSize: 14,
-                cursor: "pointer",
-              }}
+              className="py-2 px-4 bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-zinc-200 border border-gray-300 dark:border-white/20 rounded-md text-sm cursor-pointer"
             >
               {copyDone ? "Copied" : "Copy to clipboard"}
             </button>
             <button
               type="button"
               onClick={handleDownload}
-              style={{
-                padding: "8px 16px",
-                backgroundColor: "rgba(255,255,255,0.1)",
-                color: "#e4e4e7",
-                border: "1px solid rgba(255,255,255,0.2)",
-                borderRadius: 6,
-                fontSize: 14,
-                cursor: "pointer",
-              }}
+              className="py-2 px-4 bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-zinc-200 border border-gray-300 dark:border-white/20 rounded-md text-sm cursor-pointer"
             >
               Download as PDF
             </button>

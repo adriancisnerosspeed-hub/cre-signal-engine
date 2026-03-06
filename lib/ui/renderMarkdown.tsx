@@ -17,7 +17,7 @@ export function renderMarkdown(text: string): ReactNode {
       return (
         <h4
           key={i}
-          style={{ fontSize: 13, fontWeight: 700, color: "#f4f4f5", marginTop: 14, marginBottom: 2 }}
+          className="text-[13px] font-bold text-gray-900 dark:text-zinc-100 mt-3.5 mb-0.5"
         >
           {renderInline(line.slice(4))}
         </h4>
@@ -27,15 +27,7 @@ export function renderMarkdown(text: string): ReactNode {
       return (
         <h3
           key={i}
-          style={{
-            fontSize: 14,
-            fontWeight: 700,
-            color: "#f4f4f5",
-            marginTop: 18,
-            marginBottom: 4,
-            borderBottom: "1px solid rgba(255,255,255,0.15)",
-            paddingBottom: 4,
-          }}
+          className="text-sm font-bold text-gray-900 dark:text-zinc-100 mt-4 mb-1 border-b border-gray-300 dark:border-white/[0.15] pb-1"
         >
           {renderInline(line.slice(3))}
         </h3>
@@ -45,7 +37,7 @@ export function renderMarkdown(text: string): ReactNode {
       return (
         <h2
           key={i}
-          style={{ fontSize: 15, fontWeight: 700, color: "#f4f4f5", marginTop: 20, marginBottom: 6 }}
+          className="text-[15px] font-bold text-gray-900 dark:text-zinc-100 mt-5 mb-1.5"
         >
           {renderInline(line.slice(2))}
         </h2>
@@ -55,7 +47,7 @@ export function renderMarkdown(text: string): ReactNode {
       return <div key={i} style={{ height: 8 }} />;
     }
     return (
-      <p key={i} style={{ margin: "3px 0", lineHeight: 1.65 }}>
+      <p key={i} className="text-gray-800 dark:text-zinc-200" style={{ margin: "3px 0", lineHeight: 1.65 }}>
         {renderInline(line)}
       </p>
     );

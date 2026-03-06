@@ -61,36 +61,20 @@ export default function IcStatusBlock({
     notes !== (icNotes ?? "");
 
   return (
-    <section style={{ marginBottom: 32 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+    <section className="mb-8">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
         IC Status
       </h2>
-      <div
-        style={{
-          padding: "16px 20px",
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: 8,
-          backgroundColor: "rgba(255,255,255,0.03)",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="py-4 px-5 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-white/[0.03]">
+        <div className="flex flex-col gap-4">
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">
               Status
             </label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as IcStatus)}
-              style={{
-                width: "100%",
-                maxWidth: 280,
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: "rgba(0,0,0,0.2)",
-                color: "#fafafa",
-                fontSize: 14,
-              }}
+              className="w-full max-w-[280px] py-2 px-3 rounded-md border border-gray-300 dark:border-white/20 bg-white dark:bg-black/20 text-gray-900 dark:text-white text-sm"
             >
               {(Object.keys(IC_STATUS_LABELS) as IcStatus[]).map((v) => (
                 <option key={v} value={v}>
@@ -100,25 +84,18 @@ export default function IcStatusBlock({
             </select>
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">
               Decision date
             </label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: "rgba(0,0,0,0.2)",
-                color: "#fafafa",
-                fontSize: 14,
-              }}
+              className="py-2 px-3 rounded-md border border-gray-300 dark:border-white/20 bg-white dark:bg-black/20 text-gray-900 dark:text-white text-sm"
             />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">
               Notes
             </label>
             <textarea
@@ -126,45 +103,25 @@ export default function IcStatusBlock({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Conditions, rationale, etc."
               rows={3}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: "rgba(0,0,0,0.2)",
-                color: "#fafafa",
-                fontSize: 14,
-                resize: "vertical",
-              }}
+              className="w-full py-2 px-3 rounded-md border border-gray-300 dark:border-white/20 bg-white dark:bg-black/20 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 text-sm resize-y"
             />
           </div>
           {error && (
-            <p style={{ fontSize: 13, color: "#f87171", margin: 0 }}>{error}</p>
+            <p className="text-[13px] text-red-400 m-0">{error}</p>
           )}
           {hasChanges && (
             <button
               type="button"
               onClick={handleSave}
               disabled={saving}
-              style={{
-                alignSelf: "flex-start",
-                padding: "8px 16px",
-                borderRadius: 6,
-                border: "none",
-                background: "#3b82f6",
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: saving ? "not-allowed" : "pointer",
-                opacity: saving ? 0.7 : 1,
-              }}
+              className="self-start py-2 px-4 rounded-md border-0 bg-[#3b82f6] text-white text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70"
             >
               {saving ? "Saving…" : "Save"}
             </button>
           )}
         </div>
       </div>
-      <p style={{ marginTop: 8, fontSize: 12, color: "#71717a" }}>
+      <p className="mt-2 text-xs text-gray-400 dark:text-zinc-500">
         Changing IC status does not affect the risk score.
       </p>
     </section>

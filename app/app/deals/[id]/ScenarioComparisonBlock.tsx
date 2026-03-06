@@ -59,41 +59,25 @@ export default function ScenarioComparisonBlock({
 
   if (showPaywall) {
     return (
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
           Scenario Comparison
         </h2>
         <div
-          style={{
-            padding: 20,
-            backgroundColor: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 8,
-            filter: "blur(4px)",
-            userSelect: "none",
-            pointerEvents: "none",
-          }}
+          className="p-5 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-lg"
+          style={{ filter: "blur(4px)", userSelect: "none", pointerEvents: "none" }}
         >
-          <p style={{ color: "#a1a1aa", fontSize: 14 }}>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
             Compare Base vs Conservative scan risk score and risk changes.
           </p>
         </div>
-        <p style={{ marginTop: 12, fontSize: 14, color: "#a1a1aa" }}>
+        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
           Starter plan required.
         </p>
         <button
           type="button"
           onClick={() => setPaywallOpen(true)}
-          style={{
-            marginTop: 8,
-            padding: "8px 16px",
-            fontSize: 14,
-            backgroundColor: "#3b82f6",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-          }}
+          className="mt-2 py-2 px-4 text-sm bg-[#3b82f6] text-white border-0 rounded-md cursor-pointer"
         >
           Upgrade to Starter
         </button>
@@ -108,25 +92,17 @@ export default function ScenarioComparisonBlock({
   }
 
   return (
-    <section style={{ marginBottom: 32 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+    <section className="mb-8">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
         Scenario Comparison
       </h2>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end", marginBottom: 12 }}>
+      <div className="flex flex-wrap gap-3 items-end mb-3">
         <div>
-          <label style={{ fontSize: 12, color: "#a1a1aa", display: "block", marginBottom: 4 }}>Base</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Base</label>
           <select
             value={baseId}
             onChange={(e) => setBaseId(e.target.value)}
-            style={{
-              padding: "8px 12px",
-              fontSize: 14,
-              backgroundColor: "#27272a",
-              color: "#e4e4e7",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 6,
-              minWidth: 200,
-            }}
+            className="py-2 px-3 text-sm bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-200 border border-gray-300 dark:border-white/20 rounded-md min-w-[200px]"
           >
             {scans.map((s) => (
               <option key={s.id} value={s.id}>
@@ -136,19 +112,11 @@ export default function ScenarioComparisonBlock({
           </select>
         </div>
         <div>
-          <label style={{ fontSize: 12, color: "#a1a1aa", display: "block", marginBottom: 4 }}>Conservative</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Conservative</label>
           <select
             value={conservativeId}
             onChange={(e) => setConservativeId(e.target.value)}
-            style={{
-              padding: "8px 12px",
-              fontSize: 14,
-              backgroundColor: "#27272a",
-              color: "#e4e4e7",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 6,
-              minWidth: 200,
-            }}
+            className="py-2 px-3 text-sm bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-200 border border-gray-300 dark:border-white/20 rounded-md min-w-[200px]"
           >
             {scans.map((s) => (
               <option key={s.id} value={s.id}>
@@ -161,36 +129,20 @@ export default function ScenarioComparisonBlock({
           type="button"
           onClick={handleCompare}
           disabled={loading || baseId === conservativeId}
-          style={{
-            padding: "8px 16px",
-            fontSize: 14,
-            backgroundColor: "rgba(255,255,255,0.1)",
-            color: "#e4e4e7",
-            border: "1px solid rgba(255,255,255,0.2)",
-            borderRadius: 6,
-            cursor: loading || baseId === conservativeId ? "not-allowed" : "pointer",
-          }}
+          className="py-2 px-4 text-sm bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-zinc-200 border border-gray-300 dark:border-white/20 rounded-md disabled:cursor-not-allowed"
         >
           {loading ? "Comparing…" : "Compare"}
         </button>
       </div>
       {diff && (
-        <div
-          style={{
-            padding: 16,
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 8,
-            backgroundColor: "rgba(255,255,255,0.03)",
-            fontSize: 14,
-          }}
-        >
-          <p style={{ margin: "0 0 8px", color: "#e4e4e7" }}>
+        <div className="p-4 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-white/[0.03] text-sm">
+          <p className="text-gray-900 dark:text-zinc-200 mb-2 m-0">
             Risk index delta: {diff.risk_score_delta >= 0 ? "+" : ""}{diff.risk_score_delta}
           </p>
           {diff.band_change && (
-            <p style={{ margin: "0 0 8px", color: "#a1a1aa" }}>Band: {diff.band_change}</p>
+            <p className="text-gray-500 dark:text-gray-400 mb-2 m-0">Band: {diff.band_change}</p>
           )}
-          <p style={{ margin: 0, color: "#a1a1aa" }}>
+          <p className="text-gray-500 dark:text-gray-400 m-0">
             Risks added: {diff.risks_added} · Risks removed: {diff.risks_removed}
           </p>
         </div>
