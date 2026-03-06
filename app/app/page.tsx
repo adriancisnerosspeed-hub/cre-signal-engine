@@ -78,12 +78,12 @@ export default async function AppPage() {
   return (
     <main className="max-w-[1000px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
       {showOnboarding && <OnboardingFlow demo={demoInfo} />}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>
+      <div className="mb-6">
+        <h1 className="text-[28px] font-bold text-gray-900 dark:text-white">
           Dashboard
         </h1>
-        <p style={{ color: "#a1a1aa", marginTop: 4 }}>
-          Signed in as <strong style={{ color: "#e4e4e7" }}>{user.email}</strong>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
+          Signed in as <strong className="text-gray-900 dark:text-zinc-200">{user.email}</strong>
         </p>
       </div>
 
@@ -106,29 +106,16 @@ export default async function AppPage() {
         </Link>
       </div>
 
-      <h2
-        style={{
-          fontSize: 20,
-          fontWeight: 600,
-          marginBottom: 16,
-          color: "#e4e4e7",
-        }}
-      >
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-200 mb-4">
         Recent Signals ({signals?.length || 0})
       </h2>
 
       {!signals || signals.length === 0 ? (
-        <p
-          style={{
-            color: "#a1a1aa",
-            padding: 24,
-            textAlign: "center",
-          }}
-        >
+        <p className="text-gray-500 dark:text-gray-400 py-6 text-center">
           No signals yet. Use the analyze API to create signals.
         </p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
           {signals.map((signal: Signal) => {
             const actionStyles =
               signal.action === "Act"
@@ -146,80 +133,30 @@ export default async function AppPage() {
             return (
               <div
                 key={signal.id}
-                className="signal-card"
-                style={{
-                  backgroundColor: "#18181b",
-                  border: "1px solid #3f3f46",
-                  borderRadius: 10,
-                  padding: 14,
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-                  cursor: "pointer",
-                }}
+                className="signal-card rounded-lg p-3.5 cursor-pointer bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 shadow-sm dark:shadow-[0_2px_6px_rgba(0,0,0,0.2)]"
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 12,
-                    marginBottom: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
+                <div className="flex justify-between items-start gap-3 mb-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span
-                      style={{
-                        display: "inline-block",
-                        padding: "4px 8px",
-                        borderRadius: 5,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        backgroundColor: "#2d2d32",
-                        color: "#b8b8be",
-                      }}
+                      className="inline-block py-1 px-2 rounded text-[11px] font-semibold bg-gray-200 dark:bg-zinc-700 text-gray-600 dark:text-zinc-300"
                     >
                       {signal.signal_type}
                     </span>
                     <span
-                      style={{
-                        display: "inline-block",
-                        padding: "4px 8px",
-                        borderRadius: 5,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        backgroundColor: actionStyles.bg,
-                        color: actionStyles.color,
-                      }}
+                      className="inline-block py-1 px-2 rounded text-[11px] font-semibold"
+                      style={{ backgroundColor: actionStyles.bg, color: actionStyles.color }}
                     >
                       {signal.action}
                     </span>
                     <span
-                      style={{
-                        display: "inline-block",
-                        padding: "4px 8px",
-                        borderRadius: 5,
-                        fontSize: 11,
-                        fontWeight: 500,
-                        backgroundColor: confidenceStyles.bg,
-                        color: confidenceStyles.color,
-                      }}
+                      className="inline-block py-1 px-2 rounded text-[11px] font-medium"
+                      style={{ backgroundColor: confidenceStyles.bg, color: confidenceStyles.color }}
                     >
                       {signal.confidence}
                     </span>
                   </div>
                   <time
-                    style={{
-                      fontSize: 10,
-                      color: "#52525b",
-                      flexShrink: 0,
-                      whiteSpace: "nowrap",
-                    }}
+                    className="text-[10px] text-gray-400 dark:text-zinc-500 shrink-0 whitespace-nowrap"
                     dateTime={signal.created_at}
                   >
                     {new Date(signal.created_at).toLocaleString()}
@@ -227,66 +164,22 @@ export default async function AppPage() {
                 </div>
 
                 {signal.what_changed && (
-                  <div
-                    style={{
-                      marginBottom: 10,
-                      paddingBottom: 10,
-                      borderBottom: "1px solid #27272a",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 500,
-                        color: "#71717a",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        marginBottom: 2,
-                      }}
-                    >
+                  <div className="mb-2.5 pb-2.5 border-b border-gray-200 dark:border-zinc-700">
+                    <div className="text-[10px] font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-0.5">
                       What Changed
                     </div>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: 14,
-                        lineHeight: 1.5,
-                        color: "#e4e4e7",
-                      }}
-                    >
+                    <p className="m-0 text-sm leading-relaxed text-gray-900 dark:text-zinc-200">
                       {signal.what_changed}
                     </p>
                   </div>
                 )}
 
                 {signal.why_it_matters && (
-                  <div
-                    style={{
-                      marginBottom: 10,
-                      paddingBottom: 10,
-                      borderBottom: "1px solid #27272a",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 500,
-                        color: "#71717a",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        marginBottom: 2,
-                      }}
-                    >
+                  <div className="mb-2.5 pb-2.5 border-b border-gray-200 dark:border-zinc-700">
+                    <div className="text-[10px] font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-0.5">
                       Why It Matters
                     </div>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: 13,
-                        lineHeight: 1.5,
-                        color: "#a1a1aa",
-                      }}
-                    >
+                    <p className="m-0 text-[13px] leading-relaxed text-gray-500 dark:text-gray-400">
                       {signal.why_it_matters}
                     </p>
                   </div>
@@ -294,26 +187,10 @@ export default async function AppPage() {
 
                 {signal.who_this_affects && (
                   <div>
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 500,
-                        color: "#71717a",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        marginBottom: 2,
-                      }}
-                    >
+                    <div className="text-[10px] font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-0.5">
                       Who This Affects
                     </div>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: 13,
-                        lineHeight: 1.5,
-                        color: "#a1a1aa",
-                      }}
-                    >
+                    <p className="m-0 text-[13px] leading-relaxed text-gray-500 dark:text-gray-400">
                       {signal.who_this_affects}
                     </p>
                   </div>

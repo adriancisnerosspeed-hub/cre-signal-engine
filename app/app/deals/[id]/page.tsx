@@ -280,13 +280,13 @@ export default async function DealPage({
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
+      <div className="flex justify-between items-start flex-wrap gap-4 mb-6">
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa", margin: 0 }}>
+          <h1 className="text-[28px] font-bold text-gray-900 dark:text-white m-0">
             {d.name}
           </h1>
           {(d.asset_type || d.market) && (
-            <p style={{ margin: "4px 0 0", fontSize: 14, color: "#a1a1aa" }}>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 m-0">
               {[d.asset_type, d.market].filter(Boolean).join(" · ")}
             </p>
           )}
@@ -310,8 +310,8 @@ export default async function DealPage({
       />
 
       {!scan && (
-        <section style={{ marginBottom: 32 }}>
-          <p style={{ color: "#a1a1aa" }}>
+        <section className="mb-8">
+          <p className="text-gray-500 dark:text-gray-400">
             No scan yet. Run a Deal Risk Scan to extract assumptions and risks from your underwriting text.
           </p>
         </section>
@@ -319,32 +319,24 @@ export default async function DealPage({
 
       {scan && (
         <>
-          <nav style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+          <nav className="flex gap-2 mb-6 border-b border-gray-200 dark:border-white/10">
             <Link
               href={`/app/deals/${dealId}`}
-              style={{
-                padding: "10px 16px",
-                fontSize: 14,
-                fontWeight: 600,
-                color: activeTab === "overview" ? "#fafafa" : "#a1a1aa",
-                textDecoration: "none",
-                borderBottom: activeTab === "overview" ? "2px solid #fafafa" : "2px solid transparent",
-                marginBottom: -1,
-              }}
+              className={`py-2.5 px-4 text-sm font-semibold no-underline -mb-px border-b-2 ${
+                activeTab === "overview"
+                  ? "text-gray-900 dark:text-white border-gray-900 dark:border-white"
+                  : "text-gray-500 dark:text-gray-400 border-transparent"
+              }`}
             >
               Overview
             </Link>
             <Link
               href={`/app/deals/${dealId}?tab=ic-summary`}
-              style={{
-                padding: "10px 16px",
-                fontSize: 14,
-                fontWeight: 600,
-                color: activeTab === "ic-summary" ? "#fafafa" : "#a1a1aa",
-                textDecoration: "none",
-                borderBottom: activeTab === "ic-summary" ? "2px solid #fafafa" : "2px solid transparent",
-                marginBottom: -1,
-              }}
+              className={`py-2.5 px-4 text-sm font-semibold no-underline -mb-px border-b-2 ${
+                activeTab === "ic-summary"
+                  ? "text-gray-900 dark:text-white border-gray-900 dark:border-white"
+                  : "text-gray-500 dark:text-gray-400 border-transparent"
+              }`}
             >
               IC Summary
             </Link>
@@ -353,57 +345,36 @@ export default async function DealPage({
           {activeTab === "overview" && (
           <>
           {last5Scans.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
                 Risk trajectory
               </h2>
               {canUseTrajectory ? (
-                <div
-                  style={{
-                    padding: "16px 20px",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 8,
-                    backgroundColor: "rgba(255,255,255,0.03)",
-                  }}
-                >
+                <div className="py-4 px-5 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-white/[0.03]">
                   <RiskTrajectoryChart scans={last5Scans} />
                 </div>
               ) : (
-                <div
-                  style={{
-                    padding: "16px 20px",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: 8,
-                    backgroundColor: "rgba(255,255,255,0.02)",
-                  }}
-                >
-                  <p style={{ color: "#a1a1aa", fontSize: 14, margin: 0 }}>
+                <div className="py-4 px-5 border border-gray-200 dark:border-white/[0.08] rounded-lg bg-gray-50 dark:bg-white/[0.02]">
+                  <p className="text-gray-500 dark:text-gray-400 text-sm m-0">
                     Available beginning at Analyst plan.{" "}
-                    <Link href="/pricing" style={{ color: "#3b82f6" }}>View plans</Link>
+                    <Link href="/pricing" className="text-[#3b82f6]">View plans</Link>
                   </p>
                 </div>
               )}
             </section>
           )}
           {entitlements.explainability_enabled && explainabilityDiff.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
                 Score Change Drivers
               </h2>
-              <div
-                style={{
-                  padding: "16px 20px",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8,
-                  backgroundColor: "rgba(255,255,255,0.03)",
-                }}
-              >
+              <div className="py-4 px-5 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-white/[0.03]">
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {explainabilityDiff.map((item, i) => (
-                    <li key={i} style={{ padding: "6px 0", borderBottom: i < explainabilityDiff.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none", fontSize: 14 }}>
-                      <span style={{ color: "#e4e4e7" }}>{item.driver}</span>
+                    <li key={i} className={`py-1.5 text-sm ${i < explainabilityDiff.length - 1 ? "border-b border-gray-200 dark:border-white/[0.06]" : ""}`}>
+                      <span className="text-gray-900 dark:text-zinc-200">{item.driver}</span>
                       {" "}
-                      <span style={{ color: "#a1a1aa" }}>
+                      <span className="text-gray-500 dark:text-gray-400">
                         {item.previous_points} → {item.current_points}
                         {item.delta_points >= 0 ? " (+" : " ("}
                         {item.delta_points})
@@ -415,11 +386,11 @@ export default async function DealPage({
             </section>
           )}
           {last5Scans.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
                 Recent scans
               </h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="flex flex-col gap-2">
                 {last5Scans.map((s, i) => {
                   const prevScore = last5Scans[i + 1]?.risk_index_score ?? null;
                   const currScore = s.risk_index_score ?? null;
@@ -435,16 +406,7 @@ export default async function DealPage({
                     <Link
                       key={s.id}
                       href={`/app/deals/${dealId}/scans/${s.id}`}
-                      style={{
-                        display: "block",
-                        padding: "12px 16px",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: 8,
-                        backgroundColor: "rgba(255,255,255,0.03)",
-                        textDecoration: "none",
-                        color: "inherit",
-                        fontSize: 14,
-                      }}
+                      className="block py-3 px-4 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-white/[0.03] no-underline text-inherit text-sm"
                     >
                       {new Date(s.created_at).toLocaleString()}
                       {s.model && ` · ${s.model}`}
@@ -464,91 +426,85 @@ export default async function DealPage({
             explainabilityEnabled={entitlements.explainability_enabled}
           />
 
-          <section style={{ marginBottom: 32 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
               Assumptions
             </h2>
             {assumptions && Object.keys(assumptions).length > 0 ? (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                      <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Key</th>
-                      <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Value</th>
-                      <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Unit</th>
-                      <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Confidence</th>
+                    <tr className="border-b border-gray-300 dark:border-white/20">
+                      <th className="text-left py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Key</th>
+                      <th className="text-right py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Value</th>
+                      <th className="text-left py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Unit</th>
+                      <th className="text-left py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Confidence</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Object.entries(assumptions).map(([key, cell]) => (
-                      <tr key={key} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                        <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{key.replace(/_/g, " ")}</td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
+                      <tr key={key} className="border-b border-gray-200 dark:border-white/[0.08]">
+                        <td className="py-2 px-3 text-gray-900 dark:text-zinc-200">{key.replace(/_/g, " ")}</td>
+                        <td className="py-2 px-3 text-right text-gray-900 dark:text-white font-medium">
                           {formatAssumptionValue(cell.value ?? null, cell.unit ?? null)}
                         </td>
-                        <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.unit ?? "—"}</td>
-                        <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.confidence ?? "—"}</td>
+                        <td className="py-2 px-3 text-gray-500 dark:text-gray-400">{cell.unit ?? "—"}</td>
+                        <td className="py-2 px-3 text-gray-500 dark:text-gray-400">{cell.confidence ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <p style={{ color: "#a1a1aa", fontSize: 14 }}>No assumptions extracted.</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No assumptions extracted.</p>
             )}
-            <p style={{ marginTop: 8, fontSize: 12, color: "#71717a" }}>
+            <p className="mt-2 text-[12px] text-gray-400 dark:text-zinc-500">
               Scan: {new Date(scan.created_at).toLocaleString()}
               {scan.model && ` · ${scan.model}`}
               {" · "}
-              <Link href={`/app/deals/${d.id}/scans`} style={{ color: "#a1a1aa" }}>
+              <Link href={`/app/deals/${d.id}/scans`} className="text-gray-500 dark:text-gray-400">
                 Scan history
               </Link>
             </p>
           </section>
 
           <section>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
               Risks ({risks.length})
             </h2>
             {risks.length === 0 ? (
-              <p style={{ color: "#a1a1aa", fontSize: 14 }}>No risks flagged.</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No risks flagged.</p>
             ) : (
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <ul className="list-none p-0 m-0">
                 {risks.map((r) => (
                   <li
                     key={r.id}
-                    style={{
-                      padding: "16px 20px",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: 8,
-                      marginBottom: 12,
-                      backgroundColor: "rgba(255,255,255,0.03)",
-                    }}
+                    className="py-4 px-5 border border-gray-200 dark:border-white/10 rounded-lg mb-3 bg-gray-50 dark:bg-white/[0.03]"
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                      <span style={{ fontWeight: 600, color: "#fafafa" }}>{r.risk_type}</span>
-                      <span style={{ fontSize: 12, color: "#a1a1aa" }}>
+                    <div className="flex justify-between items-center flex-wrap gap-2">
+                      <span className="font-semibold text-gray-900 dark:text-white">{r.risk_type}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         Severity: {r.severity_current}
                         {r.severity_original !== r.severity_current && ` (from ${r.severity_original})`}
                       </span>
                     </div>
                     {r.what_changed_or_trigger && (
-                      <p style={{ margin: "8px 0 0", fontSize: 14, color: "#e4e4e7" }}>{r.what_changed_or_trigger}</p>
+                      <p className="mt-2 text-sm text-gray-900 dark:text-zinc-200 m-0">{r.what_changed_or_trigger}</p>
                     )}
                     {r.why_it_matters && (
-                      <p style={{ margin: "4px 0 0", fontSize: 13, color: "#a1a1aa" }}>{r.why_it_matters}</p>
+                      <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400 m-0">{r.why_it_matters}</p>
                     )}
                     {r.who_this_affects && (
-                      <p style={{ margin: "4px 0 0", fontSize: 13, color: "#a1a1aa" }}>Affects: {r.who_this_affects}</p>
+                      <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400 m-0">Affects: {r.who_this_affects}</p>
                     )}
-                    <p style={{ margin: "8px 0 0", fontSize: 12, color: "#71717a" }}>
+                    <p className="mt-2 text-[12px] text-gray-400 dark:text-zinc-500 m-0">
                       {r.recommended_action && `${r.recommended_action} · `}
                       {r.confidence && `Confidence: ${r.confidence}`}
                     </p>
                     {linksByRisk[r.id]?.length > 0 && (
-                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                        <p style={{ fontSize: 12, color: "#71717a", marginBottom: 4 }}>Linked macro signals:</p>
-                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#a1a1aa" }}>
+                      <div className="mt-2.5 pt-2.5 border-t border-gray-200 dark:border-white/[0.08]">
+                        <p className="text-[12px] text-gray-400 dark:text-zinc-500 mb-1">Linked macro signals:</p>
+                        <ul className="m-0 pl-4 text-[13px] text-gray-500 dark:text-gray-400">
                           {linksByRisk[r.id].map((link) => (
                             <li key={link.signal_id}>
                               {link.signal_type && <strong>{link.signal_type}</strong>}
@@ -569,29 +525,22 @@ export default async function DealPage({
           {activeTab === "ic-summary" && scan && (
             <>
               {scan.risk_index_score != null && (
-                <section style={{ marginBottom: 32 }}>
-                  <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+                <section className="mb-8">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
                     CRE Signal Risk Index™
                   </h2>
-                  <div
-                    style={{
-                      padding: "16px 20px",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      borderRadius: 8,
-                      backgroundColor: "rgba(255,255,255,0.03)",
-                    }}
-                  >
-                    <div style={{ fontSize: 20, fontWeight: 700, color: "#fafafa" }}>
+                  <div className="py-4 px-5 border border-gray-200 dark:border-white/[0.15] rounded-lg bg-gray-50 dark:bg-white/[0.03]">
+                    <div className="text-xl font-bold text-gray-900 dark:text-white">
                       {scan.risk_index_score} — {scan.risk_index_band ?? "—"}
                     </div>
                     {bandMismatch && bandMismatchExpectedBand && (
-                      <div style={{ marginTop: 8, fontSize: 12, color: "#f59e0b" }} title="Stored band does not match score for current model version.">
+                      <div className="mt-2 text-xs text-amber-500" title="Stored band does not match score for current model version.">
                         Band mismatch detected (expected: {bandMismatchExpectedBand})
                       </div>
                     )}
                   </div>
-                  <p style={{ marginTop: 8, fontSize: 13 }}>
-                    <Link href="/app/methodology" style={{ color: "#a1a1aa" }}>
+                  <p className="mt-2 text-[13px]">
+                    <Link href="/app/methodology" className="text-gray-500 dark:text-gray-400">
                       How this is scored →
                     </Link>
                   </p>
@@ -600,44 +549,44 @@ export default async function DealPage({
 
               <PercentileBlock dealId={d.id} scanId={scan.id} plan={plan} />
 
-              <section style={{ marginBottom: 32 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+              <section className="mb-8">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
                   Deal Snapshot
                 </h2>
                 {assumptions && Object.keys(assumptions).length > 0 ? (
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-sm">
                       <thead>
-                        <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                          <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Key</th>
-                          <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Value</th>
-                          <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Unit</th>
-                          <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Confidence</th>
+                        <tr className="border-b border-gray-300 dark:border-white/20">
+                          <th className="text-left py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Key</th>
+                          <th className="text-right py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Value</th>
+                          <th className="text-left py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Unit</th>
+                          <th className="text-left py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Confidence</th>
                         </tr>
                       </thead>
                       <tbody>
                         {Object.entries(assumptions)
                           .slice(0, 10)
                           .map(([key, cell]) => (
-                            <tr key={key} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                              <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{key.replace(/_/g, " ")}</td>
-                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
+                            <tr key={key} className="border-b border-gray-200 dark:border-white/[0.08]">
+                              <td className="py-2 px-3 text-gray-900 dark:text-zinc-200">{key.replace(/_/g, " ")}</td>
+                              <td className="py-2 px-3 text-right text-gray-900 dark:text-white font-medium">
                                 {formatAssumptionValue(cell.value ?? null, cell.unit ?? null)}
                               </td>
-                              <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.unit ?? "—"}</td>
-                              <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.confidence ?? "—"}</td>
+                              <td className="py-2 px-3 text-gray-500 dark:text-gray-400">{cell.unit ?? "—"}</td>
+                              <td className="py-2 px-3 text-gray-500 dark:text-gray-400">{cell.confidence ?? "—"}</td>
                             </tr>
                           ))}
                       </tbody>
                     </table>
                   </div>
                 ) : (
-                  <p style={{ color: "#a1a1aa", fontSize: 14 }}>No assumptions extracted.</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">No assumptions extracted.</p>
                 )}
               </section>
 
-              <section style={{ marginBottom: 32 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+              <section className="mb-8">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
                   Primary Risks
                 </h2>
                 {(() => {
@@ -649,33 +598,27 @@ export default async function DealPage({
                   const topRisks = sorted.slice(0, 5);
                   const riskOmitted = sorted.length > 5;
                   return sorted.length === 0 ? (
-                    <p style={{ color: "#a1a1aa", fontSize: 14 }}>No risks flagged.</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No risks flagged.</p>
                   ) : (
                     <>
-                      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                      <ul className="list-none p-0 m-0">
                         {topRisks.map((r) => (
                           <li
                             key={r.id}
-                            style={{
-                              padding: "12px 16px",
-                              border: "1px solid rgba(255,255,255,0.1)",
-                              borderRadius: 8,
-                              marginBottom: 8,
-                              backgroundColor: "rgba(255,255,255,0.03)",
-                            }}
+                            className="py-3 px-4 border border-gray-200 dark:border-white/10 rounded-lg mb-2 bg-gray-50 dark:bg-white/[0.03]"
                           >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                              <span style={{ fontWeight: 600, color: "#fafafa" }}>{r.risk_type}</span>
-                              <span style={{ fontSize: 12, color: "#a1a1aa" }}>{r.severity_current}</span>
+                            <div className="flex justify-between items-center flex-wrap gap-2">
+                              <span className="font-semibold text-gray-900 dark:text-white">{r.risk_type}</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">{r.severity_current}</span>
                             </div>
                             {r.what_changed_or_trigger && (
-                              <p style={{ margin: "6px 0 0", fontSize: 13, color: "#e4e4e7" }}>{r.what_changed_or_trigger}</p>
+                              <p className="mt-1.5 text-[13px] text-gray-900 dark:text-zinc-200 m-0">{r.what_changed_or_trigger}</p>
                             )}
                             {r.who_this_affects && (
-                              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#a1a1aa" }}>Affects: {r.who_this_affects}</p>
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 m-0">Affects: {r.who_this_affects}</p>
                             )}
                             {linksByRisk[r.id]?.length > 0 && (
-                              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#71717a" }}>
+                              <p className="mt-1 text-xs text-gray-400 dark:text-zinc-500 m-0">
                                 Linked: {linksByRisk[r.id].map((l) => l.signal_type ?? "Signal").join(", ")}
                               </p>
                             )}
@@ -683,7 +626,7 @@ export default async function DealPage({
                         ))}
                       </ul>
                       {riskOmitted && (
-                        <p style={{ fontSize: 12, color: "#71717a", marginTop: 8, fontStyle: "italic" }}>
+                        <p className="text-xs text-gray-400 dark:text-zinc-500 mt-2 italic">
                           Additional risks not shown ({sorted.length} total).
                         </p>
                       )}
@@ -692,8 +635,8 @@ export default async function DealPage({
                 })()}
               </section>
 
-              <section style={{ marginBottom: 32 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+              <section className="mb-8">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
                   Linked Macro Signals
                 </h2>
                 {(() => {
@@ -711,10 +654,10 @@ export default async function DealPage({
                   const topSignals = list.slice(0, 5);
                   const signalsOmitted = list.length > 5;
                   return list.length === 0 ? (
-                    <p style={{ color: "#a1a1aa", fontSize: 14 }}>No linked macro signals.</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No linked macro signals.</p>
                   ) : (
                     <>
-                      <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "#e4e4e7" }}>
+                      <ul className="m-0 pl-5 text-sm text-gray-900 dark:text-zinc-200">
                         {topSignals.map((item, i) => (
                           <li key={i}>
                             {item.signal_type && <strong>{item.signal_type}</strong>}
@@ -723,7 +666,7 @@ export default async function DealPage({
                         ))}
                       </ul>
                       {signalsOmitted && (
-                        <p style={{ fontSize: 12, color: "#71717a", marginTop: 8, fontStyle: "italic" }}>
+                        <p className="text-xs text-gray-400 dark:text-zinc-500 mt-2 italic">
                           Additional macro signals not shown ({list.length} total).
                         </p>
                       )}
@@ -732,8 +675,8 @@ export default async function DealPage({
                 })()}
               </section>
 
-              <section style={{ marginBottom: 32 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+              <section className="mb-8">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">
                   Recommended Actions
                 </h2>
                 {(() => {
@@ -744,9 +687,9 @@ export default async function DealPage({
                   }));
                   const actions = getRecommendedActions(risksWithSignals);
                   return actions.length === 0 ? (
-                    <p style={{ color: "#a1a1aa", fontSize: 14 }}>No rule-based actions for this scan.</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No rule-based actions for this scan.</p>
                   ) : (
-                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "#e4e4e7" }}>
+                    <ul className="m-0 pl-5 text-sm text-gray-900 dark:text-zinc-200">
                       {actions.map((a, i) => (
                         <li key={i}>{a}</li>
                       ))}
@@ -766,7 +709,7 @@ export default async function DealPage({
                 riskIndexBand={scan.risk_index_band}
               />
 
-              <p style={{ fontSize: 12, color: "#71717a", marginTop: 24, fontStyle: "italic" }}>
+              <p className="text-xs text-gray-400 dark:text-zinc-500 mt-6 italic">
                 CRE Signal Risk Index™ is an underwriting support tool. Final investment
                 decisions should incorporate sponsor diligence and third-party validation.
               </p>
