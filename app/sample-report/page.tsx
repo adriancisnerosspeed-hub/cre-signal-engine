@@ -5,7 +5,7 @@ import { renderMarkdown } from "@/lib/ui/renderMarkdown";
 export const metadata: Metadata = {
   title: "Sample IC Memo | CRE Signal Engine",
   description:
-    "A live example of an AI-generated Investment Committee memo with institutional risk scoring — no login required.",
+    "See what a governed underwriting process looks like — no login required.",
 };
 
 const BAND_COLORS: Record<string, string> = {
@@ -103,7 +103,7 @@ export default function SampleReportPage() {
           See CRE Signal Engine in Action
         </h1>
         <p className="text-gray-500 dark:text-gray-400 text-base leading-relaxed max-w-[560px] mx-auto">
-          A live example of an AI-generated IC Memo with institutional risk scoring — no login required.
+          See what a governed underwriting process looks like — no login required.
         </p>
       </div>
 
