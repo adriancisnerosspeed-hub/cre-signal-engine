@@ -162,7 +162,7 @@ export default function OnboardingFlow({ demo }: { demo: DemoInfo | null }) {
                 <span style={{ color: "#e4e4e7", fontWeight: 600 }}>Risk Score Badge</span> — deterministic 0–100 score with band (Low/Moderate/Elevated/High)
               </li>
               <li>
-                <span style={{ color: "#e4e4e7", fontWeight: 600 }}>IC Memo Narrative</span> — AI-generated institutional memorandum
+                <span style={{ color: "#e4e4e7", fontWeight: 600 }}>IC Memo Narrative</span> — institutional IC memo narrative
               </li>
               <li>
                 <span style={{ color: "#e4e4e7", fontWeight: 600 }}>PDF Export</span> — IC-ready report for your committee
