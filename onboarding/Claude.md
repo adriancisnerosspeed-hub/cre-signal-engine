@@ -146,18 +146,24 @@ Pushed to `origin/main`.
 - **Fix (UX):** Added a yellow reminder banner in `TierSetterPanel.tsx` that appears when PRO+ or ENTERPRISE is selected, explaining the dual-gate requirement.
 - **User action needed:** Go to Feature Flags tab → ensure a flag named `ai-insights` exists and is toggled ON. Then set the tier to PRO+ or ENTERPRISE. The AI Insights panel should appear on both the deal overview page and scan detail page.
 
+### Dev Tools Tab Consolidation
+
+- **Problem:** "Feature flags" and "Tier override" were separate tabs, which was confusing. The tier override plan dropdown always reset to FREE on refresh because it was hardcoded to default to `"FREE"` instead of reading the org's current plan. Two separate workspace/plan selectors felt redundant.
+- **Fix:** Merged both tabs into a single **"Plan & flags"** tab via new `PlanAndFlagsPanel.tsx`. Plan selector now defaults to the selected org's current plan. Single-org workspaces show the org info inline (no dropdown needed). Feature flags shown as simple on/off toggle rows instead of full CRUD table.
+- The old `FeatureFlagsPanel.tsx` and `TierSetterPanel.tsx` files are no longer imported but remain in the repo.
+
 ### Files Modified
 
 | File | Change |
 |------|--------|
 | `app/owner/dev/page.tsx` | Fetch all orgs, profiles, org members, and auth user emails |
-| `app/owner/dev/OwnerDevDashboard.tsx` | Add `OrgDetail` and `ProfileDetail` types |
+| `app/owner/dev/OwnerDevDashboard.tsx` | Merged Feature flags + Tier override into single "Plan & flags" tab |
+| `app/owner/dev/PlanAndFlagsPanel.tsx` | New combined panel: tier override + feature flag toggles |
 | `app/owner/dev/UsageLeadsPanel.tsx` | Clickable stat boxes with detail dialogs |
 | `app/api/owner/tier-override/route.ts` | Add `clearFeatureFlagCache()` after plan update |
-| `app/owner/dev/TierSetterPanel.tsx` | Add reminder banner about ai-insights flag requirement |
 | `onboarding/Claude.md` | This session log |
-| `onboarding/CRESIGNALENGINE.md` | Updated owner dev dashboard and AI Insights docs |
-| `onboarding/Obstacles.md` | Added 4j (AI insights dual-gate discovery) |
+| `onboarding/CRESIGNALENGINE.md` | Updated owner dev dashboard docs |
+| `onboarding/Obstacles.md` | Added 4j (AI insights dual-gate), 4k (tab consolidation) |
 
 ---
 

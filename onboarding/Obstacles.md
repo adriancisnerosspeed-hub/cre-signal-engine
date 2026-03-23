@@ -143,7 +143,12 @@ This file is AI-facing project memory. Read it before doing substantial work.
 - **Best fix:** Added the `AiInsightsPanel` to the main deal detail page (`app/app/deals/[id]/page.tsx`) in the overview tab, after the explainability diff section and before recent scans. Same dual gate: `canUseAiInsights && aiInsightsFlag`.
 - **Pre-emption for future AI:** When adding gated features, put them on the most visible surface the user is likely to visit, not only on deep drill-down pages.
 
-### 4j. AI Insights Dual-Gate Not Obvious From Tier Override Alone ✓
+### 4j. Redundant Dev Tool Tabs And Plan Selector Resetting To FREE ✓
+- **What happened:** The dev tools had separate "Feature flags" and "Tier override" tabs, which was confusing since they're closely related. Additionally, the tier override plan dropdown always initialized to `"FREE"` (hardcoded `useState`) instead of reading the selected org's current plan, so it appeared to "reset" on every page load.
+- **Best fix:** Merged both into a single "Plan & flags" tab (`PlanAndFlagsPanel.tsx`). Plan selector now initializes to the selected org's current plan and updates when the org changes. Single-org workspaces show the org inline without a redundant dropdown. Feature flags converted from CRUD table to simple toggle rows.
+- **Pre-emption for future AI:** When state is derived from a prop (e.g. org's current plan), always initialize `useState` from the prop value, not a hardcoded default. When two dev tool panels are tightly related, consider merging them into one tab.
+
+### 4k. AI Insights Dual-Gate Not Obvious From Tier Override Alone ✓
 - **What happened:** After changing the org tier to PRO+ via the dev tools tier override, the AI Insights panel still did not appear on deal pages. The user assumed changing the tier was sufficient.
 - **Root cause:** AI Insights requires TWO independent conditions: (1) `canUseAiInsights` entitlement from PRO+/ENTERPRISE plan, AND (2) the `ai-insights` feature flag must be enabled in the `feature_flags` table. The tier override only changes the plan — it does not auto-enable feature flags. Additionally, the tier override route did not call `clearFeatureFlagCache()`, so even if the flag was already enabled, cached values could persist for up to 60 seconds.
 - **Best fix:** Added `clearFeatureFlagCache()` to the tier override route. Added a yellow reminder banner in the TierSetterPanel that appears when PRO+ or ENTERPRISE is selected, explaining the dual-gate requirement.
