@@ -117,7 +117,12 @@ export async function GET(
   });
 
   if (fnError) {
-    console.error("[ai-insights] invoke:", fnError);
+    console.error("[ai-insights] invoke:", {
+      message: fnError.message,
+      context: (fnError as Record<string, unknown>).context,
+      status: (fnError as Record<string, unknown>).status,
+      data: fnData,
+    });
     return NextResponse.json(
       { error: fnError.message ?? "Insights generation failed" },
       { status: 502 }

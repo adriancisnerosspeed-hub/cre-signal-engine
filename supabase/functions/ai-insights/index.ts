@@ -1,6 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
+// Required Supabase secret: OPENAI_API_KEY
+// Deploy: npx supabase functions deploy ai-insights
+// Set secret: npx supabase secrets set OPENAI_API_KEY=sk-...
+
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -32,16 +36,21 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
+  // Early safety check: surface missing API key immediately
+  if (!Deno.env.get("OPENAI_API_KEY")) {
+    console.error("[ai-insights] Missing OPENAI_API_KEY");
+    return jsonResponse({ error: "Configuration error: API key missing" }, 500);
+  }
+
+  try {
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+  const openaiKey = Deno.env.get("OPENAI_API_KEY")!;
 
   if (!supabaseUrl || !supabaseAnonKey || !serviceKey) {
     return jsonResponse({ error: "Server misconfiguration" }, 500);
-  }
-  if (!openaiKey) {
-    return jsonResponse({ error: "OPENAI_API_KEY not configured for this function" }, 500);
   }
 
   let body: { deal_scan_id?: string };
@@ -118,7 +127,8 @@ Key assumptions (JSON excerpt): ${JSON.stringify(assumptions).slice(0, 6000)}
 Flagged risks summary:
 ${riskLines || "(none)"}`;
 
-  const model = "gpt-4o-mini";
+  // Pinned to March 2026 snapshot for consistency with scan route
+  const model = "gpt-5.4-mini-2026-03-17";
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -193,4 +203,9 @@ ${riskLines || "(none)"}`;
     disclaimer,
     cached: false,
   });
+
+  } catch (err) {
+    console.error("[ai-insights] unhandled:", err);
+    return jsonResponse({ error: "Internal error in AI insights function", detail: String(err) }, 500);
+  }
 });

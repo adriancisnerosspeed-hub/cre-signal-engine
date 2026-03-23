@@ -43,6 +43,9 @@ export default function DealDetailClient({
     else setScanBanner(null);
     setLoading(true);
     try {
+      // WARNING: force:1 bypasses text-hash cache and can cause score drift on rescans.
+      // Server-side authoritative text-hash lookup (route.ts Step 2) mitigates this,
+      // but consider removing force:1 or making it opt-in with user warning.
       const body = hasScan ? { deal_id: dealId, force: 1 } : { deal_id: dealId };
       const r = await fetchJsonWithTimeout("/api/deals/scan", {
         method: "POST",

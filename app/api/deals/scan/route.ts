@@ -19,6 +19,11 @@ function inputTextHash(raw: string): string {
   return crypto.createHash("sha256").update(raw, "utf8").digest("hex");
 }
 
+/** Normalize raw text before hashing: collapse whitespace, normalize line endings, trim. */
+function normalizeRawText(text: string): string {
+  return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/[ \t]+/g, " ").trim();
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -137,13 +142,15 @@ export async function POST(request: Request) {
   const rawText = dealInput?.raw_text ?? "";
   const dealInputId = dealInput?.id ?? null;
 
+  const normalizedText = rawText ? normalizeRawText(rawText) : "";
+
   if (!forceRescan && rawText) {
-    const hash = inputTextHash(rawText);
+    const hash = inputTextHash(normalizedText);
     const SCAN_CACHE_TTL_HOURS = parseInt(process.env.SCAN_CACHE_TTL_HOURS || "168", 10);
     const cacheWindow = new Date(Date.now() - SCAN_CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
     const { data: existing } = await service
       .from("deal_scans")
-      .select("id")
+      .select("id, risk_index_score, risk_index_band")
       .eq("deal_id", dealId)
       .eq("input_text_hash", hash)
       .eq("status", "completed")
@@ -153,7 +160,49 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json({ scan_id: existing.id, deal_id: dealId, reused: true });
+      console.info("[SCAN CACHE] Layer 1 hit (input_text_hash, no force)", {
+        deal_id: dealId, hash: hash.slice(0, 12), cached_scan_id: existing.id,
+      });
+      return NextResponse.json({
+        scan_id: existing.id, deal_id: dealId, reused: true,
+        risk_index_score: existing.risk_index_score,
+        risk_index_band: existing.risk_index_band,
+      });
+    }
+  }
+
+  // Authoritative text-hash cache: if same raw text was ever scored for this deal,
+  // reuse that score. Prevents AI extraction non-determinism from causing score drift.
+  // Applies even when force=1.
+  if (rawText) {
+    const textHash = inputTextHash(normalizedText);
+    const { data: priorScored } = await service
+      .from("deal_scans")
+      .select("id, risk_index_score, risk_index_band, risk_index_breakdown")
+      .eq("deal_id", dealId)
+      .eq("input_text_hash", textHash)
+      .eq("status", "completed")
+      .not("risk_index_score", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (priorScored?.risk_index_score != null) {
+      console.info("[SCAN CACHE] text-hash score reuse (force-safe)", {
+        deal_id: dealId, hash: textHash.slice(0, 12),
+        cached_scan_id: priorScored.id,
+        score: priorScored.risk_index_score, band: priorScored.risk_index_band,
+      });
+      return NextResponse.json({
+        scan_id: priorScored.id, deal_id: dealId, reused: true,
+        risk_index_score: priorScored.risk_index_score,
+        risk_index_band: priorScored.risk_index_band,
+        risk_index_breakdown: priorScored.risk_index_breakdown,
+      });
+    } else {
+      console.info("[SCAN CACHE] Text hash match but no completed score — proceeding normally", {
+        deal_id: dealId, hash: textHash.slice(0, 12),
+      });
     }
   }
 
@@ -185,8 +234,8 @@ export async function POST(request: Request) {
 
   const client = new OpenAI({ apiKey });
   const completion = await client.chat.completions.create({
-    // Using latest GPT-5.4 mini (March 2026) for better structured output + lower cost
-    model: "gpt-5.4-mini",
+    // Pinned to March 2026 snapshot for extraction determinism
+    model: "gpt-5.4-mini-2026-03-17",
     temperature: 0,
     top_p: 1,
     seed: 42,
@@ -224,7 +273,7 @@ export async function POST(request: Request) {
       .insert({
         deal_id: dealId,
         deal_input_id: dealInputId,
-        input_text_hash: rawText ? inputTextHash(rawText) : null,
+        input_text_hash: rawText ? inputTextHash(normalizedText) : null,
         extraction: {},
         status: "failed",
         model,
@@ -268,7 +317,7 @@ export async function POST(request: Request) {
   const completedAt = new Date().toISOString();
   const p_scan_row = {
     deal_input_id: dealInputId,
-    input_text_hash: rawText ? inputTextHash(rawText) : null,
+    input_text_hash: rawText ? inputTextHash(normalizedText) : null,
     scoring_input_hash: scoringInputHash,
     extraction: normalized as unknown as Record<string, unknown>,
     status: "completed",
@@ -440,7 +489,7 @@ export async function POST(request: Request) {
       };
     });
     if (linksWithTimestamp.some((l) => l.timestamp != null)) {
-      macroDecayedWeight = computeDecayedMacroWeight(linksWithTimestamp);
+      macroDecayedWeight = computeDecayedMacroWeight(linksWithTimestamp, new Date(completedAt));
     }
     macroTimestampMissing = linksWithTimestamp.some((l) => l.timestamp == null);
   }
@@ -484,6 +533,9 @@ export async function POST(request: Request) {
     console.info("[deal_scan] scoring_input_cache_hit", { scan_id: scan.id, deal_id: dealId, score, band });
   } else {
     // Cache miss: compute fresh score
+    console.info("[SCAN CACHE] Layer 2 miss (scoring_input_hash) — computing fresh score", {
+      deal_id: dealId, scoring_input_hash: scoringInputHash.slice(0, 12),
+    });
     const riskIndex = computeRiskIndex({
       risks: stabilizedRisks.map((r) => ({
         severity_current: r.severity_current,
@@ -540,6 +592,7 @@ export async function POST(request: Request) {
     score = Math.max(0, Math.min(100, riskIndex.score));
     band = ["Low", "Moderate", "Elevated", "High"].includes(riskIndex.band) ? riskIndex.band : "Moderate";
     breakdown = { ...bd, risk_fingerprint: riskFingerprint };
+    console.info("[SCAN CACHE] Miss → new score:", { deal_id: dealId, score, band });
   }
 
   const { data: finalizeRows, error: finalizeError } = await service.rpc("finalize_scan_risk_and_history", {
