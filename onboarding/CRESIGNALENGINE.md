@@ -178,7 +178,7 @@ Next migration file index: **059**.
 
 ### Phase 6 — Onboarding, changelog, password shares, scan rate limit
 
-- **Onboarding:** `app/app/components/OnboardingFlow.tsx` — three steps (workspace → first scan → invite) using shadcn `Card` / `Button`; shown when `organizations.onboarding_completed` is false (`app/app/page.tsx`). Completes via `PATCH /api/org/onboarding`. Passes `canInviteMembers` from `getWorkspacePlanAndEntitlementsForUser` (FREE users see upgrade copy instead of invite CTA).
+- **Onboarding:** `app/app/components/OnboardingFlow.tsx` — three steps (workspace → first scan → invite) using shadcn `Card` / `Button`; shown when `organizations.onboarding_completed` is false (`app/app/page.tsx`). Completes via `PATCH /api/org/onboarding`. Passes `canInviteMembers` from `getWorkspacePlanAndEntitlementsForUser` (FREE users see upgrade copy instead of invite CTA). Navigation buttons use programmatic `router.push()` after awaiting `markComplete()` to avoid race conditions with `router.refresh()`.
 - **Changelog:** Public `app/changelog/page.tsx` reads `changelog_entries` (published rows only). `app/app/layout.tsx` loads the latest published entry and renders `app/components/ChangelogBanner.tsx` (client: dismiss stores `cre_changelog_seen_id` in `localStorage`). `/changelog` is in `lib/publicRoutes.ts` `PUBLIC_ROUTES`.
 - **Password-protected memo shares:** `POST /api/deals/scans/[scanId]/share` accepts optional JSON `{ password }`; bcrypt hash stored in `memo_share_links.password_hash` (migration `056_memo_share_links_password`). `GET` on the same route returns `password_protected` (boolean). Viewers unlock via `POST /api/shared/memo/[token]/unlock` (sets httpOnly cookie `memo_share_unlock` using `lib/memoShareAuth.ts`; optional env **`MEMO_SHARE_COOKIE_SECRET`** — falls back to `SUPABASE_SERVICE_ROLE_KEY` if unset). `app/shared/memo/[token]/page.tsx` shows `SharedMemoPasswordForm` until unlocked; `GET /api/shared/memo/[token]` returns 401 `{ password_required: true }` unless cookie or `X-Share-Password` header matches (`lib/memoShareUnlock.ts`). `app/app/deals/[id]/ShareMemoModal.tsx` supports optional password when creating a link.
 - **Scan rate limit:** `lib/rateLimit.ts` — default **20** `deal_scans` rows per org per rolling hour (`ORG_SCAN_RATE_LIMIT_PER_HOUR`), counted before OpenAI on `POST /api/deals/scan` (skipped for `platform_admin`; does not apply to early `reused: true` responses). Returns **429** with `code: SCAN_RATE_LIMIT` and `Retry-After` header.
@@ -352,11 +352,24 @@ Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user expl
 
 1. User creates or selects a deal.
 2. User submits raw underwriting text.
-3. Scan route extracts assumptions and risks.
-4. Overlay logic may connect relevant signals.
-5. `computeRiskIndex()` calculates score, band, and breakdown.
-6. Finalization writes scan outputs and history/audit rows.
-7. Deal, portfolio, export, and governance surfaces consume the result.
+3. Scan route checks input-text-hash cache (7-day TTL by default, configurable via `SCAN_CACHE_TTL_HOURS` env var, default `168`). If a cached scan with identical input hash exists, it is reused immediately.
+4. If no cache hit, OpenAI extracts assumptions and risks using `temperature: 0`, `top_p: 1`, `seed: 42` for maximum determinism.
+5. Overlay logic may connect relevant signals.
+6. Scoring inputs are hashed and logged (`scoring_inputs` log line) before `computeRiskIndex()` calculates score, band, and breakdown.
+7. Finalization writes scan outputs and history/audit rows. Completion log includes `temperature` and `seed` for auditability.
+8. Deal, portfolio, export, and governance surfaces consume the result.
+
+**Score stability notes:**
+- The scoring function (`lib/riskIndex.ts`) is fully deterministic — identical inputs always produce identical scores.
+- Score variability between rescans comes from OpenAI extraction non-determinism. The `temperature: 0` + `seed: 42` + 7-day cache TTL combination minimizes this.
+- Pure determinism tests exist in `lib/riskIndex.test.ts` (10-call identical score, identical band/breakdown, predictable monotonicity).
+
+### Macro Signal Display (Deal Detail)
+
+- On the deal detail Overview tab, linked macro signals are shown in a single consolidated "Linked Macro Signals" section after the risks list, not repeated under each risk.
+- Each unique signal appears once with badge chips listing the risk types it affects.
+- Per-risk sections show only a count of linked signals (e.g., "2 linked signals") rather than the full signal content.
+- Cross-reference overlay logic in `lib/crossReferenceOverlay.ts` is unchanged — deduplication is purely a display concern.
 
 ### Benchmark Flow
 

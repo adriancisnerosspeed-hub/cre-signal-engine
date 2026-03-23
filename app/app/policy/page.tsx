@@ -30,8 +30,8 @@ export default async function PolicyPage() {
   const orgId = await getCurrentOrgId(supabase, user);
   if (!orgId) {
     return (
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-        <p style={{ color: "#a1a1aa" }}>No workspace selected.</p>
+      <main className="max-w-[800px] mx-auto p-6">
+        <p className="text-muted-foreground">No workspace selected.</p>
       </main>
     );
   }
@@ -44,14 +44,14 @@ export default async function PolicyPage() {
 
   if (error) {
     return (
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-        <p style={{ color: "#f87171" }}>Failed to load policies.</p>
+      <main className="max-w-[800px] mx-auto p-6">
+        <p className="text-red-400">Failed to load policies.</p>
       </main>
     );
   }
 
   return (
-    <main style={{ maxWidth: 960, margin: "0 auto", padding: 24 }}>
+    <main className="max-w-[960px] mx-auto p-6">
       <PolicyClient initialPolicies={(policies ?? []) as PolicyRow[]} />
     </main>
   );

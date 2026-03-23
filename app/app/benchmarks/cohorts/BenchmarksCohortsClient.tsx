@@ -121,17 +121,17 @@ export default function BenchmarksCohortsClient({
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+    <div className="flex flex-col gap-8">
       {canBuildSnapshot && (
-        <section style={{ padding: 20, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#fafafa", marginBottom: 16 }}>Build snapshot</h2>
-          <form onSubmit={handleBuild} style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 12, color: "#71717a" }}>Cohort</span>
+        <section className="p-5 bg-muted/50 border border-border rounded-lg">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Build snapshot</h2>
+          <form onSubmit={handleBuild} className="flex flex-wrap gap-3 items-end">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground/70">Cohort</span>
               <select
                 value={buildCohortId}
                 onChange={(e) => setBuildCohortId(e.target.value)}
-                style={{ padding: "8px 12px", minWidth: 200, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#fafafa" }}
+                className="px-3 py-2 min-w-[200px] rounded-md border border-border bg-background text-foreground text-sm"
               >
                 <option value="">Select cohort</option>
                 {sortedCohorts.map((c) => (
@@ -141,29 +141,29 @@ export default function BenchmarksCohortsClient({
                 ))}
               </select>
             </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 12, color: "#71717a" }}>As-of date/time</span>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground/70">As-of date/time</span>
               <input
                 type="datetime-local"
                 value={buildAsOf}
                 onChange={(e) => setBuildAsOf(e.target.value)}
-                style={{ padding: "8px 12px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#fafafa" }}
+                className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
               />
             </label>
             <button
               type="submit"
               disabled={buildLoading || !buildCohortId}
-              style={{ padding: "8px 16px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: 6, cursor: buildLoading ? "not-allowed" : "pointer", fontWeight: 500 }}
+              className="px-4 py-2 bg-[#3b82f6] text-white border-none rounded-md font-medium disabled:cursor-not-allowed cursor-pointer"
             >
-              {buildLoading ? "Building…" : "Build snapshot"}
+              {buildLoading ? "Building\u2026" : "Build snapshot"}
             </button>
           </form>
-          {buildError && <p style={{ color: "#f87171", fontSize: 14, marginTop: 12 }}>{buildError}</p>}
+          {buildError && <p className="text-[#f87171] text-sm mt-3">{buildError}</p>}
           {buildResult && (
-            <div style={{ marginTop: 12, padding: 12, background: "rgba(0,0,0,0.2)", borderRadius: 6, fontSize: 14 }}>
-              <strong style={{ color: "#a1a1aa" }}>Result:</strong>{" "}
+            <div className="mt-3 p-3 bg-background rounded-md text-sm">
+              <strong className="text-muted-foreground">Result:</strong>{" "}
               {buildResult.build_status === "SUCCESS" ? (
-                <>Snapshot {buildResult.snapshot_id?.slice(0, 8)}… created. n_eligible: {buildResult.n_eligible ?? "—"}</>
+                <>Snapshot {buildResult.snapshot_id?.slice(0, 8)}\u2026 created. n_eligible: {buildResult.n_eligible ?? "\u2014"}</>
               ) : (
                 <>Status: {buildResult.build_status}. {buildResult.build_error ?? ""}</>
               )}
@@ -173,88 +173,88 @@ export default function BenchmarksCohortsClient({
       )}
 
       {canCreateCohort && (
-        <section style={{ padding: 20, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#fafafa", marginBottom: 16 }}>Create cohort (Enterprise)</h2>
-          <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 480 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 12, color: "#71717a" }}>Key (unique)</span>
+        <section className="p-5 bg-muted/50 border border-border rounded-lg">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Create cohort (Enterprise)</h2>
+          <form onSubmit={handleCreate} className="flex flex-col gap-3 max-w-[480px]">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground/70">Key (unique)</span>
               <input
                 type="text"
                 value={createKey}
                 onChange={(e) => setCreateKey(e.target.value)}
                 placeholder="e.g. my-workspace-cohort"
-                style={{ padding: "8px 12px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#fafafa" }}
+                className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
               />
             </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 12, color: "#71717a" }}>Name</span>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground/70">Name</span>
               <input
                 type="text"
                 value={createName}
                 onChange={(e) => setCreateName(e.target.value)}
                 placeholder="Display name"
-                style={{ padding: "8px 12px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#fafafa" }}
+                className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
               />
             </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 12, color: "#71717a" }}>Description (optional)</span>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground/70">Description (optional)</span>
               <input
                 type="text"
                 value={createDescription}
                 onChange={(e) => setCreateDescription(e.target.value)}
-                style={{ padding: "8px 12px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#fafafa" }}
+                className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
               />
             </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 12, color: "#71717a" }}>Rule JSON (e.g. {"{}"} or {"{\"and\": [...]}"})</span>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground/70">Rule JSON (e.g. {"{}"} or {"{\"and\": [...]}"})</span>
               <textarea
                 value={createRuleJson}
                 onChange={(e) => setCreateRuleJson(e.target.value)}
                 rows={4}
-                style={{ padding: "8px 12px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#fafafa", fontFamily: "monospace", fontSize: 13 }}
+                className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm font-mono"
               />
             </label>
-            {createError && <p style={{ color: "#f87171", fontSize: 14 }}>{createError}</p>}
+            {createError && <p className="text-[#f87171] text-sm">{createError}</p>}
             <button
               type="submit"
               disabled={createLoading}
-              style={{ padding: "8px 16px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: 6, cursor: createLoading ? "not-allowed" : "pointer", fontWeight: 500, alignSelf: "flex-start" }}
+              className="px-4 py-2 bg-[#3b82f6] text-white border-none rounded-md font-medium disabled:cursor-not-allowed cursor-pointer self-start"
             >
-              {createLoading ? "Creating…" : "Create cohort"}
+              {createLoading ? "Creating\u2026" : "Create cohort"}
             </button>
           </form>
         </section>
       )}
 
       <section>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#fafafa", marginBottom: 12 }}>Cohorts</h2>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+        <h2 className="text-lg font-semibold text-foreground mb-3">Cohorts</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
             <thead>
-              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.15)" }}>
-                <th style={{ textAlign: "left", padding: "10px 12px", color: "#71717a", fontWeight: 600 }}>Key</th>
-                <th style={{ textAlign: "left", padding: "10px 12px", color: "#71717a", fontWeight: 600 }}>Name</th>
-                <th style={{ textAlign: "left", padding: "10px 12px", color: "#71717a", fontWeight: 600 }}>Scope</th>
-                <th style={{ textAlign: "left", padding: "10px 12px", color: "#71717a", fontWeight: 600 }}>Version</th>
-                <th style={{ textAlign: "left", padding: "10px 12px", color: "#71717a", fontWeight: 600 }}>rule_hash</th>
+              <tr className="border-b border-border">
+                <th className="text-left px-3 py-2.5 text-muted-foreground/70 font-semibold">Key</th>
+                <th className="text-left px-3 py-2.5 text-muted-foreground/70 font-semibold">Name</th>
+                <th className="text-left px-3 py-2.5 text-muted-foreground/70 font-semibold">Scope</th>
+                <th className="text-left px-3 py-2.5 text-muted-foreground/70 font-semibold">Version</th>
+                <th className="text-left px-3 py-2.5 text-muted-foreground/70 font-semibold">rule_hash</th>
               </tr>
             </thead>
             <tbody>
               {sortedCohorts.map((c) => (
-                <tr key={c.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                  <td style={{ padding: "10px 12px", color: "#e4e4e7" }}>{c.key}</td>
-                  <td style={{ padding: "10px 12px", color: "#e4e4e7" }}>{c.name}</td>
-                  <td style={{ padding: "10px 12px", color: "#a1a1aa" }}>{c.scope}</td>
-                  <td style={{ padding: "10px 12px", color: "#a1a1aa" }}>{c.version}</td>
-                  <td style={{ padding: "10px 12px", color: "#71717a", fontFamily: "monospace", fontSize: 12 }}>
-                    {c.rule_hash ? `${c.rule_hash.slice(0, 12)}…` : "—"}
+                <tr key={c.id} className="border-b border-border">
+                  <td className="px-3 py-2.5 text-foreground">{c.key}</td>
+                  <td className="px-3 py-2.5 text-foreground">{c.name}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{c.scope}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{c.version}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground/70 font-mono text-xs">
+                    {c.rule_hash ? `${c.rule_hash.slice(0, 12)}\u2026` : "\u2014"}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {cohorts.length === 0 && <p style={{ color: "#71717a", padding: 12 }}>No cohorts yet.</p>}
+        {cohorts.length === 0 && <p className="text-muted-foreground/70 p-3">No cohorts yet.</p>}
       </section>
     </div>
   );

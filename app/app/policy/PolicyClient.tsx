@@ -206,46 +206,41 @@ export function PolicyClient({ initialPolicies }: Props) {
   };
 
   return (
-    <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-      <div style={{ minWidth: 220, flex: "0 0 220px" }}>
-        <div style={{ marginBottom: 16 }}>
-          <Link href="/app/portfolio" style={{ color: "#a1a1aa", fontSize: 14, textDecoration: "none" }}>
-            ← Portfolio
+    <div className="flex gap-6 flex-wrap">
+      <div className="min-w-[220px] flex-[0_0_220px]">
+        <div className="mb-4">
+          <Link href="/app/portfolio" className="text-muted-foreground text-sm no-underline hover:underline">
+            &larr; Portfolio
           </Link>
         </div>
-        <h1 style={{ fontSize: 22, fontWeight: 600, color: "#fafafa", marginBottom: 16 }}>Governance</h1>
-        <p style={{ fontSize: 13, color: "#a1a1aa", marginBottom: 16 }}>
+        <h1 className="text-[22px] font-semibold text-foreground mb-4">Governance</h1>
+        <p className="text-[13px] text-muted-foreground mb-4">
           Define rules and run evaluations against your portfolio.
         </p>
         <button
           type="button"
           onClick={handleCreate}
           disabled={creating}
-          style={{ marginBottom: 16, padding: "8px 16px", borderRadius: 6, border: "1px solid rgba(167,139,250,0.5)", background: "rgba(167,139,250,0.15)", color: "#c4b5fd", fontWeight: 500, cursor: creating ? "wait" : "pointer", fontSize: 14 }}
+          className="mb-4 px-4 py-2 rounded-md border border-purple-400/50 bg-purple-400/15 text-[#c4b5fd] font-medium text-sm"
+          style={{ cursor: creating ? "wait" : "pointer" }}
         >
           {creating ? "Creating..." : "New policy"}
         </button>
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        <ul className="list-none p-0 m-0">
           {policies.map((p) => (
-            <li key={p.id} style={{ marginBottom: 8 }}>
+            <li key={p.id} className="mb-2">
               <button
                 type="button"
                 onClick={() => loadDraft(p)}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: selectedId === p.id ? "1px solid rgba(167,139,250,0.6)" : "1px solid rgba(255,255,255,0.1)",
-                  background: selectedId === p.id ? "rgba(167,139,250,0.1)" : "rgba(255,255,255,0.03)",
-                  color: "#fafafa",
-                  cursor: "pointer",
-                  fontSize: 14,
-                }}
+                className={`w-full text-left px-3 py-2.5 rounded-lg border text-foreground cursor-pointer text-sm ${
+                  selectedId === p.id
+                    ? "border-purple-400/60 bg-purple-400/10"
+                    : "border-border bg-muted/50"
+                }`}
               >
-                <div style={{ fontWeight: 500 }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: "#71717a", marginTop: 4 }}>
-                  {p.is_enabled ? "Enabled" : "Disabled"} · {new Date(p.updated_at).toLocaleDateString()}
+                <div className="font-medium">{p.name}</div>
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  {p.is_enabled ? "Enabled" : "Disabled"} &middot; {new Date(p.updated_at).toLocaleDateString()}
                 </div>
               </button>
             </li>
@@ -253,25 +248,25 @@ export function PolicyClient({ initialPolicies }: Props) {
         </ul>
       </div>
 
-      <div style={{ flex: "1 1 400px", minWidth: 0 }}>
+      <div className="flex-[1_1_400px] min-w-0">
         {selected ? (
           <>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+            <div className="flex flex-wrap gap-3 mb-6">
               <input
                 type="text"
                 value={draft.name ?? selected.name}
                 onChange={(e) => updateDraft({ name: e.target.value })}
                 placeholder="Policy name"
-                style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa", fontSize: 14, minWidth: 200 }}
+                className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm min-w-[200px]"
               />
               <textarea
                 value={draft.description ?? selected.description ?? ""}
                 onChange={(e) => updateDraft({ description: e.target.value })}
                 placeholder="Description (optional)"
                 rows={1}
-                style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa", fontSize: 14, minWidth: 240, resize: "vertical" }}
+                className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm min-w-[240px] resize-y"
               />
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#e4e4e7" }}>
+              <label className="flex items-center gap-2 text-sm text-foreground">
                 <input
                   type="checkbox"
                   checked={draft.is_enabled ?? selected.is_enabled}
@@ -281,11 +276,11 @@ export function PolicyClient({ initialPolicies }: Props) {
               </label>
             </div>
 
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>Rules</h2>
-            <div style={{ marginBottom: 16 }}>
+            <h2 className="text-base font-semibold text-foreground mb-3">Rules</h2>
+            <div className="mb-4">
               <select
                 onChange={(e) => { const v = e.target.value as PolicyRule["type"]; if (v) addRule(v); e.target.value = ""; }}
-                style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa", fontSize: 14 }}
+                className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
               >
                 <option value="">Add rule...</option>
                 {RULE_TYPE_OPTIONS.map((o) => (
@@ -293,64 +288,64 @@ export function PolicyClient({ initialPolicies }: Props) {
                 ))}
               </select>
             </div>
-            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px 0" }}>
+            <ul className="list-none p-0 mb-6">
               {rules.map((rule, index) => (
-                <li key={rule.id} style={{ marginBottom: 12, padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                <li key={rule.id} className="mb-3 p-3 bg-muted/50 rounded-lg border border-border">
+                  <div className="flex flex-wrap items-center gap-3 mb-2">
                     <input
                       type="text"
                       value={rule.name}
                       onChange={(e) => updateRule(index, { name: e.target.value })}
                       placeholder="Rule name"
-                      style={{ padding: "6px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa", fontSize: 13, width: 180 }}
+                      className="px-2.5 py-1.5 rounded border border-border bg-background text-foreground text-[13px] w-[180px]"
                     />
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#a1a1aa" }}>
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <input type="checkbox" checked={rule.enabled} onChange={(e) => updateRule(index, { enabled: e.target.checked })} />
                       Enabled
                     </label>
                     <select
                       value={rule.severity}
                       onChange={(e) => updateRule(index, { severity: e.target.value as "warn" | "block" })}
-                      style={{ padding: "6px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa", fontSize: 12 }}
+                      className="px-2.5 py-1.5 rounded border border-border bg-background text-foreground text-xs"
                     >
                       <option value="warn">Warn</option>
                       <option value="block">Block</option>
                     </select>
-                    <button type="button" onClick={() => removeRule(index)} style={{ marginLeft: "auto", padding: "4px 8px", fontSize: 12, color: "#f87171", background: "transparent", border: "none", cursor: "pointer" }}>
+                    <button type="button" onClick={() => removeRule(index)} className="ml-auto px-2 py-1 text-xs text-[#f87171] bg-transparent border-none cursor-pointer">
                       Remove
                     </button>
                   </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", fontSize: 13 }}>
+                  <div className="flex flex-wrap gap-3 items-center text-[13px]">
                     {"threshold_pct" in rule && (
                       <>
-                        <label style={{ color: "#a1a1aa" }}>
+                        <label className="text-muted-foreground">
                           Threshold %: <input
                             type="number"
                             min={0}
                             max={100}
                             value={rule.threshold_pct}
                             onChange={(e) => updateRule(index, { threshold_pct: Number(e.target.value) })}
-                            style={{ width: 64, padding: "4px 8px", marginLeft: 4, borderRadius: 4, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa" }}
+                            className="w-16 px-2 py-1 ml-1 rounded border border-border bg-background text-foreground"
                           />
                         </label>
                         {"scope" in rule && (
                           <select
                             value={rule.scope}
                             onChange={(e) => updateRule(index, { scope: e.target.value as "scanned_only" | "all_deals" })}
-                            style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa", fontSize: 12 }}
+                            className="px-2 py-1 rounded border border-border bg-background text-foreground text-xs"
                           >
                             <option value="scanned_only">Scanned only</option>
                             <option value="all_deals">All deals</option>
                           </select>
                         )}
                         {"stale_days" in rule && rule.stale_days != null && (
-                          <label style={{ color: "#a1a1aa" }}>
+                          <label className="text-muted-foreground">
                             Stale days: <input
                               type="number"
                               min={1}
                               value={rule.stale_days}
                               onChange={(e) => updateRule(index, { stale_days: Number(e.target.value) })}
-                              style={{ width: 56, padding: "4px 8px", marginLeft: 4, borderRadius: 4, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa" }}
+                              className="w-14 px-2 py-1 ml-1 rounded border border-border bg-background text-foreground"
                             />
                           </label>
                         )}
@@ -358,34 +353,34 @@ export function PolicyClient({ initialPolicies }: Props) {
                           <select
                             value={rule.applies_to}
                             onChange={(e) => updateRule(index, { applies_to: e.target.value as "scanned_deals_only" | "all_scanned" })}
-                            style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa", fontSize: 12 }}
+                            className="px-2 py-1 rounded border border-border bg-background text-foreground text-xs"
                           >
                             <option value="all_scanned">All scanned</option>
                             <option value="scanned_deals_only">Scanned deals only</option>
                           </select>
                         )}
                         {"delta_points" in rule && rule.delta_points != null && (
-                          <label style={{ color: "#a1a1aa" }}>
+                          <label className="text-muted-foreground">
                             Delta pts: <input
                               type="number"
                               min={1}
                               value={rule.delta_points}
                               onChange={(e) => updateRule(index, { delta_points: Number(e.target.value) })}
-                              style={{ width: 56, padding: "4px 8px", marginLeft: 4, borderRadius: 4, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa" }}
+                              className="w-14 px-2 py-1 ml-1 rounded border border-border bg-background text-foreground"
                             />
                           </label>
                         )}
                       </>
                     )}
                     {"threshold" in rule && rule.type === "MAX_PRPI" && (
-                      <label style={{ color: "#a1a1aa" }}>
+                      <label className="text-muted-foreground">
                         Max PRPI: <input
                           type="number"
                           min={0}
                           max={100}
                           value={rule.threshold}
                           onChange={(e) => updateRule(index, { threshold: Number(e.target.value) })}
-                          style={{ width: 64, padding: "4px 8px", marginLeft: 4, borderRadius: 4, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)", color: "#fafafa" }}
+                          className="w-16 px-2 py-1 ml-1 rounded border border-border bg-background text-foreground"
                         />
                       </label>
                     )}
@@ -394,12 +389,13 @@ export function PolicyClient({ initialPolicies }: Props) {
               ))}
             </ul>
 
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+            <div className="flex flex-wrap gap-3 mb-6">
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={!hasChanges || saving}
-                style={{ padding: "10px 20px", borderRadius: 6, border: "1px solid rgba(167,139,250,0.5)", background: "rgba(167,139,250,0.2)", color: "#c4b5fd", fontWeight: 600, cursor: hasChanges && !saving ? "pointer" : "not-allowed", fontSize: 14 }}
+                className="px-5 py-2.5 rounded-md border border-purple-400/50 bg-purple-400/20 text-[#c4b5fd] font-semibold text-sm"
+                style={{ cursor: hasChanges && !saving ? "pointer" : "not-allowed" }}
               >
                 {saving ? "Saving..." : "Save"}
               </button>
@@ -407,57 +403,55 @@ export function PolicyClient({ initialPolicies }: Props) {
                 type="button"
                 onClick={handleEvaluate}
                 disabled={evaluating}
-                style={{ padding: "10px 20px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.08)", color: "#fafafa", fontWeight: 500, cursor: evaluating ? "wait" : "pointer", fontSize: 14 }}
+                className="px-5 py-2.5 rounded-md border border-border bg-muted/50 text-foreground font-medium text-sm"
+                style={{ cursor: evaluating ? "wait" : "pointer" }}
               >
                 {evaluating ? "Evaluating..." : "Evaluate Now"}
               </button>
               <button
                 type="button"
                 onClick={() => setDeleteConfirm(true)}
-                style={{ padding: "10px 20px", borderRadius: 6, border: "1px solid rgba(239,68,68,0.4)", background: "transparent", color: "#f87171", fontSize: 14, cursor: "pointer", marginLeft: "auto" }}
+                className="px-5 py-2.5 rounded-md border border-red-500/40 bg-transparent text-[#f87171] text-sm cursor-pointer ml-auto"
               >
                 Delete policy
               </button>
               {deleteConfirm && (
-                <div style={{ width: "100%", marginTop: 8, padding: 12, background: "rgba(239,68,68,0.1)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)" }}>
-                  <p style={{ color: "#fca5a5", marginBottom: 8 }}>Delete this policy? This cannot be undone.</p>
-                  <button type="button" onClick={handleDelete} style={{ padding: "8px 16px", marginRight: 8, background: "#dc2626", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>Yes, delete</button>
-                  <button type="button" onClick={() => setDeleteConfirm(false)} style={{ padding: "8px 16px", background: "transparent", color: "#a1a1aa", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 6, cursor: "pointer" }}>Cancel</button>
+                <div className="w-full mt-2 p-3 bg-red-500/10 rounded-lg border border-red-500/30">
+                  <p className="text-[#fca5a5] mb-2">Delete this policy? This cannot be undone.</p>
+                  <button type="button" onClick={handleDelete} className="px-4 py-2 mr-2 bg-[#dc2626] text-white border-none rounded-md cursor-pointer">Yes, delete</button>
+                  <button type="button" onClick={() => setDeleteConfirm(false)} className="px-4 py-2 bg-transparent text-muted-foreground border border-border rounded-md cursor-pointer">Cancel</button>
                 </div>
               )}
             </div>
 
             {evaluationResult && (
-              <section style={{ marginTop: 24, padding: 16, background: "rgba(255,255,255,0.04)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)" }}>
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>Evaluation result</h3>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <section className="mt-6 p-4 bg-card border border-border rounded-lg">
+                <h3 className="text-base font-semibold text-foreground mb-3">Evaluation result</h3>
+                <div className="flex items-center gap-3 mb-4">
                   <span
+                    className="px-3 py-1 rounded text-[13px] font-semibold"
                     style={{
-                      padding: "4px 12px",
-                      borderRadius: 4,
-                      fontSize: 13,
-                      fontWeight: 600,
                       background: evaluationResult.overall_status === "PASS" ? "rgba(34,197,94,0.2)" : evaluationResult.overall_status === "BLOCK" ? "rgba(239,68,68,0.25)" : "rgba(245,158,11,0.2)",
                       color: evaluationResult.overall_status === "PASS" ? "#22c55e" : evaluationResult.overall_status === "BLOCK" ? "#f87171" : "#fbbf24",
                     }}
                   >
                     {evaluationResult.overall_status}
                   </span>
-                  <span style={{ fontSize: 13, color: "#a1a1aa" }}>{evaluationResult.violation_count} violation(s)</span>
+                  <span className="text-[13px] text-muted-foreground">{evaluationResult.violation_count} violation(s)</span>
                 </div>
                 {evaluationResult.violations.length > 0 && (
-                  <ul style={{ listStyle: "none", padding: 0, margin: "0 0 16px 0" }}>
+                  <ul className="list-none p-0 mb-4">
                     {evaluationResult.violations.map((v, i) => (
-                      <li key={i} style={{ marginBottom: 10, padding: 10, background: "rgba(0,0,0,0.2)", borderRadius: 6 }}>
-                        <div style={{ fontWeight: 500, color: "#e4e4e7", marginBottom: 4 }}>{v.rule_name}</div>
-                        <div style={{ fontSize: 13, color: "#d4d4d8", marginBottom: 4 }}>{v.message}</div>
-                        <div style={{ fontSize: 12, color: "#a1a1aa" }}>Actual: {v.actual_value} · Threshold: {v.threshold_value}</div>
+                      <li key={i} className="mb-2.5 p-2.5 bg-background rounded-md">
+                        <div className="font-medium text-foreground mb-1">{v.rule_name}</div>
+                        <div className="text-[13px] text-foreground/80 mb-1">{v.message}</div>
+                        <div className="text-xs text-muted-foreground">Actual: {v.actual_value} &middot; Threshold: {v.threshold_value}</div>
                         {v.affected_deal_ids && v.affected_deal_ids.length > 0 && (
                           <Link
                             href={`/app/portfolio?dealIds=${v.affected_deal_ids.join(",")}`}
-                            style={{ display: "inline-block", marginTop: 8, fontSize: 12, color: "#a78bfa", textDecoration: "none" }}
+                            className="inline-block mt-2 text-xs text-[#a78bfa] no-underline hover:underline"
                           >
-                            Filter portfolio to affected deals →
+                            Filter portfolio to affected deals &rarr;
                           </Link>
                         )}
                       </li>
@@ -466,8 +460,8 @@ export function PolicyClient({ initialPolicies }: Props) {
                 )}
                 {evaluationResult.recommended_actions.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#a1a1aa", marginBottom: 8 }}>Recommended actions</div>
-                    <ul style={{ listStyle: "disc", paddingLeft: 20, margin: 0, fontSize: 13, color: "#d4d4d8" }}>
+                    <div className="text-xs font-semibold text-muted-foreground mb-2">Recommended actions</div>
+                    <ul className="list-disc pl-5 m-0 text-[13px] text-foreground/80">
                       {evaluationResult.recommended_actions.map((a, i) => (
                         <li key={i}>{a.title}: {a.detail}</li>
                       ))}
@@ -478,8 +472,8 @@ export function PolicyClient({ initialPolicies }: Props) {
             )}
           </>
         ) : (
-          <div style={{ padding: 24, color: "#71717a", fontSize: 14 }}>
-            {policies.length === 0 ? "No policies yet. Create one via the API or add a “Create policy” flow here." : "Select a policy to edit."}
+          <div className="p-6 text-muted-foreground text-sm">
+            {policies.length === 0 ? "No policies yet. Create one via the API or add a \u201cCreate policy\u201d flow here." : "Select a policy to edit."}
           </div>
         )}
       </div>

@@ -35,16 +35,7 @@ function UpgradeButton({ workspaceId }: { workspaceId?: string }) {
       type="button"
       onClick={handleUpgrade}
       disabled={loading}
-      style={{
-        padding: "10px 20px",
-        backgroundColor: "#3b82f6",
-        color: "#fff",
-        border: "none",
-        borderRadius: 8,
-        fontWeight: 600,
-        cursor: loading ? "not-allowed" : "pointer",
-        fontSize: 14,
-      }}
+      className="px-5 py-2.5 bg-blue-500 text-white border-none rounded-lg font-semibold text-sm cursor-pointer disabled:cursor-not-allowed hover:bg-blue-600 transition-colors"
     >
       {loading ? "Redirecting…" : "Upgrade to Starter"}
     </button>
@@ -104,69 +95,41 @@ export default function PaywallModal({
 
   if (isLifetimeLimit) {
     return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 50,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "rgba(0,0,0,0.7)",
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: "#18181b",
-            border: "1px solid #3f3f46",
-            borderRadius: 12,
-            maxWidth: 440,
-            width: "90%",
-            padding: 24,
-            boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-          }}
-        >
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fafafa", marginBottom: 8 }}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+        <div className="bg-card border border-border rounded-xl max-w-[440px] w-[90%] p-6 shadow-2xl">
+          <h2 className="text-lg font-bold text-foreground mb-2">
             Institutional Features Locked
           </h2>
-          <p style={{ fontSize: 14, color: "#e4e4e7", marginBottom: 8 }}>
+          <p className="text-sm text-foreground mb-2">
             You&apos;ve used your 3 Free underwriting scans.
           </p>
-          <p style={{ fontSize: 14, color: "#a1a1aa", marginBottom: 12 }}>
+          <p className="text-sm text-muted-foreground mb-3">
             CRE Signal Engine is built for real capital decisions — not casual exploration.
           </p>
-          <p style={{ fontSize: 14, color: "#e4e4e7", marginBottom: 6 }}>Upgrade to Starter to unlock:</p>
-          <ul style={{ margin: "0 0 12px", paddingLeft: 20, fontSize: 13, color: "#a1a1aa" }}>
+          <p className="text-sm text-foreground mb-1.5">Upgrade to Starter to unlock:</p>
+          <ul className="m-0 mb-3 pl-5 text-[13px] text-muted-foreground">
             {LIFETIME_LIMIT_BULLETS.map((b) => (
               <li key={b}>{b}</li>
             ))}
           </ul>
-          <p style={{ fontSize: 14, color: "#a1a1aa", marginBottom: 8 }}>
+          <p className="text-sm text-muted-foreground mb-2">
             At $299/workspace/month, PRO is a rounding error relative to underwriting risk.
           </p>
-          <p style={{ fontSize: 13, color: "#71717a", marginBottom: 4 }}>
+          <p className="text-[13px] text-muted-foreground/70 mb-1">
             Used by underwriting teams evaluating institutional real estate.
           </p>
-          <p style={{ fontSize: 13, color: "#71717a", marginBottom: 12 }}>
+          <p className="text-[13px] text-muted-foreground/70 mb-3">
             Your deals and scan history remain saved.
           </p>
-          <p style={{ fontSize: 13, color: "#71717a", marginBottom: 16 }}>
+          <p className="text-[13px] text-muted-foreground/70 mb-4">
             Your underwriting data remains intact. Upgrade takes less than 30 seconds.
           </p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <div className="flex gap-3 flex-wrap">
             <UpgradeButton workspaceId={workspaceId} />
             <button
               type="button"
               onClick={handleReturnToDeals}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "transparent",
-                color: "#a1a1aa",
-                border: "1px solid #52525b",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 14,
-              }}
+              className="px-5 py-2.5 bg-transparent text-muted-foreground border border-border rounded-lg cursor-pointer text-sm hover:bg-muted/50 transition-colors"
             >
               Return to Deals
             </button>
@@ -178,71 +141,37 @@ export default function PaywallModal({
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "rgba(0,0,0,0.7)",
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
       onClick={handleBackdropClick}
     >
       <div
-        style={{
-          backgroundColor: "#18181b",
-          border: "1px solid #3f3f46",
-          borderRadius: 12,
-          maxWidth: 440,
-          width: "90%",
-          padding: 24,
-          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-        }}
+        className="bg-card border border-border rounded-xl max-w-[440px] w-[90%] p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fafafa", marginBottom: 8 }}>
+        <h2 className="text-lg font-bold text-foreground mb-2">
           {title}
         </h2>
         {subtitle && (
-          <p style={{ fontSize: 14, color: "#a1a1aa", marginBottom: 16 }}>{subtitle}</p>
+          <p className="text-sm text-muted-foreground mb-4">{subtitle}</p>
         )}
         {redactedPreview && (
-          <div
-            style={{
-              padding: 12,
-              backgroundColor: "rgba(255,255,255,0.05)",
-              borderRadius: 8,
-              marginBottom: 16,
-              fontSize: 13,
-              color: "#71717a",
-              border: "1px dashed rgba(255,255,255,0.2)",
-            }}
-          >
+          <div className="p-3 bg-muted/50 rounded-lg mb-4 text-[13px] text-muted-foreground/70 border border-dashed border-border">
             {redactedPreview}
-            <div style={{ marginTop: 8, fontSize: 12, color: "#a1a1aa" }}>[Pro feature]</div>
+            <div className="mt-2 text-xs text-muted-foreground">[Pro feature]</div>
           </div>
         )}
-        <p style={{ fontSize: 13, color: "#e4e4e7", marginBottom: 8 }}>PRO includes:</p>
-        <ul style={{ margin: "0 0 16px", paddingLeft: 20, fontSize: 13, color: "#a1a1aa" }}>
+        <p className="text-[13px] text-foreground mb-2">PRO includes:</p>
+        <ul className="m-0 mb-4 pl-5 text-[13px] text-muted-foreground">
           {PRO_BENEFITS.map((b) => (
             <li key={b}>{b}</li>
           ))}
         </ul>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div className="flex gap-3 flex-wrap">
           <UpgradeButton workspaceId={workspaceId} />
           <button
             type="button"
             onClick={onClose}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "transparent",
-              color: "#a1a1aa",
-              border: "1px solid #52525b",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 14,
-            }}
+            className="px-5 py-2.5 bg-transparent text-muted-foreground border border-border rounded-lg cursor-pointer text-sm hover:bg-muted/50 transition-colors"
           >
             Close
           </button>

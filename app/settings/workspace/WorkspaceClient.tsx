@@ -83,42 +83,31 @@ export default function WorkspaceClient({
 
   return (
     <div>
-      <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+      <h2 className="text-lg font-semibold text-foreground mb-3">
         Workspace members ({members.length})
         {memberLimitLabel && (
-          <span style={{ fontWeight: 400, color: "#71717a", fontSize: 14, marginLeft: 8 }}>
+          <span className="font-normal text-muted-foreground/70 text-sm ml-2">
             · {memberLimitLabel}
           </span>
         )}
       </h2>
-      <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px" }}>
+      <ul className="list-none p-0 mb-6">
         {members.map((m) => (
           <li
             key={m.user_id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 12,
-              padding: "12px 16px",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 8,
-              marginBottom: 8,
-              backgroundColor: "rgba(255,255,255,0.03)",
-            }}
+            className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 border border-border rounded-lg mb-2 bg-muted/50"
           >
             <div>
-              <span style={{ color: "#fafafa", fontWeight: 500 }}>
+              <span className="text-foreground font-medium">
                 {m.email ?? "—"}
                 {m.user_id === currentUserId && (
-                  <span style={{ marginLeft: 8, fontSize: 12, color: "#71717a" }}>(you)</span>
+                  <span className="ml-2 text-xs text-muted-foreground/70">(you)</span>
                 )}
               </span>
-              <span style={{ marginLeft: 8, fontSize: 12, color: "#a1a1aa" }}>{m.role}</span>
+              <span className="ml-2 text-xs text-muted-foreground">{m.role}</span>
             </div>
             {canManage && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="flex items-center gap-2">
                 <select
                   value={m.role}
                   onChange={(e) => handleRoleChange(m.user_id, e.target.value)}
@@ -127,14 +116,7 @@ export default function WorkspaceClient({
                     m.user_id === currentUserId ||
                     (m.role === "OWNER" && ownerCount <= 1)
                   }
-                  style={{
-                    padding: "6px 10px",
-                    backgroundColor: "#27272a",
-                    color: "#e4e4e7",
-                    border: "1px solid #52525b",
-                    borderRadius: 6,
-                    fontSize: 13,
-                  }}
+                  className="px-3 py-1.5 rounded-md border border-border bg-background text-foreground text-[13px]"
                 >
                   <option value="OWNER">OWNER</option>
                   <option value="ADMIN">ADMIN</option>
@@ -147,15 +129,7 @@ export default function WorkspaceClient({
                     (m.user_id === currentUserId && members.length <= 1) ||
                     (m.role === "OWNER" && ownerCount <= 1)
                   }
-                  style={{
-                    padding: "6px 12px",
-                    backgroundColor: "transparent",
-                    color: "#f87171",
-                    border: "1px solid #f87171",
-                    borderRadius: 6,
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
+                  className="px-3 py-1.5 bg-transparent text-[#f87171] border border-[#f87171] rounded-md text-[13px] cursor-pointer"
                 >
                   Remove
                 </button>
@@ -167,22 +141,14 @@ export default function WorkspaceClient({
 
       {invites.length > 0 && (
         <>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             Pending invites
           </h2>
-          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px" }}>
+          <ul className="list-none p-0 mb-6">
             {invites.map((inv) => (
               <li
                 key={inv.id}
-                style={{
-                  padding: "12px 16px",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8,
-                  marginBottom: 8,
-                  backgroundColor: "rgba(255,255,255,0.03)",
-                  fontSize: 14,
-                  color: "#a1a1aa",
-                }}
+                className="px-4 py-3 border border-border rounded-lg mb-2 bg-muted/50 text-sm text-muted-foreground"
               >
                 {inv.email} — {inv.role} (expires {new Date(inv.expires_at).toLocaleDateString()})
               </li>
@@ -193,27 +159,27 @@ export default function WorkspaceClient({
 
       {canManage && (
         <>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             Invite by email
             {!canInvite && (
-              <span style={{ marginLeft: 8, fontSize: 14, color: "#71717a", fontWeight: 400 }}>
+              <span className="ml-2 text-sm text-muted-foreground/70 font-normal">
                 Workspace invites require a paid plan.
               </span>
             )}
           </h2>
-          <form onSubmit={handleInvite} style={{ marginBottom: 24 }}>
+          <form onSubmit={handleInvite} className="mb-6">
             {!canInvite && (
-              <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 12 }}>
+              <p className="text-muted-foreground text-sm mb-3">
                 Workspace invites require a paid plan.
               </p>
             )}
             {inviteError && (
-              <p style={{ color: "#ef4444", fontSize: 14, marginBottom: 8 }}>{inviteError}</p>
+              <p className="text-[#ef4444] text-sm mb-2">{inviteError}</p>
             )}
             {inviteSuccess && (
-              <p style={{ color: "#22c55e", fontSize: 14, marginBottom: 8 }}>{inviteSuccess}</p>
+              <p className="text-[#22c55e] text-sm mb-2">{inviteSuccess}</p>
             )}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <div className="flex gap-2 flex-wrap items-center">
               <input
                 type="email"
                 value={inviteEmail}
@@ -221,30 +187,15 @@ export default function WorkspaceClient({
                 placeholder="Email"
                 required={canInvite}
                 disabled={!canInvite}
-                style={{
-                  padding: "10px 14px",
-                  backgroundColor: "#27272a",
-                  color: "#fafafa",
-                  border: "1px solid #52525b",
-                  borderRadius: 6,
-                  fontSize: 14,
-                  minWidth: 200,
-                  opacity: canInvite ? 1 : 0.7,
-                }}
+                className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm min-w-[200px]"
+                style={{ opacity: canInvite ? 1 : 0.7 }}
               />
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as "admin" | "member")}
                 disabled={!canInvite}
-                style={{
-                  padding: "10px 14px",
-                  backgroundColor: "#27272a",
-                  color: "#e4e4e7",
-                  border: "1px solid #52525b",
-                  borderRadius: 6,
-                  fontSize: 14,
-                  opacity: canInvite ? 1 : 0.7,
-                }}
+                className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
+                style={{ opacity: canInvite ? 1 : 0.7 }}
               >
                 <option value="member">member</option>
                 <option value="admin">admin</option>
@@ -252,17 +203,12 @@ export default function WorkspaceClient({
               <button
                 type="submit"
                 disabled={inviteLoading || !canInvite}
-                style={{
-                  padding: "10px 20px",
-                  backgroundColor: canInvite ? "var(--foreground)" : "#27272a",
-                  color: canInvite ? "var(--background)" : "#71717a",
-                  border: "1px solid #52525b",
-                  borderRadius: 6,
-                  fontWeight: 600,
-                  fontSize: 14,
-                  cursor: canInvite && !inviteLoading ? "pointer" : "not-allowed",
-                  opacity: canInvite ? 1 : 0.8,
-                }}
+                className={`px-5 py-2.5 rounded-md border border-border font-semibold text-sm ${
+                  canInvite
+                    ? "bg-foreground text-background cursor-pointer"
+                    : "bg-muted text-muted-foreground/70 cursor-not-allowed"
+                }`}
+                style={{ opacity: canInvite ? 1 : 0.8 }}
               >
                 {inviteLoading ? "Sending…" : "Send invite"}
               </button>

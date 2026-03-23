@@ -53,8 +53,8 @@ export default async function ScanDetailPage({
   const orgId = await getCurrentOrgId(supabase, user);
   if (!orgId) {
     return (
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-        <p style={{ color: "#a1a1aa" }}>No workspace selected.</p>
+      <main className="max-w-[800px] mx-auto p-6">
+        <p className="text-muted-foreground text-sm">No workspace selected.</p>
       </main>
     );
   }
@@ -145,77 +145,61 @@ export default async function ScanDetailPage({
   > | undefined;
 
   return (
-    <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
+    <main className="max-w-[800px] mx-auto p-6">
+      <div className="mb-6">
         <Link
           href={`/app/deals/${dealId}/scans`}
-          style={{ color: "#a1a1aa", fontSize: 14, textDecoration: "none" }}
+          className="text-muted-foreground text-sm no-underline hover:underline"
         >
           ← Back to scan history
         </Link>
       </div>
 
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa", marginBottom: 8 }}>
+      <div className="mb-6">
+        <h1 className="text-[28px] font-bold text-foreground mb-2">
           Scan snapshot
         </h1>
-        <p style={{ color: "#a1a1aa", fontSize: 14 }}>
+        <p className="text-muted-foreground text-sm">
           {d.name}
           {(d.asset_type || d.market) && ` · ${[d.asset_type, d.market].filter(Boolean).join(" · ")}`}
         </p>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 8,
-          marginBottom: 24,
-          fontSize: 12,
-          color: "#a1a1aa",
-        }}
-      >
-        <span style={{ padding: "4px 8px", background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
+      <div className="flex flex-wrap gap-2 mb-6 text-xs text-muted-foreground">
+        <span className="px-2 py-1 bg-muted/50 rounded">
           Scan mode: Fresh
         </span>
         {scan.model && (
-          <span style={{ padding: "4px 8px", background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
+          <span className="px-2 py-1 bg-muted/50 rounded">
             Model: {scan.model}
           </span>
         )}
         {scan.prompt_version && (
-          <span style={{ padding: "4px 8px", background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
+          <span className="px-2 py-1 bg-muted/50 rounded">
             Prompt version: {scan.prompt_version}
           </span>
         )}
-        <span style={{ padding: "4px 8px", background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
+        <span className="px-2 py-1 bg-muted/50 rounded">
           {new Date(scan.created_at).toLocaleString()}
         </span>
         {trend && (
-          <span style={{ padding: "4px 8px", background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
+          <span className="px-2 py-1 bg-muted/50 rounded">
             {trendLabels[trend]}
           </span>
         )}
       </div>
 
       {scan.risk_index_score != null && (
-        <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             CRE Signal Risk Index™
           </h2>
-          <div
-            style={{
-              padding: "16px 20px",
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 8,
-              backgroundColor: "rgba(255,255,255,0.03)",
-            }}
-          >
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#fafafa" }}>
+          <div className="px-5 py-4 border border-border rounded-lg bg-card">
+            <div className="text-xl font-bold text-foreground">
               {scan.risk_index_score} — {scan.risk_index_band ?? "—"}
             </div>
             {scan.risk_index_breakdown && (
-              <div style={{ marginTop: 8, fontSize: 13, color: "#a1a1aa" }}>
+              <div className="mt-2 text-[13px] text-muted-foreground">
                 Structural risk weighting: {scan.risk_index_breakdown.structural_weight ?? "—"} · Market
                 risk weighting: {scan.risk_index_breakdown.market_weight ?? "—"} · Confidence
                 adjustment: {scan.risk_index_breakdown.confidence_factor ?? "—"}
@@ -230,58 +214,50 @@ export default async function ScanDetailPage({
 
       {showAiInsightsPanel && <AiInsightsPanel scanId={scanId} />}
 
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-foreground mb-3">
           Assumptions
         </h2>
         {assumptions && Object.keys(assumptions).length > 0 ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Key</th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Value</th>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Unit</th>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Confidence</th>
+                <tr className="border-b border-border">
+                  <th className="text-left px-3 py-2 text-muted-foreground">Key</th>
+                  <th className="text-right px-3 py-2 text-muted-foreground">Value</th>
+                  <th className="text-left px-3 py-2 text-muted-foreground">Unit</th>
+                  <th className="text-left px-3 py-2 text-muted-foreground">Confidence</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(assumptions).map(([key, cell]) => (
-                  <tr key={key} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                    <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{key.replace(/_/g, " ")}</td>
-                    <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
+                  <tr key={key} className="border-b border-border">
+                    <td className="px-3 py-2 text-foreground">{key.replace(/_/g, " ")}</td>
+                    <td className="px-3 py-2 text-right text-foreground">
                       {cell.value != null ? cell.value : "—"}
                     </td>
-                    <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.unit ?? "—"}</td>
-                    <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{cell.confidence ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{cell.unit ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{cell.confidence ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p style={{ color: "#a1a1aa", fontSize: 14 }}>No assumptions extracted.</p>
+          <p className="text-muted-foreground text-sm">No assumptions extracted.</p>
         )}
       </section>
 
       {prevScan && (diff.added.length > 0 || diff.removed.length > 0 || diff.severityChanges.length > 0) && (
-        <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             Compare to previous scan
           </h2>
-          <div
-            style={{
-              padding: "16px 20px",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 8,
-              backgroundColor: "rgba(255,255,255,0.03)",
-              fontSize: 14,
-            }}
-          >
+          <div className="px-5 py-4 border border-border rounded-lg bg-card text-sm">
             {diff.added.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
+              <div className="mb-3">
                 <strong style={{ color: "#22c55e" }}>Added risks ({diff.added.length}):</strong>
-                <ul style={{ margin: "4px 0 0", paddingLeft: 20, color: "#e4e4e7" }}>
+                <ul className="mt-1 pl-5 text-foreground">
                   {diff.added.map((r) => (
                     <li key={r.id}>{r.risk_type} — {r.severity_current}</li>
                   ))}
@@ -289,9 +265,9 @@ export default async function ScanDetailPage({
               </div>
             )}
             {diff.removed.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
+              <div className="mb-3">
                 <strong style={{ color: "#f87171" }}>Removed risks ({diff.removed.length}):</strong>
-                <ul style={{ margin: "4px 0 0", paddingLeft: 20, color: "#e4e4e7" }}>
+                <ul className="mt-1 pl-5 text-foreground">
                   {diff.removed.map((r) => (
                     <li key={r.id}>{r.risk_type} — {r.severity_current}</li>
                   ))}
@@ -301,7 +277,7 @@ export default async function ScanDetailPage({
             {diff.severityChanges.length > 0 && (
               <div>
                 <strong style={{ color: "#fbbf24" }}>Severity changes ({diff.severityChanges.length}):</strong>
-                <ul style={{ margin: "4px 0 0", paddingLeft: 20, color: "#e4e4e7" }}>
+                <ul className="mt-1 pl-5 text-foreground">
                   {diff.severityChanges.map(({ risk, previousSeverity }) => (
                     <li key={risk.id}>
                       {risk.risk_type}: {previousSeverity} → {risk.severity_current}
@@ -315,66 +291,46 @@ export default async function ScanDetailPage({
       )}
 
       <section>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+        <h2 className="text-lg font-semibold text-foreground mb-3">
           Risks ({risks.length})
         </h2>
         {risks.length === 0 ? (
-          <p style={{ color: "#a1a1aa", fontSize: 14 }}>No risks flagged.</p>
+          <p className="text-muted-foreground text-sm">No risks flagged.</p>
         ) : (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          <ul className="list-none p-0 m-0">
             {risks.map((r) => (
               <li
                 key={r.id}
-                style={{
-                  padding: "16px 20px",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8,
-                  marginBottom: 12,
-                  backgroundColor: "rgba(255,255,255,0.03)",
-                }}
+                className="px-5 py-4 border border-border rounded-lg mb-3 bg-card"
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ fontWeight: 600, color: "#fafafa" }}>{r.risk_type}</span>
-                  <span style={{ fontSize: 12, color: "#a1a1aa" }}>
+                <div className="flex justify-between items-center flex-wrap gap-2">
+                  <span className="font-semibold text-foreground">{r.risk_type}</span>
+                  <span className="text-xs text-muted-foreground">
                     Severity: {r.severity_current}
                     {r.severity_original !== r.severity_current && ` (from ${r.severity_original})`}
                   </span>
                 </div>
                 {r.what_changed_or_trigger && (
-                  <p style={{ margin: "8px 0 0", fontSize: 14, color: "#e4e4e7" }}>
+                  <p className="mt-2 text-sm text-foreground">
                     {r.what_changed_or_trigger}
                   </p>
                 )}
                 {r.why_it_matters && (
-                  <p style={{ margin: "4px 0 0", fontSize: 13, color: "#a1a1aa" }}>{r.why_it_matters}</p>
+                  <p className="mt-1 text-[13px] text-muted-foreground">{r.why_it_matters}</p>
                 )}
                 {r.who_this_affects && (
-                  <p style={{ margin: "4px 0 0", fontSize: 13, color: "#a1a1aa" }}>
+                  <p className="mt-1 text-[13px] text-muted-foreground">
                     Affects: {r.who_this_affects}
                   </p>
                 )}
-                <p style={{ margin: "8px 0 0", fontSize: 12, color: "#71717a" }}>
+                <p className="mt-2 text-xs text-muted-foreground/70">
                   {r.recommended_action && `${r.recommended_action} · `}
                   {r.confidence && `Confidence: ${r.confidence}`}
                 </p>
                 {linksByRisk[r.id]?.length > 0 && (
-                  <div
-                    style={{
-                      marginTop: 10,
-                      paddingTop: 10,
-                      borderTop: "1px solid rgba(255,255,255,0.08)",
-                    }}
-                  >
-                    <p style={{ fontSize: 12, color: "#71717a", marginBottom: 4 }}>Linked macro signals:</p>
-                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#a1a1aa" }}>
+                  <div className="mt-2.5 pt-2.5 border-t border-border">
+                    <p className="text-xs text-muted-foreground/70 mb-1">Linked macro signals:</p>
+                    <ul className="m-0 pl-[18px] text-[13px] text-muted-foreground">
                       {linksByRisk[r.id].map((link) => (
                         <li key={link.signal_id}>
                           {link.signal_type && <strong>{link.signal_type}</strong>}

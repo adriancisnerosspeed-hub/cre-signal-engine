@@ -54,75 +54,65 @@ export default async function DigestPreviewPage() {
   const grouped = groupSignalsForDigest(signals);
   const rangeStr = `${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`;
 
-  const blockStyle = {
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: "#18181b",
-    border: "1px solid #3f3f46",
-    borderRadius: 10,
-  };
-  const labelStyle = { fontSize: 10, fontWeight: 500, color: "#71717a", textTransform: "uppercase" as const, letterSpacing: "0.04em", marginBottom: 4 };
-  const bodyStyle = { margin: 0, fontSize: 13, lineHeight: 1.5, color: "#d4d4d8" };
-
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>
+    <main className="max-w-[720px] mx-auto p-6">
+      <div className="mb-6">
+        <h1 className="text-[28px] font-bold text-foreground">
           Risk Brief
         </h1>
-        <p style={{ color: "#a1a1aa", marginTop: 4 }}>
+        <p className="text-muted-foreground mt-1">
           Last 24 hours · {rangeStr}
         </p>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div className="mb-4">
         <DigestPreviewClient />
       </div>
 
       {signals.length === 0 ? (
-        <div style={blockStyle}>
-          <p style={{ color: "#a1a1aa", margin: 0 }}>
+        <div className="mb-5 p-4 bg-card border border-border rounded-[10px]">
+          <p className="text-muted-foreground m-0">
             No actionable signals in the last 24 hours matching your preferences.
           </p>
-          <p style={{ color: "#71717a", fontSize: 13, marginTop: 8, marginBottom: 0 }}>
-            <Link href="/settings" style={{ color: "#3b82f6" }}>Adjust preferences</Link> or run an analysis to generate signals.
+          <p className="text-muted-foreground/70 text-[13px] mt-2 mb-0">
+            <Link href="/settings" className="text-blue-500">Adjust preferences</Link> or run an analysis to generate signals.
           </p>
         </div>
       ) : (
-        <div style={blockStyle}>
+        <div className="mb-5 p-4 bg-card border border-border rounded-[10px]">
           {dedupeApplied && (
-            <p style={{ color: "#71717a", fontSize: 12, marginBottom: 12 }}>
+            <p className="text-muted-foreground/70 text-xs mb-3">
               Deduped similar signals for readability.
             </p>
           )}
-          <p style={{ color: "#e4e4e7", marginBottom: 16, fontSize: 14 }}>
+          <p className="text-foreground mb-4 text-sm">
             {signals.length} signal{signals.length !== 1 ? "s" : ""} (same structure as the email)
             {additionalCount > 0 && (
-              <span style={{ color: "#a1a1aa", fontWeight: 400 }}>
+              <span className="text-muted-foreground font-normal">
                 {" "}+{additionalCount} more in dashboard
               </span>
             )}
           </p>
           {Array.from(grouped.entries()).map(([signalType, byAction]) => (
-            <div key={signalType} style={{ marginBottom: 20 }}>
-              <h2 style={{ fontSize: 14, fontWeight: 600, color: "#e4e4e7", marginBottom: 8 }}>
+            <div key={signalType} className="mb-5">
+              <h2 className="text-sm font-semibold text-foreground mb-2">
                 {signalType}
               </h2>
               {Array.from(byAction.entries()).map(([action, items]) => (
-                <div key={action} style={{ marginBottom: 12 }}>
-                  <h3 style={{ fontSize: 12, fontWeight: 600, color: "#a1a1aa", marginBottom: 6 }}>
+                <div key={action} className="mb-3">
+                  <h3 className="text-xs font-semibold text-muted-foreground mb-1.5">
                     {action}
                   </h3>
-                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  <ul className="m-0 pl-5">
                     {items.map((s) => (
-                      <li key={s.id} style={{ marginBottom: 10 }}>
-                        <span style={labelStyle}>What changed</span>
-                        <p style={bodyStyle}>{s.what_changed || "—"}</p>
-                        <span style={labelStyle}>Why it matters</span>
-                        <p style={bodyStyle}>{s.why_it_matters || "—"}</p>
-                        <span style={labelStyle}>Who this affects</span>
-                        <p style={bodyStyle}>{s.who_this_affects || "—"}</p>
-                        <span style={{ ...labelStyle, display: "inline-block", marginTop: 4 }}>Confidence: {s.confidence || "—"}</span>
+                      <li key={s.id} className="mb-2.5">
+                        <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider block mb-1">What changed</span>
+                        <p className="m-0 text-[13px] leading-[1.5] text-foreground">{s.what_changed || "—"}</p>
+                        <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider block mb-1 mt-2">Why it matters</span>
+                        <p className="m-0 text-[13px] leading-[1.5] text-foreground">{s.why_it_matters || "—"}</p>
+                        <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider block mb-1 mt-2">Who this affects</span>
+                        <p className="m-0 text-[13px] leading-[1.5] text-foreground">{s.who_this_affects || "—"}</p>
+                        <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider inline-block mt-1">Confidence: {s.confidence || "—"}</span>
                       </li>
                     ))}
                   </ul>
@@ -133,8 +123,8 @@ export default async function DigestPreviewPage() {
         </div>
       )}
 
-      <p style={{ marginTop: 24 }}>
-        <Link href="/app" style={{ color: "#3b82f6", fontSize: 14 }}>Back to Dashboard</Link>
+      <p className="mt-6">
+        <Link href="/app" className="text-blue-500 text-sm">Back to Dashboard</Link>
       </p>
     </main>
   );

@@ -71,6 +71,26 @@ export default async function AppPage() {
     }
   }
 
+  // Fetch stats for quick summary
+  let dealCount = 0;
+  let recentScanCount = 0;
+  if (orgId) {
+    const { count: dc } = await supabase
+      .from("deals")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId);
+    dealCount = dc ?? 0;
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { count: sc } = await supabase
+      .from("deal_scans")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId)
+      .eq("status", "completed")
+      .gte("created_at", thirtyDaysAgo);
+    recentScanCount = sc ?? 0;
+  }
+
   const { data: signals, error } = await supabase
     .from("signals")
     .select("*")
@@ -83,46 +103,68 @@ export default async function AppPage() {
   }
 
   return (
-    <main className="max-w-[1000px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
+    <main className="max-w-[1000px] mx-auto p-6 bg-background text-foreground">
       {showOnboarding && (
         <OnboardingFlow demo={demoInfo} canInviteMembers={canInviteMembers} />
       )}
       <div className="mb-6">
-        <h1 className="text-[28px] font-bold text-gray-900 dark:text-white">
+        <h1 className="text-[28px] font-bold text-foreground">
           Dashboard
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">
-          Signed in as <strong className="text-gray-900 dark:text-zinc-200">{user.email}</strong>
+        <p className="text-muted-foreground mt-1">
+          Signed in as <strong className="text-foreground">{user.email}</strong>
         </p>
       </div>
 
       <UsageBanner />
 
-      <div style={{ marginBottom: 24 }}>
-        <Link
-          href="/analyze"
-          style={{
-            display: "inline-block",
-            padding: "12px 24px",
-            backgroundColor: "var(--foreground)",
-            color: "var(--background)",
-            textDecoration: "none",
-            borderRadius: 6,
-            fontWeight: 600,
-          }}
-        >
-          Go to Analyze
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="p-4 bg-card border border-border rounded-lg">
+          <div className="text-xs text-muted-foreground mb-1">Deals</div>
+          <div className="text-2xl font-bold text-foreground">{dealCount}</div>
+        </div>
+        <div className="p-4 bg-card border border-border rounded-lg">
+          <div className="text-xs text-muted-foreground mb-1">Scans (30d)</div>
+          <div className="text-2xl font-bold text-foreground">{recentScanCount}</div>
+        </div>
+        <div className="p-4 bg-card border border-border rounded-lg">
+          <div className="text-xs text-muted-foreground mb-1">Signals</div>
+          <div className="text-2xl font-bold text-foreground">{signals?.length ?? 0}</div>
+        </div>
+        <Link href="/analyze" className="p-4 bg-card border border-border rounded-lg no-underline hover:border-blue-500/50 transition-colors group">
+          <div className="text-xs text-muted-foreground mb-1">Quick action</div>
+          <div className="text-sm font-semibold text-blue-500 group-hover:text-blue-400">Run Analysis →</div>
         </Link>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-200 mb-4">
+      {/* Quick Navigation */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        <Link href="/app/deals/new" className="p-3 bg-card border border-border rounded-lg no-underline hover:border-foreground/20 transition-colors text-center">
+          <div className="text-sm font-medium text-foreground">New Deal</div>
+        </Link>
+        <Link href="/app/deals" className="p-3 bg-card border border-border rounded-lg no-underline hover:border-foreground/20 transition-colors text-center">
+          <div className="text-sm font-medium text-foreground">All Deals</div>
+        </Link>
+        <Link href="/app/portfolio" className="p-3 bg-card border border-border rounded-lg no-underline hover:border-foreground/20 transition-colors text-center">
+          <div className="text-sm font-medium text-foreground">Portfolio</div>
+        </Link>
+        <Link href="/app/governance/dashboard" className="p-3 bg-card border border-border rounded-lg no-underline hover:border-foreground/20 transition-colors text-center">
+          <div className="text-sm font-medium text-foreground">Governance</div>
+        </Link>
+      </div>
+
+      <h2 className="text-lg font-semibold text-foreground mb-4 border-l-2 border-blue-500 pl-3">
         Recent Signals ({signals?.length || 0})
       </h2>
 
       {!signals || signals.length === 0 ? (
-        <p className="text-gray-500 dark:text-gray-400 py-6 text-center">
-          No signals yet. Use the analyze API to create signals.
-        </p>
+        <div className="py-12 text-center border border-dashed border-border rounded-lg">
+          <p className="text-muted-foreground mb-2">No signals yet.</p>
+          <p className="text-sm text-muted-foreground/70">
+            Use the <Link href="/analyze" className="text-blue-500 underline underline-offset-2">analyze</Link> feature to generate CRE market signals.
+          </p>
+        </div>
       ) : (
         <div className="flex flex-col gap-3.5">
           {signals.map((signal: Signal) => {
@@ -142,13 +184,11 @@ export default async function AppPage() {
             return (
               <div
                 key={signal.id}
-                className="signal-card rounded-lg p-3.5 cursor-pointer bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 shadow-sm dark:shadow-[0_2px_6px_rgba(0,0,0,0.2)]"
+                className="signal-card rounded-lg p-3.5 cursor-pointer bg-card border border-border shadow-sm hover:border-foreground/20 transition-colors"
               >
                 <div className="flex justify-between items-start gap-3 mb-3">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span
-                      className="inline-block py-1 px-2 rounded text-[11px] font-semibold bg-gray-200 dark:bg-zinc-700 text-gray-600 dark:text-zinc-300"
-                    >
+                    <span className="inline-block py-1 px-2 rounded text-[11px] font-semibold bg-muted text-muted-foreground">
                       {signal.signal_type}
                     </span>
                     <span
@@ -165,7 +205,7 @@ export default async function AppPage() {
                     </span>
                   </div>
                   <time
-                    className="text-[10px] text-gray-400 dark:text-zinc-500 shrink-0 whitespace-nowrap"
+                    className="text-[10px] text-muted-foreground shrink-0 whitespace-nowrap"
                     dateTime={signal.created_at}
                   >
                     {new Date(signal.created_at).toLocaleString()}
@@ -173,22 +213,22 @@ export default async function AppPage() {
                 </div>
 
                 {signal.what_changed && (
-                  <div className="mb-2.5 pb-2.5 border-b border-gray-200 dark:border-zinc-700">
-                    <div className="text-[10px] font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-0.5">
+                  <div className="mb-2.5 pb-2.5 border-b border-border">
+                    <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
                       What Changed
                     </div>
-                    <p className="m-0 text-sm leading-relaxed text-gray-900 dark:text-zinc-200">
+                    <p className="m-0 text-sm leading-relaxed text-foreground">
                       {signal.what_changed}
                     </p>
                   </div>
                 )}
 
                 {signal.why_it_matters && (
-                  <div className="mb-2.5 pb-2.5 border-b border-gray-200 dark:border-zinc-700">
-                    <div className="text-[10px] font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-0.5">
+                  <div className="mb-2.5 pb-2.5 border-b border-border">
+                    <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
                       Why It Matters
                     </div>
-                    <p className="m-0 text-[13px] leading-relaxed text-gray-500 dark:text-gray-400">
+                    <p className="m-0 text-[13px] leading-relaxed text-muted-foreground">
                       {signal.why_it_matters}
                     </p>
                   </div>
@@ -196,10 +236,10 @@ export default async function AppPage() {
 
                 {signal.who_this_affects && (
                   <div>
-                    <div className="text-[10px] font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-0.5">
+                    <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
                       Who This Affects
                     </div>
-                    <p className="m-0 text-[13px] leading-relaxed text-gray-500 dark:text-gray-400">
+                    <p className="m-0 text-[13px] leading-relaxed text-muted-foreground">
                       {signal.who_this_affects}
                     </p>
                   </div>

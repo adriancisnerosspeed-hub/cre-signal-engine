@@ -23,33 +23,17 @@ export default function DigestPreviewClient() {
   }, []);
 
   return (
-    <div
-      style={{
-        padding: 12,
-        backgroundColor: "#18181b",
-        border: "1px solid #3f3f46",
-        borderRadius: 8,
-        marginBottom: 16,
-      }}
-    >
+    <div className="p-3 bg-card border border-border rounded-lg mb-4">
       <button
         type="button"
         onClick={handleSend}
         disabled={sending}
-        style={{
-          padding: "8px 16px",
-          backgroundColor: "#27272a",
-          color: "#e4e4e7",
-          border: "1px solid #52525b",
-          borderRadius: 6,
-          cursor: sending ? "not-allowed" : "pointer",
-          fontWeight: 500,
-        }}
+        className="px-4 py-2 bg-muted/50 text-foreground border border-border rounded-md disabled:cursor-not-allowed cursor-pointer font-medium"
       >
-        {sending ? "Sending…" : "Send test Risk Brief now"}
+        {sending ? "Sending\u2026" : "Send test Risk Brief now"}
       </button>
       {message && (
-        <span style={{ marginLeft: 12, color: message.startsWith("Risk Brief") || message.includes("24 hours") ? "#86efac" : "#fca5a5", fontSize: 14 }}>
+        <span className={`ml-3 text-sm ${message.startsWith("Risk Brief") || message.includes("24 hours") ? "text-[#86efac]" : "text-[#fca5a5]"}`}>
           {message}
         </span>
       )}

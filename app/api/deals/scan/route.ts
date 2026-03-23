@@ -139,14 +139,15 @@ export async function POST(request: Request) {
 
   if (!forceRescan && rawText) {
     const hash = inputTextHash(rawText);
-    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const SCAN_CACHE_TTL_HOURS = parseInt(process.env.SCAN_CACHE_TTL_HOURS || "168", 10);
+    const cacheWindow = new Date(Date.now() - SCAN_CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
     const { data: existing } = await service
       .from("deal_scans")
       .select("id")
       .eq("deal_id", dealId)
       .eq("input_text_hash", hash)
       .eq("status", "completed")
-      .gte("created_at", dayAgo)
+      .gte("created_at", cacheWindow)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -185,7 +186,9 @@ export async function POST(request: Request) {
   const client = new OpenAI({ apiKey });
   const completion = await client.chat.completions.create({
     model: "gpt-4o",
-    temperature: 0.1,
+    temperature: 0,
+    top_p: 1,
+    seed: 42,
     messages: [
       { role: "system", content: DEAL_SCAN_SYSTEM_PROMPT },
       { role: "user", content: rawText || "No underwriting text provided." },
@@ -422,6 +425,15 @@ export async function POST(request: Request) {
     macroTimestampMissing = linksWithTimestamp.some((l) => l.timestamp == null);
   }
   const { computeRiskIndex, RISK_INDEX_VERSION } = await import("@/lib/riskIndex");
+
+  // Log scoring inputs hash for determinism audit trail
+  const scoringInputSummary = JSON.stringify({
+    risks: stabilizedRisks.map((r) => ({ risk_type: r.risk_type, severity_current: r.severity_current, confidence: r.confidence })),
+    assumptions: Object.fromEntries(Object.entries(assumptionsForScoring).map(([k, v]) => [k, v?.value])),
+    macroLinkedCount,
+  });
+  console.info("[deal_scan] scoring_inputs", { scan_id: scan.id, deal_id: dealId, inputs_hash: inputTextHash(scoringInputSummary) });
+
   const deltaComparable = previousScore != null && previousVersion === RISK_INDEX_VERSION;
   const riskIndex = computeRiskIndex({
     risks: stabilizedRisks.map((r) => ({
@@ -544,6 +556,8 @@ export async function POST(request: Request) {
     scan_id: scan.id,
     deal_id: dealId,
     model,
+    temperature: 0,
+    seed: 42,
     risk_count: normalized.risks.length,
     assumption_keys: assumptionKeys,
     score,

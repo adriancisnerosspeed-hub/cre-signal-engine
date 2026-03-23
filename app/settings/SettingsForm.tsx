@@ -103,36 +103,19 @@ export default function SettingsForm({
     }
   }, []);
 
-  const blockStyle = {
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: "#18181b",
-    border: "1px solid #3f3f46",
-    borderRadius: 10,
-  };
-  const labelStyle = { display: "block", marginBottom: 8, color: "#e4e4e7", fontSize: 13, fontWeight: 500 };
-  const inputStyle = {
-    padding: "8px 12px",
-    borderRadius: 6,
-    border: "1px solid #3f3f46",
-    backgroundColor: "#27272a",
-    color: "#e4e4e7",
-    fontSize: 14,
-  };
-
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         handleSave();
       }}
-      style={{ maxWidth: 560 }}
+      className="max-w-[560px]"
     >
-      <div style={blockStyle}>
-        <span style={labelStyle}>Signal types</span>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      <div className="mb-5 p-4 bg-card border border-border rounded-[10px]">
+        <span className="block mb-2 text-foreground text-[13px] font-medium">Signal types</span>
+        <div className="flex flex-wrap gap-2">
           {SIGNAL_TYPES.map((t) => (
-            <label key={t} style={{ display: "flex", alignItems: "center", gap: 6, color: "#d4d4d8", fontSize: 14, cursor: "pointer" }}>
+            <label key={t} className="flex items-center gap-1.5 text-foreground text-sm cursor-pointer">
               <input
                 type="checkbox"
                 checked={prefs.signal_types.includes(t)}
@@ -144,11 +127,11 @@ export default function SettingsForm({
         </div>
       </div>
 
-      <div style={blockStyle}>
-        <span style={labelStyle}>Actions</span>
-        <div style={{ display: "flex", gap: 16 }}>
+      <div className="mb-5 p-4 bg-card border border-border rounded-[10px]">
+        <span className="block mb-2 text-foreground text-[13px] font-medium">Actions</span>
+        <div className="flex gap-4">
           {ACTIONS.map((a) => (
-            <label key={a} style={{ display: "flex", alignItems: "center", gap: 6, color: "#d4d4d8", fontSize: 14, cursor: "pointer" }}>
+            <label key={a} className="flex items-center gap-1.5 text-foreground text-sm cursor-pointer">
               <input
                 type="checkbox"
                 checked={prefs.actions.includes(a)}
@@ -160,12 +143,12 @@ export default function SettingsForm({
         </div>
       </div>
 
-      <div style={blockStyle}>
-        <label style={labelStyle}>Minimum confidence</label>
+      <div className="mb-5 p-4 bg-card border border-border rounded-[10px]">
+        <label className="block mb-2 text-foreground text-[13px] font-medium">Minimum confidence</label>
         <select
           value={prefs.min_confidence}
           onChange={(e) => setPrefs((p) => ({ ...p, min_confidence: e.target.value }))}
-          style={{ ...inputStyle, minWidth: 140 }}
+          className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm min-w-[140px]"
         >
           {CONFIDENCE_OPTIONS.map((c) => (
             <option key={c} value={c}>{c}</option>
@@ -173,12 +156,12 @@ export default function SettingsForm({
         </select>
       </div>
 
-      <div style={blockStyle}>
-        <label style={labelStyle}>Timezone</label>
+      <div className="mb-5 p-4 bg-card border border-border rounded-[10px]">
+        <label className="block mb-2 text-foreground text-[13px] font-medium">Timezone</label>
         <select
           value={TIMEZONES.includes(prefs.timezone) ? prefs.timezone : ""}
           onChange={(e) => setPrefs((p) => ({ ...p, timezone: e.target.value || p.timezone }))}
-          style={{ ...inputStyle, minWidth: 220 }}
+          className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm min-w-[220px]"
         >
           {TIMEZONES.map((tz) => (
             <option key={tz} value={tz}>{tz}</option>
@@ -191,24 +174,24 @@ export default function SettingsForm({
             placeholder="e.g. America/Chicago"
             value={prefs.timezone}
             onChange={(e) => setPrefs((p) => ({ ...p, timezone: e.target.value.trim() || "America/Chicago" }))}
-            style={{ ...inputStyle, marginTop: 8, width: "100%", maxWidth: 280 }}
+            className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm mt-2 w-full max-w-[280px]"
           />
         )}
       </div>
 
-      <div style={blockStyle}>
-        <label style={labelStyle}>Daily Risk Brief time (local)</label>
+      <div className="mb-5 p-4 bg-card border border-border rounded-[10px]">
+        <label className="block mb-2 text-foreground text-[13px] font-medium">Daily Risk Brief time (local)</label>
         <input
           type="time"
           value={prefs.digest_time_local}
           onChange={(e) => setPrefs((p) => ({ ...p, digest_time_local: e.target.value }))}
-          style={inputStyle}
+          className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
         />
-        <span style={{ marginLeft: 8, color: "#71717a", fontSize: 12 }}>24h format</span>
+        <span className="ml-2 text-muted-foreground/70 text-xs">24h format</span>
       </div>
 
-      <div style={blockStyle}>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#d4d4d8", fontSize: 14, cursor: "pointer" }}>
+      <div className="mb-5 p-4 bg-card border border-border rounded-[10px]">
+        <label className="flex items-center gap-2 text-foreground text-sm cursor-pointer">
           <input
             type="checkbox"
             checked={prefs.digest_enabled}
@@ -218,58 +201,45 @@ export default function SettingsForm({
         </label>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 24 }}>
+      <div className="flex items-center gap-4 flex-wrap mb-6">
         <button
           type="submit"
           disabled={saving}
-          style={{
-            padding: "10px 20px",
-            backgroundColor: "#3b82f6",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontWeight: 600,
-            cursor: saving ? "not-allowed" : "pointer",
-          }}
+          className="px-5 py-2.5 bg-[#3b82f6] text-white border-none rounded-md font-semibold"
+          style={{ cursor: saving ? "not-allowed" : "pointer" }}
         >
           {saving ? "Saving…" : "Save preferences"}
         </button>
         {saveMessage && (
-          <span style={{ color: saveMessage.startsWith("Preferences") ? "#86efac" : "#fca5a5", fontSize: 14 }}>
+          <span className={`text-sm ${saveMessage.startsWith("Preferences") ? "text-green-300" : "text-red-300"}`}>
             {saveMessage}
           </span>
         )}
       </div>
 
-      <div style={{ ...blockStyle, borderColor: "#52525b" }}>
-        <span style={labelStyle}>Test Risk Brief</span>
-        <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
+      <div className="mb-5 p-4 bg-card border border-border rounded-[10px]">
+        <span className="block mb-2 text-foreground text-[13px] font-medium">Test Risk Brief</span>
+        <p className="text-muted-foreground text-[13px] mb-3">
           Send the Risk Brief for the last 24 hours to your email now (ignores schedule).
         </p>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             type="button"
             onClick={handleSendTest}
             disabled={sending}
-            style={{
-              padding: "8px 16px",
-              backgroundColor: "#27272a",
-              color: "#e4e4e7",
-              border: "1px solid #52525b",
-              borderRadius: 6,
-              cursor: sending ? "not-allowed" : "pointer",
-            }}
+            className="px-4 py-2 bg-muted text-foreground border border-border rounded-md"
+            style={{ cursor: sending ? "not-allowed" : "pointer" }}
           >
             {sending ? "Sending…" : "Send test Risk Brief now"}
           </button>
           <Link
             href="/digest/preview"
-            style={{ color: "#3b82f6", fontSize: 14 }}
+            className="text-[#3b82f6] text-sm"
           >
             Preview Risk Brief
           </Link>
           {sendMessage && (
-            <span style={{ color: sendMessage.startsWith("Risk Brief") || sendMessage.includes("24 hours") ? "#86efac" : "#fca5a5", fontSize: 14 }}>
+            <span className={`text-sm ${sendMessage.startsWith("Risk Brief") || sendMessage.includes("24 hours") ? "text-green-300" : "text-red-300"}`}>
               {sendMessage}
             </span>
           )}

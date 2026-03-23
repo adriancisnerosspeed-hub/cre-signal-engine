@@ -49,19 +49,19 @@ export default function NewDealPage() {
   }
 
   return (
-    <main style={{ maxWidth: 640, margin: "0 auto", padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Link href="/app/deals" style={{ color: "#a1a1aa", fontSize: 14, textDecoration: "none" }}>
+    <main className="max-w-[640px] mx-auto p-6">
+      <div className="mb-6">
+        <Link href="/app/deals" className="text-muted-foreground text-sm no-underline">
           ← Back to deals
         </Link>
       </div>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa", marginBottom: 24 }}>
+      <h1 className="text-[28px] font-bold text-foreground mb-6">
         New deal
       </h1>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div>
-          <label htmlFor="name" style={{ display: "block", marginBottom: 6, fontSize: 14, color: "#e4e4e7" }}>
+          <label htmlFor="name" className="block mb-1.5 text-sm text-foreground">
             Deal name *
           </label>
           <input
@@ -70,19 +70,11 @@ export default function NewDealPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. 123 Main St"
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "var(--background)",
-              color: "var(--foreground)",
-              fontSize: 14,
-            }}
+            className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
           />
         </div>
         <div>
-          <label htmlFor="asset_type" style={{ display: "block", marginBottom: 6, fontSize: 14, color: "#e4e4e7" }}>
+          <label htmlFor="asset_type" className="block mb-1.5 text-sm text-foreground">
             Asset type
           </label>
           <input
@@ -91,19 +83,11 @@ export default function NewDealPage() {
             value={assetType}
             onChange={(e) => setAssetType(e.target.value)}
             placeholder="e.g. Multifamily, Office"
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "var(--background)",
-              color: "var(--foreground)",
-              fontSize: 14,
-            }}
+            className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
           />
         </div>
         <div>
-          <label htmlFor="market" style={{ display: "block", marginBottom: 6, fontSize: 14, color: "#e4e4e7" }}>
+          <label htmlFor="market" className="block mb-1.5 text-sm text-foreground">
             Market
           </label>
           <input
@@ -119,19 +103,11 @@ export default function NewDealPage() {
               }
             }}
             placeholder="e.g. Austin, TX or Dallas, Texas"
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "var(--background)",
-              color: "var(--foreground)",
-              fontSize: 14,
-            }}
+            className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
           />
         </div>
         <div>
-          <label htmlFor="raw_text" style={{ display: "block", marginBottom: 6, fontSize: 14, color: "#e4e4e7" }}>
+          <label htmlFor="raw_text" className="block mb-1.5 text-sm text-foreground">
             Underwriting excerpt (paste text)
           </label>
           <textarea
@@ -140,16 +116,7 @@ export default function NewDealPage() {
             onChange={(e) => setRawText(e.target.value)}
             placeholder={`Paste your deal underwriting text here. Include:\n- Purchase price (e.g. $12,500,000)\n- Cap rate / NOI (e.g. 5.8% cap, $725,000 NOI)\n- LTV and debt rate (e.g. 65% LTV, 7.25% debt)\n- Vacancy rate (e.g. 8% vacancy)\n- Hold period (e.g. 5 year hold)\n- Rent and expense growth assumptions\n\nThe more detail you provide, the higher the confidence scores on your assumptions.`}
             rows={8}
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "var(--background)",
-              color: "var(--foreground)",
-              fontSize: 14,
-              resize: "vertical",
-            }}
+            className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm resize-y"
           />
           {excerptWarning && (
             <p style={{ marginTop: 6, fontSize: 13, color: "#f59e0b" }}>
@@ -160,34 +127,17 @@ export default function NewDealPage() {
         {error && (
           <p style={{ color: "#ef4444", fontSize: 14 }}>{error}</p>
         )}
-        <div style={{ display: "flex", gap: 12 }}>
+        <div className="flex gap-3">
           <button
             type="submit"
             disabled={submitting}
-            style={{
-              padding: "10px 24px",
-              backgroundColor: "var(--foreground)",
-              color: "var(--background)",
-              border: "none",
-              borderRadius: 6,
-              fontWeight: 600,
-              cursor: submitting ? "not-allowed" : "pointer",
-              opacity: submitting ? 0.7 : 1,
-            }}
+            className="py-2.5 px-6 bg-gray-900 dark:bg-white text-white dark:text-black border-none rounded-md font-semibold cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
           >
             {submitting ? "Creating…" : "Create deal"}
           </button>
           <Link
             href="/app/deals"
-            style={{
-              padding: "10px 24px",
-              border: "1px solid rgba(255,255,255,0.3)",
-              borderRadius: 6,
-              color: "var(--foreground)",
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-            }}
+            className="py-2.5 px-6 border border-border rounded-md text-foreground no-underline inline-flex items-center"
           >
             Cancel
           </Link>

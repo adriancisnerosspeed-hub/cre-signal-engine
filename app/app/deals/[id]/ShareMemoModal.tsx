@@ -155,54 +155,31 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
     }
   }
 
-  const buttonStyle: React.CSSProperties = {
-    padding: "8px 16px",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    color: "#e4e4e7",
-    border: "1px solid rgba(255,255,255,0.2)",
-    borderRadius: 6,
-    fontSize: 14,
-    cursor: "pointer",
-  };
-
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} style={buttonStyle}>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="px-4 py-2 bg-muted/50 text-foreground border border-border rounded-md text-sm cursor-pointer"
+      >
         Share
       </button>
 
       {open && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.7)",
-            zIndex: 100,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-          }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
           onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
         >
-          <div
-            style={{
-              backgroundColor: "#18181b",
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 12,
-              padding: 24,
-              width: "100%",
-              maxWidth: 480,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: "#e4e4e7", margin: 0 }}>
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-[480px]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-base font-semibold text-foreground m-0">
                 Share IC Memo
               </h3>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                style={{ background: "none", border: "none", color: "#71717a", fontSize: 20, cursor: "pointer", lineHeight: 1 }}
+                className="bg-transparent border-none text-muted-foreground/70 text-xl cursor-pointer leading-none"
               >
                 ×
               </button>
@@ -212,32 +189,23 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
               <p style={{ color: "#ef4444", fontSize: 13, marginBottom: 12 }}>{error}</p>
             )}
             {loading ? (
-              <p style={{ color: "#a1a1aa", fontSize: 14 }}>Loading…</p>
+              <p className="text-muted-foreground text-sm">Loading…</p>
             ) : link ? (
               <>
-                <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
+                <p className="text-muted-foreground text-[13px] mb-3">
                   Anyone with this link can view the IC memo narrative and risk score. Financial inputs are not shown.
                   {link.password_protected && (
-                    <span style={{ display: "block", marginTop: 8, color: "#eab308", fontWeight: 600 }}>
+                    <span className="block mt-2 font-semibold" style={{ color: "#eab308" }}>
                       Password protected — recipients must enter the password you set.
                     </span>
                   )}
                 </p>
-                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <div className="flex gap-2 mb-3">
                   <input
                     ref={urlInputRef}
                     readOnly
                     value={getFullUrl(link.url)}
-                    style={{
-                      flex: 1,
-                      padding: "8px 12px",
-                      backgroundColor: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      borderRadius: 6,
-                      color: "#e4e4e7",
-                      fontSize: 13,
-                      fontFamily: "monospace",
-                    }}
+                    className="flex-1 px-3 py-2 rounded-md border border-border bg-muted/50 text-foreground text-[13px] font-mono"
                     onClick={(e) => (e.target as HTMLInputElement).select()}
                   />
                   <button
@@ -258,8 +226,8 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
                     {copied ? "Copied!" : "Copy"}
                   </button>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 12, color: "#52525b" }}>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground/70">
                     {link.view_count} {link.view_count === 1 ? "view" : "views"}
                   </span>
                   <button
@@ -281,10 +249,10 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
               </>
             ) : (
               <>
-                <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 16 }}>
+                <p className="text-muted-foreground text-[13px] mb-4">
                   Create a public link that lets anyone view the IC memo narrative and risk score. Financial inputs and assumptions are not shared.
                 </p>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, cursor: "pointer" }}>
+                <label className="flex items-center gap-2 mb-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={usePassword}
@@ -293,7 +261,7 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
                       if (!e.target.checked) setSharePassword("");
                     }}
                   />
-                  <span style={{ color: "#e4e4e7", fontSize: 13 }}>Require password to open</span>
+                  <span className="text-foreground text-[13px]">Require password to open</span>
                 </label>
                 {usePassword && (
                   <input
@@ -302,17 +270,7 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
                     onChange={(e) => setSharePassword(e.target.value)}
                     placeholder="Password"
                     autoComplete="new-password"
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      marginBottom: 16,
-                      backgroundColor: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      borderRadius: 6,
-                      color: "#e4e4e7",
-                      fontSize: 14,
-                      boxSizing: "border-box",
-                    }}
+                    className="w-full px-3 py-2 mb-4 rounded-md border border-border bg-background text-foreground text-sm box-border"
                   />
                 )}
                 <button

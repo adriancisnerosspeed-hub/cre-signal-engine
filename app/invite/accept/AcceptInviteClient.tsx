@@ -48,29 +48,20 @@ export default function AcceptInviteClient({
 
   return (
     <div>
-      <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 16 }}>
-        You’re signed in as <strong style={{ color: "#e4e4e7" }}>{userEmail}</strong>. Click below to
+      <p className="text-muted-foreground text-sm mb-4">
+        You&apos;re signed in as <strong className="text-foreground">{userEmail}</strong>. Click below to
         join the workspace.
       </p>
       {error && (
-        <p style={{ color: "#ef4444", fontSize: 14, marginBottom: 12 }}>{error}</p>
+        <p className="text-[#ef4444] text-sm mb-3">{error}</p>
       )}
       <button
         type="button"
         onClick={handleAccept}
         disabled={loading}
-        style={{
-          padding: "12px 24px",
-          backgroundColor: "#3b82f6",
-          color: "#fff",
-          border: "none",
-          borderRadius: 8,
-          fontWeight: 600,
-          cursor: loading ? "not-allowed" : "pointer",
-          opacity: loading ? 0.7 : 1,
-        }}
+        className="px-6 py-3 bg-[#3b82f6] text-white border-none rounded-lg font-semibold disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
       >
-        {loading ? "Joining…" : "Accept invite"}
+        {loading ? "Joining\u2026" : "Accept invite"}
       </button>
     </div>
   );

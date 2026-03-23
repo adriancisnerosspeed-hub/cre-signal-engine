@@ -116,6 +116,17 @@ This file is AI-facing project memory. Read it before doing substantial work.
 - **Best fix:** Exclude `supabase/functions` in root `tsconfig.json` so Deno code is not part of the Next compile graph.
 - **Pre-emption for future AI:** If `next build` fails on a Deno URL inside `supabase/functions`, confirm `exclude` covers that folder before refactoring the edge function.
 
+### 4f. Hardcoded Dark-Mode Colors Break Light Mode Across 25+ Files ✓
+- **What happened:** ~25 files used inline `style={{ color: "#a1a1aa", backgroundColor: "#18181b" }}` and similar hardcoded dark-mode hex values, bypassing the CSS variable system in `globals.css`. In light mode, this produced invisible text (pale gray on white), black boxes, and unreadable UI across methodology, deals, portfolio, governance, settings, digest, and onboarding pages.
+- **Best fix:** Systematic conversion of all inline `style={{}}` color/background props to Tailwind theme-aware classes (`text-foreground`, `text-muted-foreground`, `bg-card`, `bg-background`, `border-border`, `bg-muted/50`). Semantic/status colors (blue, red, green, amber) were preserved as-is since they work in both themes.
+- **Color mapping used:**
+  - `#fafafa` / `#e4e4e7` → `text-foreground`
+  - `#a1a1aa` / `#71717a` → `text-muted-foreground`
+  - `#18181b` / `#0a0a0a` → `bg-card` or `bg-background`
+  - `rgba(255,255,255,0.03)` → `bg-muted/50`
+  - `rgba(255,255,255,0.08)` / `#3f3f46` → `border-border`
+- **Pre-emption for future AI:** When adding new UI, always use Tailwind theme tokens (`text-foreground`, `bg-card`, `border-border`) instead of hex values. Check that `app/settings/page.tsx` uses `dark:` variants as the reference pattern. Never use inline `style={{}}` for colors that should adapt to theme.
+
 ---
 
 ## 5. Entitlements, Billing, And Pricing Drift

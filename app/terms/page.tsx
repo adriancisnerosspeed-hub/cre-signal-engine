@@ -18,24 +18,24 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa", marginBottom: 8 }}>
+    <main className="max-w-[720px] mx-auto p-6">
+      <h1 className="text-[28px] font-bold text-foreground mb-2">
         Terms of Service
       </h1>
-      <p style={{ color: "#a1a1aa", marginBottom: 24 }}>
+      <p className="text-muted-foreground mb-6">
         Last updated: {new Date().toISOString().slice(0, 10)}
       </p>
-      <div style={{ color: "#e4e4e7", fontSize: 15, lineHeight: 1.6 }}>
+      <div className="text-foreground text-[15px] leading-relaxed">
         <p>
           By using CRE Signal Engine you agree to use the service in accordance with these terms.
           We reserve the right to update these terms; continued use constitutes acceptance.
         </p>
-        <p style={{ marginTop: 16 }}>
+        <p className="mt-4">
           For billing and subscription terms, see your plan and our payment provider&apos;s policies.
         </p>
       </div>
-      <p style={{ marginTop: 32 }}>
-        <Link href="/" style={{ color: "#3b82f6", fontSize: 14 }}>
+      <p className="mt-8">
+        <Link href="/" className="text-[#3b82f6] text-sm">
           Back to home
         </Link>
       </p>

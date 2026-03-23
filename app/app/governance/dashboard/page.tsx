@@ -20,8 +20,8 @@ export default async function GovernanceDashboardPage() {
   const orgId = await getCurrentOrgId(supabase, user);
   if (!orgId) {
     return (
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-        <p style={{ color: "#a1a1aa" }}>No workspace selected.</p>
+      <main className="max-w-[800px] mx-auto p-6">
+        <p className="text-muted-foreground">No workspace selected.</p>
       </main>
     );
   }
@@ -30,12 +30,12 @@ export default async function GovernanceDashboardPage() {
   const canView = entitlements.canUseTrajectory || entitlements.canUseGovernanceExport;
   if (!canView) {
     return (
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-        <Link href="/app" style={{ color: "#71717a", fontSize: 14, textDecoration: "none", marginBottom: 8, display: "inline-block" }}>
+      <main className="max-w-[800px] mx-auto p-6">
+        <Link href="/app" className="text-muted-foreground text-sm no-underline hover:text-foreground transition-colors mb-2 inline-block">
           ← Dashboard
         </Link>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>Governance dashboard</h1>
-        <p style={{ color: "#a1a1aa", marginTop: 8 }}>
+        <h1 className="text-[28px] font-bold text-foreground">Governance dashboard</h1>
+        <p className="text-muted-foreground mt-2">
           Available on Analyst, Fund, and Enterprise plans.
         </p>
       </main>
@@ -43,15 +43,15 @@ export default async function GovernanceDashboardPage() {
   }
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Link href="/app" style={{ color: "#71717a", fontSize: 14, textDecoration: "none", marginBottom: 8, display: "inline-block" }}>
+    <main className="max-w-[900px] mx-auto p-6">
+      <div className="mb-6">
+        <Link href="/app" className="text-muted-foreground text-sm no-underline hover:text-foreground transition-colors mb-2 inline-block">
           ← Dashboard
         </Link>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa" }}>
+        <h1 className="text-[28px] font-bold text-foreground">
           Governance dashboard
         </h1>
-        <p style={{ color: "#a1a1aa", marginTop: 4 }}>
+        <p className="text-muted-foreground mt-1">
           Portfolio risk trend, policy violations, and override counts.
         </p>
       </div>

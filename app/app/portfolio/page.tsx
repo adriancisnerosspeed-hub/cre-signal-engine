@@ -22,8 +22,8 @@ export default async function PortfolioPage() {
   const orgId = await getCurrentOrgId(supabase, user);
   if (!orgId) {
     return (
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-        <p style={{ color: "#a1a1aa" }}>No workspace selected.</p>
+      <main className="max-w-[800px] mx-auto p-6">
+        <p className="text-muted-foreground">No workspace selected.</p>
       </main>
     );
   }

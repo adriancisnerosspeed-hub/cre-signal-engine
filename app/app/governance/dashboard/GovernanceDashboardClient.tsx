@@ -51,24 +51,24 @@ export default function GovernanceDashboardClient() {
   }, [days]);
 
   if (loading && !data) {
-    return <p style={{ color: "#a1a1aa" }}>Loading…</p>;
+    return <p className="text-muted-foreground">Loading…</p>;
   }
   if (error && !data) {
-    return <p style={{ color: "#f87171" }}>{error}</p>;
+    return <p className="text-red-400">{error}</p>;
   }
   if (!data) {
-    return <p style={{ color: "#71717a" }}>No data.</p>;
+    return <p className="text-muted-foreground/70">No data.</p>;
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <label style={{ fontSize: 14, color: "#a1a1aa" }}>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-3 flex-wrap">
+        <label className="text-sm text-muted-foreground">
           Last{" "}
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            style={{ marginLeft: 4, padding: "4px 8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 4, color: "#fafafa" }}
+            className="ml-1 px-2 py-1 bg-background border border-border rounded text-foreground"
           >
             <option value={7}>7</option>
             <option value={30}>30</option>
@@ -78,51 +78,51 @@ export default function GovernanceDashboardClient() {
         </label>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
-        <div style={{ padding: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8 }}>
-          <div style={{ fontSize: 12, color: "#71717a", marginBottom: 4 }}>Total deals</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#fafafa" }}>{data.total_deals}</div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
+        <div className="p-4 bg-card border border-border rounded-lg">
+          <div className="text-xs text-muted-foreground mb-1">Total deals</div>
+          <div className="text-2xl font-bold text-foreground">{data.total_deals}</div>
         </div>
-        <div style={{ padding: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8 }}>
-          <div style={{ fontSize: 12, color: "#71717a", marginBottom: 4 }}>Scanned</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#fafafa" }}>{data.scanned_count}</div>
+        <div className="p-4 bg-card border border-border rounded-lg">
+          <div className="text-xs text-muted-foreground mb-1">Scanned</div>
+          <div className="text-2xl font-bold text-foreground">{data.scanned_count}</div>
         </div>
-        <div style={{ padding: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8 }}>
-          <div style={{ fontSize: 12, color: "#71717a", marginBottom: 4 }}>Policy violations</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: data.policy_violation_count > 0 ? "#f87171" : "#fafafa" }}>
+        <div className="p-4 bg-card border border-border rounded-lg">
+          <div className="text-xs text-muted-foreground mb-1">Policy violations</div>
+          <div className={`text-2xl font-bold ${data.policy_violation_count > 0 ? "text-red-400" : "text-foreground"}`}>
             {data.policy_violation_count}
           </div>
         </div>
-        <div style={{ padding: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8 }}>
-          <div style={{ fontSize: 12, color: "#71717a", marginBottom: 4 }}>Overrides</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#fafafa" }}>{data.override_count}</div>
+        <div className="p-4 bg-card border border-border rounded-lg">
+          <div className="text-xs text-muted-foreground mb-1">Overrides</div>
+          <div className="text-2xl font-bold text-foreground">{data.override_count}</div>
         </div>
-        <div style={{ padding: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8 }}>
-          <div style={{ fontSize: 12, color: "#71717a", marginBottom: 4 }}>Policy status</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: data.policy_overall_status === "BLOCK" ? "#f87171" : data.policy_overall_status === "WARN" ? "#fbbf24" : "#22c55e" }}>
+        <div className="p-4 bg-card border border-border rounded-lg">
+          <div className="text-xs text-muted-foreground mb-1">Policy status</div>
+          <div className={`text-base font-semibold ${data.policy_overall_status === "BLOCK" ? "text-red-400" : data.policy_overall_status === "WARN" ? "text-yellow-400" : "text-green-500"}`}>
             {data.policy_overall_status ?? "—"}
           </div>
         </div>
       </div>
 
       {data.risk_trend.length > 0 && (
-        <section style={{ padding: 20, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", marginBottom: 12 }}>Risk trend (avg score by day)</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+        <section className="p-5 bg-card border border-border rounded-lg">
+          <h2 className="text-base font-semibold text-foreground mb-3">Risk trend (avg score by day)</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.15)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#71717a", fontWeight: 600 }}>Date</th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: "#71717a", fontWeight: 600 }}>Avg score</th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: "#71717a", fontWeight: 600 }}>Points</th>
+                <tr className="border-b border-border">
+                  <th className="text-left px-3 py-2 text-muted-foreground font-semibold">Date</th>
+                  <th className="text-right px-3 py-2 text-muted-foreground font-semibold">Avg score</th>
+                  <th className="text-right px-3 py-2 text-muted-foreground font-semibold">Points</th>
                 </tr>
               </thead>
               <tbody>
                 {data.risk_trend.slice(-14).reverse().map((p) => (
-                  <tr key={p.date} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                    <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{p.date}</td>
-                    <td style={{ padding: "8px 12px", color: "#a1a1aa", textAlign: "right" }}>{p.avg_score}</td>
-                    <td style={{ padding: "8px 12px", color: "#71717a", textAlign: "right" }}>{p.point_count}</td>
+                  <tr key={p.date} className="border-b border-border/50">
+                    <td className="px-3 py-2 text-foreground">{p.date}</td>
+                    <td className="px-3 py-2 text-muted-foreground text-right">{p.avg_score}</td>
+                    <td className="px-3 py-2 text-muted-foreground/70 text-right">{p.point_count}</td>
                   </tr>
                 ))}
               </tbody>
@@ -131,7 +131,7 @@ export default function GovernanceDashboardClient() {
         </section>
       )}
       {data.risk_trend.length === 0 && (
-        <p style={{ color: "#71717a", fontSize: 14 }}>No risk history in the selected period. Run scans to populate risk score history.</p>
+        <p className="text-muted-foreground/70 text-sm">No risk history in the selected period. Run scans to populate risk score history.</p>
       )}
     </div>
   );

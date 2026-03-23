@@ -406,24 +406,24 @@ export function PortfolioClient({
   const highImpactSet = useMemo(() => new Set(summary.highImpactDealIds ?? []), [summary.highImpactDealIds]);
 
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Link href="/app" style={{ color: "#a1a1aa", fontSize: 14, textDecoration: "none" }}>
+    <div className="max-w-[960px] mx-auto p-6">
+      <div className="mb-6">
+        <Link href="/app" className="text-muted-foreground text-sm no-underline">
           ← Dashboard
         </Link>
       </div>
 
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fafafa", marginBottom: 8 }}>Portfolio</h1>
-      <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 24 }}>
+      <h1 className="text-[28px] font-bold text-foreground mb-2">Portfolio</h1>
+      <p className="text-muted-foreground text-sm mb-6">
         Portfolio Risk Governance Overview
         <br />
-        <span style={{ fontSize: 13 }}>Snapshot-based percentile positioning and active policy enforcement.</span>
+        <span className="text-[13px]">Snapshot-based percentile positioning and active policy enforcement.</span>
         {" "}
-        <Link href="/app/methodology" style={{ color: "#a1a1aa", fontSize: 14 }}>
+        <Link href="/app/methodology" className="text-muted-foreground text-sm">
           Risk Index Methodology
         </Link>
         {" · "}
-        <Link href="/app/policy" style={{ color: "#a1a1aa", fontSize: 14 }}>
+        <Link href="/app/policy" className="text-muted-foreground text-sm">
           Governance
         </Link>
         {scanExportEnabled && (
@@ -435,29 +435,11 @@ export function PortfolioClient({
       </p>
 
       {isFree && (
-        <div
-          style={{
-            padding: 16,
-            marginBottom: 24,
-            backgroundColor: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 8,
-          }}
-        >
-          <p style={{ color: "#e4e4e7", margin: 0 }}>Starter plan required.</p>
+        <div className="p-4 mb-6 bg-muted/50 border border-border rounded-lg">
+          <p className="text-foreground m-0">Starter plan required.</p>
           <Link
             href="/pricing"
-            style={{
-              display: "inline-block",
-              marginTop: 8,
-              padding: "8px 16px",
-              backgroundColor: "#3b82f6",
-              color: "#fff",
-              borderRadius: 6,
-              fontSize: 14,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
+            className="inline-block mt-2 px-4 py-2 bg-[#3b82f6] text-white rounded-md text-sm font-semibold no-underline"
           >
             Upgrade to Starter
           </Link>
@@ -466,31 +448,18 @@ export function PortfolioClient({
 
       <div style={isFree ? { filter: "blur(6px)", userSelect: "none", pointerEvents: "none" as const } : {}}>
         {/* Search + filters */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20, alignItems: "center" }}>
+        <div className="flex flex-wrap gap-3 mb-5 items-center">
           <input
             type="search"
             placeholder="Search deals..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "rgba(0,0,0,0.2)",
-              color: "#fafafa",
-              minWidth: 200,
-            }}
+            className="px-3 py-2 rounded-md border border-border bg-background text-foreground min-w-[200px]"
           />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "rgba(0,0,0,0.2)",
-              color: "#fafafa",
-            }}
+            className="px-3 py-2 rounded-md border border-border bg-background text-foreground"
           >
             <option value="all">All</option>
             <option value="scanned">Scanned</option>
@@ -498,7 +467,7 @@ export function PortfolioClient({
             <option value="stale">Stale</option>
             <option value="needs_review">Needs Review</option>
           </select>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, color: "#a1a1aa", fontSize: 14 }}>
+          <label className="flex items-center gap-1.5 text-muted-foreground text-sm">
             <input
               type="checkbox"
               checked={includeUnscanned}
@@ -513,13 +482,7 @@ export function PortfolioClient({
               setSortField(f as SortField);
               setSortDir(d as SortDirection);
             }}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "rgba(0,0,0,0.2)",
-              color: "#fafafa",
-            }}
+            className="px-3 py-2 rounded-md border border-border bg-background text-foreground"
           >
             <option value="score-desc">Score (high first)</option>
             <option value="score-asc">Score (low first)</option>
@@ -538,13 +501,7 @@ export function PortfolioClient({
                 const v = savedViews.find((x) => x.id === id);
                 if (v?.config_json) loadView(v.config_json as PortfolioViewConfig);
               }}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: "rgba(0,0,0,0.2)",
-                color: "#fafafa",
-              }}
+              className="px-3 py-2 rounded-md border border-border bg-background text-foreground"
             >
               <option value="">Load view...</option>
               {savedViews.map((v) => (
@@ -558,14 +515,10 @@ export function PortfolioClient({
             type="button"
             onClick={saveView}
             style={{
-              padding: "8px 16px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.2)",
               background: "rgba(59,130,246,0.2)",
               color: "#93c5fd",
-              cursor: "pointer",
-              fontSize: 14,
             }}
+            className="px-4 py-2 rounded-md border border-border cursor-pointer text-sm"
           >
             Save View
           </button>
@@ -583,15 +536,7 @@ export function PortfolioClient({
               setRiskMovementFilter(null);
               setHighImpactFilter(false);
             }}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: "rgba(255,255,255,0.06)",
-              color: "#a1a1aa",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
+            className="px-3 py-2 rounded-md border border-border bg-muted/50 text-muted-foreground cursor-pointer text-[13px]"
           >
             Clear all filters
           </button>
@@ -600,15 +545,13 @@ export function PortfolioClient({
               type="button"
               onClick={() => setHighImpactFilter((v) => !v)}
               style={{
-                padding: "6px 12px",
-                borderRadius: 6,
-                border: highImpactFilter ? "1px solid rgba(239,68,68,0.5)" : "1px solid rgba(255,255,255,0.2)",
-                background: highImpactFilter ? "rgba(239,68,68,0.2)" : "rgba(0,0,0,0.2)",
-                color: highImpactFilter ? "#f87171" : "#a1a1aa",
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600,
+                border: highImpactFilter ? "1px solid rgba(239,68,68,0.5)" : undefined,
+                background: highImpactFilter ? "rgba(239,68,68,0.2)" : undefined,
+                color: highImpactFilter ? "#f87171" : undefined,
               }}
+              className={`px-3 py-1.5 rounded-md cursor-pointer text-xs font-semibold ${
+                highImpactFilter ? "" : "border border-border bg-background text-muted-foreground"
+              }`}
             >
               High impact ({summary.highImpactDealIds?.length ?? 0})
             </button>
@@ -616,36 +559,36 @@ export function PortfolioClient({
         </div>
 
         {/* Risk Profile / Weighted metrics */}
-        <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             Risk Profile
           </h2>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-            <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}>
-              <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>Scanned / Total</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
+          <div className="flex flex-wrap gap-4">
+            <div className="p-3 bg-muted/50 rounded-lg min-w-[140px]">
+              <div className="text-xs text-muted-foreground mb-1">Scanned / Total</div>
+              <div className="text-xl font-semibold text-foreground">
                 {summary.counts.scanned} / {summary.counts.total}
               </div>
             </div>
             {summary.counts.scanned > 0 && (
               <>
-                <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}>
-                  <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>% Elevated+ (count)</div>
-                  <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
+                <div className="p-3 bg-muted/50 rounded-lg min-w-[140px]">
+                  <div className="text-xs text-muted-foreground mb-1">% Elevated+ (count)</div>
+                  <div className="text-xl font-semibold text-foreground">
                     {wm.pctElevatedPlusByCount.toFixed(0)}%
                   </div>
                 </div>
                 {wm.hasWeightData && (
                   <>
-                    <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}>
-                      <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>% Elevated+ (by exposure)</div>
-                      <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
+                    <div className="p-3 bg-muted/50 rounded-lg min-w-[140px]">
+                      <div className="text-xs text-muted-foreground mb-1">% Elevated+ (by exposure)</div>
+                      <div className="text-xl font-semibold text-foreground">
                         {wm.pctElevatedPlusByWeight.toFixed(0)}%
                       </div>
                     </div>
-                    <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}>
-                      <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>Weighted avg score</div>
-                      <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
+                    <div className="p-3 bg-muted/50 rounded-lg min-w-[140px]">
+                      <div className="text-xs text-muted-foreground mb-1">Weighted avg score</div>
+                      <div className="text-xl font-semibold text-foreground">
                         {wm.weightedAvgScore.toFixed(1)}
                       </div>
                     </div>
@@ -655,7 +598,7 @@ export function PortfolioClient({
             )}
             {summary.prpi != null && (
               <div
-                style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}
+                className="p-3 bg-muted/50 rounded-lg min-w-[140px]"
                 title={
                   [
                     "PRPI = weighted sum of components (0–100). Formula weights:",
@@ -667,32 +610,32 @@ export function PortfolioClient({
                   ].join("\n")
                 }
               >
-                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                   Portfolio Risk Pressure
-                  <span style={{ cursor: "help", opacity: 0.8 }} aria-label="Component breakdown">ⓘ</span>
+                  <span className="cursor-help opacity-80" aria-label="Component breakdown">ⓘ</span>
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
+                <div className="text-xl font-semibold text-foreground">
                   {summary.prpi.prpi_band} ({summary.prpi.prpi_score})
                 </div>
               </div>
             )}
             {benchmarkEnabled && summary.benchmark != null && (
               <div
-                style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 160 }}
+                className="p-3 bg-muted/50 rounded-lg min-w-[160px]"
                 title="Percentile ranks this portfolio's weighted risk score vs. internal cohort. Classification uses PRPI, concentration, and deterioration rules (Conservative, Moderate, Aggressive, Concentrated, Deteriorating)."
               >
-                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                   Benchmark
-                  <span style={{ cursor: "help", opacity: 0.8 }} aria-label="Percentile and classification">ⓘ</span>
+                  <span className="cursor-help opacity-80" aria-label="Percentile and classification">ⓘ</span>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#fafafa", marginBottom: 2 }}>
+                <div className="text-sm font-semibold text-foreground mb-0.5">
                   {summary.benchmark.percentile_rank}th percentile
                 </div>
-                <div style={{ fontSize: 12, color: "#a1a1aa" }}>
+                <div className="text-xs text-muted-foreground">
                   {summary.benchmark.classification}
                 </div>
                 {summary.benchmark_context && (
-                  <div style={{ fontSize: 11, color: "#71717a", marginTop: 6, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 6 }}>
+                  <div className="text-[11px] text-muted-foreground/70 mt-1.5 border-t border-border pt-1.5">
                     {summary.benchmark_context.method_version && (
                       <div>Method: {summary.benchmark_context.method_version}</div>
                     )}
@@ -712,23 +655,23 @@ export function PortfolioClient({
               </div>
             )}
             {summary.model_health != null && (
-              <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 160 }}>
-                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>Model Health</div>
-                <div style={{ fontSize: 13, color: "#fafafa", marginBottom: 4 }}>
+              <div className="p-3 bg-muted/50 rounded-lg min-w-[160px]">
+                <div className="text-xs text-muted-foreground mb-1.5">Model Health</div>
+                <div className="text-[13px] text-foreground mb-1">
                   Version: {summary.model_health.model_version}
                 </div>
-                <div style={{ fontSize: 12, color: "#e4e4e7", marginBottom: 2 }}>
+                <div className="text-xs text-foreground mb-0.5">
                   Distribution: Low {summary.model_health.distribution_by_band?.Low ?? 0} · Mod {summary.model_health.distribution_by_band?.Moderate ?? 0} · Elev {summary.model_health.distribution_by_band?.Elevated ?? 0} · High {summary.model_health.distribution_by_band?.High ?? 0}
                 </div>
-                <div style={{ fontSize: 11, color: "#a1a1aa" }}>
+                <div className="text-[11px] text-muted-foreground">
                   Elevated {Number(summary.model_health.pct_elevated).toFixed(1)}% · High {Number(summary.model_health.pct_high).toFixed(1)}% · Gov locked {summary.model_health.governance_locked_at}
                 </div>
               </div>
             )}
             {advancedAnalyticsEnabled && (summary.model_health ?? summary.distributionByBand) && (
-              <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 160 }}>
-                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>Advanced analytics</div>
-                <div style={{ fontSize: 12, color: "#e4e4e7", marginBottom: 4 }}>
+              <div className="p-3 bg-muted/50 rounded-lg min-w-[160px]">
+                <div className="text-xs text-muted-foreground mb-1.5">Advanced analytics</div>
+                <div className="text-xs text-foreground mb-1">
                   {summary.model_health ? (
                     <>
                       P90+ (High) concentration: {Number(summary.model_health.pct_high).toFixed(1)}%
@@ -739,18 +682,18 @@ export function PortfolioClient({
                     </>
                   )}
                 </div>
-                <div style={{ fontSize: 11, color: "#a1a1aa" }}>
+                <div className="text-[11px] text-muted-foreground">
                   Band distribution: {["Low", "Moderate", "Elevated", "High"].map((b) => `${b} ${summary.distributionByBand?.[b] ?? 0}`).join(" · ")}
                 </div>
               </div>
             )}
             {summary.policy_status != null && (
-              <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 180, maxWidth: 280 }}>
-                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 6 }}>Governance</div>
-                <div style={{ fontSize: 13, color: "#fafafa", marginBottom: 4 }}>
+              <div className="p-3 bg-muted/50 rounded-lg min-w-[180px] max-w-[280px]">
+                <div className="text-xs text-muted-foreground mb-1.5">Governance</div>
+                <div className="text-[13px] text-foreground mb-1">
                   {summary.policy_status.active_policy?.name ?? "Governance"}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                   <span
                     style={{
                       padding: "2px 8px",
@@ -774,22 +717,23 @@ export function PortfolioClient({
                     {summary.policy_status.overall_status}
                   </span>
                   {summary.policy_status.violation_count > 0 && (
-                    <span style={{ fontSize: 12, color: "#a1a1aa" }}>
+                    <span className="text-xs text-muted-foreground">
                       {summary.policy_status.violation_count} violation{summary.policy_status.violation_count !== 1 ? "s" : ""}
                     </span>
                   )}
                 </div>
                 {summary.policy_status.top_violations?.length > 0 && (
-                  <ul style={{ margin: "0 0 8px 0", paddingLeft: 16, fontSize: 11, color: "#d4d4d8", lineHeight: 1.4 }}>
+                  <ul className="m-0 mb-2 pl-4 text-[11px] text-foreground leading-snug">
                     {summary.policy_status.top_violations.slice(0, 3).map((v, i) => (
                       <li key={i}>{v.message}</li>
                     ))}
                   </ul>
                 )}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <div className="flex flex-wrap gap-2">
                   <Link
                     href="/app/policy"
-                    style={{ fontSize: 12, color: "#a78bfa", textDecoration: "none" }}
+                    style={{ color: "#a78bfa" }}
+                    className="text-xs no-underline"
                   >
                     Manage Governance
                   </Link>
@@ -810,7 +754,8 @@ export function PortfolioClient({
                           console.error("Governance export failed:", e);
                         }
                       }}
-                      style={{ fontSize: 12, color: "#a78bfa", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+                      style={{ color: "#a78bfa" }}
+                      className="text-xs bg-transparent border-none cursor-pointer p-0 underline"
                     >
                       Export governance packet
                     </button>
@@ -822,7 +767,8 @@ export function PortfolioClient({
                     return (
                       <Link
                         href={`/app/portfolio?dealIds=${uniqueIds.join(",")}`}
-                        style={{ fontSize: 12, color: "#a78bfa", textDecoration: "none" }}
+                        style={{ color: "#a78bfa" }}
+                        className="text-xs no-underline"
                       >
                         View affected deals
                       </Link>
@@ -835,8 +781,8 @@ export function PortfolioClient({
         </section>
 
         {/* Risk Movement */}
-        <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
             Risk Movement
             {hasRiskMovement && (
               <span
@@ -853,103 +799,91 @@ export function PortfolioClient({
               </span>
             )}
           </h2>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+          <div className="flex flex-wrap gap-4">
             <button
               type="button"
               onClick={() => setRiskMovementFilter((v) => (v === "deteriorated" ? null : "deteriorated"))}
               style={{
-                padding: 12,
-                background: riskMovementFilter === "deteriorated" ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)",
-                borderRadius: 8,
-                minWidth: 140,
+                background: riskMovementFilter === "deteriorated" ? "rgba(245,158,11,0.15)" : undefined,
                 border: riskMovementFilter === "deteriorated" ? "1px solid rgba(245,158,11,0.4)" : "1px solid transparent",
-                cursor: rm.deteriorated > 0 ? "pointer" : "default",
-                textAlign: "left",
               }}
+              className={`p-3 rounded-lg min-w-[140px] text-left ${
+                riskMovementFilter !== "deteriorated" ? "bg-muted/50" : ""
+              } ${rm.deteriorated > 0 ? "cursor-pointer" : "cursor-default"}`}
               disabled={rm.deteriorated === 0}
               title={rm.deteriorated > 0 ? "Filter table to deals with comparable delta and score increase ≥8" : undefined}
             >
-              <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>Deteriorated</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>{rm.deteriorated}</div>
+              <div className="text-xs text-muted-foreground mb-1">Deteriorated</div>
+              <div className="text-xl font-semibold text-foreground">{rm.deteriorated}</div>
             </button>
             <button
               type="button"
               onClick={() => setRiskMovementFilter((v) => (v === "crossed_tiers" ? null : "crossed_tiers"))}
               style={{
-                padding: 12,
-                background: riskMovementFilter === "crossed_tiers" ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)",
-                borderRadius: 8,
-                minWidth: 140,
+                background: riskMovementFilter === "crossed_tiers" ? "rgba(245,158,11,0.15)" : undefined,
                 border: riskMovementFilter === "crossed_tiers" ? "1px solid rgba(245,158,11,0.4)" : "1px solid transparent",
-                cursor: rm.crossed_tiers > 0 ? "pointer" : "default",
-                textAlign: "left",
               }}
+              className={`p-3 rounded-lg min-w-[140px] text-left ${
+                riskMovementFilter !== "crossed_tiers" ? "bg-muted/50" : ""
+              } ${rm.crossed_tiers > 0 ? "cursor-pointer" : "cursor-default"}`}
               disabled={rm.crossed_tiers === 0}
               title={rm.crossed_tiers > 0 ? "Filter table to deals with band transitions" : undefined}
             >
-              <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>Crossed tiers</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>{rm.crossed_tiers}</div>
+              <div className="text-xs text-muted-foreground mb-1">Crossed tiers</div>
+              <div className="text-xl font-semibold text-foreground">{rm.crossed_tiers}</div>
             </button>
             <button
               type="button"
               onClick={() => setRiskMovementFilter((v) => (v === "version_drift" ? null : "version_drift"))}
               style={{
-                padding: 12,
-                background: riskMovementFilter === "version_drift" ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.05)",
-                borderRadius: 8,
-                minWidth: 140,
+                background: riskMovementFilter === "version_drift" ? "rgba(245,158,11,0.15)" : undefined,
                 border: riskMovementFilter === "version_drift" ? "1px solid rgba(245,158,11,0.4)" : "1px solid transparent",
-                cursor: rm.version_drift > 0 ? "pointer" : "default",
-                textAlign: "left",
               }}
+              className={`p-3 rounded-lg min-w-[140px] text-left ${
+                riskMovementFilter !== "version_drift" ? "bg-muted/50" : ""
+              } ${rm.version_drift > 0 ? "cursor-pointer" : "cursor-default"}`}
               disabled={rm.version_drift === 0}
               title={rm.version_drift > 0 ? "Filter table to deals flagged for version drift" : undefined}
             >
-              <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>Version drift</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>{rm.version_drift}</div>
+              <div className="text-xs text-muted-foreground mb-1">Version drift</div>
+              <div className="text-xl font-semibold text-foreground">{rm.version_drift}</div>
             </button>
           </div>
         </section>
 
         {/* IC Performance Summary */}
         {summary.ic_performance_summary && (
-          <section style={{ marginBottom: 32 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold text-foreground mb-3">
               IC Performance
             </h2>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 12 }}>
-              <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}>
-                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>% High deals approved</div>
-                <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
+            <div className="flex flex-wrap gap-4 mb-3">
+              <div className="p-3 bg-muted/50 rounded-lg min-w-[140px]">
+                <div className="text-xs text-muted-foreground mb-1">% High deals approved</div>
+                <div className="text-xl font-semibold text-foreground">
                   {summary.ic_performance_summary.pctHighDealsApproved}%
                 </div>
               </div>
-              <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8, minWidth: 140 }}>
-                <div style={{ fontSize: 12, color: "#a1a1aa", marginBottom: 4 }}>% Elevated deals rejected</div>
-                <div style={{ fontSize: 20, fontWeight: 600, color: "#fafafa" }}>
+              <div className="p-3 bg-muted/50 rounded-lg min-w-[140px]">
+                <div className="text-xs text-muted-foreground mb-1">% Elevated deals rejected</div>
+                <div className="text-xl font-semibold text-foreground">
                   {summary.ic_performance_summary.pctElevatedDealsRejected}%
                 </div>
               </div>
             </div>
             {Object.keys(summary.ic_performance_summary.approvalRateByBand).length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+              <div className="flex flex-wrap gap-3">
                 {Object.entries(summary.ic_performance_summary.approvalRateByBand)
                   .filter(([, v]) => v.decided > 0)
                   .map(([band, v]) => (
                     <div
                       key={band}
-                      style={{
-                        padding: "8px 12px",
-                        background: "rgba(255,255,255,0.05)",
-                        borderRadius: 6,
-                        fontSize: 13,
-                        color: "#e4e4e7",
-                      }}
+                      className="px-3 py-2 bg-muted/50 rounded-md text-[13px] text-foreground"
                     >
-                      <span style={{ fontWeight: 600 }}>{band}</span>
+                      <span className="font-semibold">{band}</span>
                       {" "}
                       approval: {v.ratePct}%
-                      <span style={{ color: "#a1a1aa", marginLeft: 4 }}>
+                      <span className="text-muted-foreground ml-1">
                         ({v.approved}/{v.decided})
                       </span>
                     </div>
@@ -961,13 +895,13 @@ export function PortfolioClient({
 
         {/* Alerts */}
         {summary.alerts.length > 0 && (
-          <section style={{ marginBottom: 32 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>Alerts</h2>
-            <ul style={{ margin: 0, paddingLeft: 20, color: "#e4e4e7", fontSize: 14 }}>
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold text-foreground mb-3">Alerts</h2>
+            <ul className="m-0 pl-5 text-foreground text-sm">
               {summary.alerts.slice(0, 10).map((a, i) => (
                 <li key={i}>
                   {a.dealName ? (
-                    <Link href={`/app/deals/${a.dealId}`} style={{ color: "#3b82f6", textDecoration: "none" }}>
+                    <Link href={`/app/deals/${a.dealId}`} className="text-[#3b82f6] no-underline">
                       {a.dealName}
                     </Link>
                   ) : null}
@@ -981,18 +915,18 @@ export function PortfolioClient({
 
         {/* To Review */}
         {(summary.counts.needsReview > 0 || summary.counts.stale > 0) && (
-          <section style={{ marginBottom: 32 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>To Review</h2>
-            <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 8 }}>
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold text-foreground mb-3">To Review</h2>
+            <p className="text-muted-foreground text-sm mb-2">
               {summary.counts.needsReview} needs review, {summary.counts.stale} stale.
             </p>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                    <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Deal</th>
-                    <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Score</th>
-                    <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Tier</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left px-3 py-2 text-muted-foreground">Deal</th>
+                    <th className="text-right px-3 py-2 text-muted-foreground">Score</th>
+                    <th className="text-left px-3 py-2 text-muted-foreground">Tier</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1002,16 +936,16 @@ export function PortfolioClient({
                     .map((d) => {
                       const withScore = dealToScore.get(d.id);
                       return (
-                        <tr key={d.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                          <td style={{ padding: "8px 12px" }}>
-                            <Link href={`/app/deals/${d.id}`} style={{ color: "#3b82f6", textDecoration: "none" }}>
+                        <tr key={d.id} className="border-b border-border">
+                          <td className="px-3 py-2">
+                            <Link href={`/app/deals/${d.id}`} className="text-[#3b82f6] no-underline">
                               {d.name}
                             </Link>
                           </td>
-                          <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
+                          <td className="px-3 py-2 text-right text-foreground">
                             {withScore?.risk_index_score ?? "—"}
                           </td>
-                          <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>
+                          <td className="px-3 py-2 text-muted-foreground">
                             {withScore?.risk_index_band ?? "—"}
                           </td>
                         </tr>
@@ -1024,24 +958,24 @@ export function PortfolioClient({
         )}
 
         {summary.counts.unscanned > 0 && (
-          <p style={{ color: "#a1a1aa", fontSize: 14, marginBottom: 16 }}>
+          <p className="text-muted-foreground text-sm mb-4">
             Unscanned deals: {summary.counts.unscanned}. Run a scan from the deal page.
           </p>
         )}
 
         {/* Deals table */}
-        <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>Deals</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">Deals</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Deal</th>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Badges</th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Score</th>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Tier</th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Complete</th>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Version</th>
+                <tr className="border-b border-border">
+                  <th className="text-left px-3 py-2 text-muted-foreground">Deal</th>
+                  <th className="text-left px-3 py-2 text-muted-foreground">Badges</th>
+                  <th className="text-right px-3 py-2 text-muted-foreground">Score</th>
+                  <th className="text-left px-3 py-2 text-muted-foreground">Tier</th>
+                  <th className="text-right px-3 py-2 text-muted-foreground">Complete</th>
+                  <th className="text-left px-3 py-2 text-muted-foreground">Version</th>
                 </tr>
               </thead>
               <tbody>
@@ -1053,20 +987,20 @@ export function PortfolioClient({
                   return (
                     <Fragment key={d.id}>
                       <tr
-                        style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}
+                        className="border-b border-border cursor-pointer"
                         onClick={() => setExpandedDealId(isExpanded ? null : d.id)}
                       >
-                        <td style={{ padding: "8px 12px" }}>
+                        <td className="px-3 py-2">
                           <Link
                             href={`/app/deals/${d.id}`}
                             onClick={(e) => e.stopPropagation()}
-                            style={{ color: "#3b82f6", textDecoration: "none" }}
+                            className="text-[#3b82f6] no-underline"
                           >
                             {d.name}
                           </Link>
                         </td>
-                        <td style={{ padding: "8px 12px" }}>
-                          <span style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                        <td className="px-3 py-2">
+                          <span className="flex flex-wrap gap-1 items-center">
                             {highImpactSet.has(d.id) && (
                               <span
                                 style={{
@@ -1099,34 +1033,34 @@ export function PortfolioClient({
                             ) : !highImpactSet.has(d.id) ? "—" : null}
                           </span>
                         </td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
+                        <td className="px-3 py-2 text-right text-foreground">
                           {withScore?.risk_index_score ?? "—"}
                         </td>
-                        <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>
+                        <td className="px-3 py-2 text-muted-foreground">
                           {withScore?.risk_index_band ?? "—"}
                         </td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", color: "#a1a1aa", fontSize: 12 }}>
+                        <td className="px-3 py-2 text-right text-muted-foreground text-xs">
                           {expl?.assumptionCompletenessPct != null ? `${expl.assumptionCompletenessPct}%` : "—"}
                         </td>
-                        <td style={{ padding: "8px 12px", color: "#71717a", fontSize: 12 }}>
+                        <td className="px-3 py-2 text-muted-foreground/70 text-xs">
                           {withScore?.risk_index_version ? `v${withScore.risk_index_version}` : "—"}
                         </td>
                       </tr>
                       {isExpanded && expl && (
-                        <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                          <td colSpan={6} style={{ padding: "12px 12px", background: "rgba(0,0,0,0.2)", fontSize: 13 }}>
-                            <div style={{ marginBottom: 8 }}>
-                              <strong style={{ color: "#a1a1aa" }}>Top risk contributors:</strong>{" "}
+                        <tr className="border-b border-border">
+                          <td colSpan={6} className="px-3 py-3 bg-background text-[13px]">
+                            <div className="mb-2">
+                              <strong className="text-muted-foreground">Top risk contributors:</strong>{" "}
                               {expl.topRiskContributors.map((r) => `${r.risk_type} (+${r.penalty})`).join(", ") || "—"}
                             </div>
                             {expl.stabilizers.length > 0 && (
                               <div>
-                                <strong style={{ color: "#a1a1aa" }}>Stabilizers:</strong> {expl.stabilizers.join(", ")}
+                                <strong className="text-muted-foreground">Stabilizers:</strong> {expl.stabilizers.join(", ")}
                               </div>
                             )}
                             {expl.missingAssumptionKeys && expl.missingAssumptionKeys.length > 0 && (
-                              <div style={{ marginTop: 6 }}>
-                                <strong style={{ color: "#a1a1aa" }}>Missing assumptions:</strong> {expl.missingAssumptionKeys.join(", ")}
+                              <div className="mt-1.5">
+                                <strong className="text-muted-foreground">Missing assumptions:</strong> {expl.missingAssumptionKeys.join(", ")}
                               </div>
                             )}
                           </td>
@@ -1141,23 +1075,23 @@ export function PortfolioClient({
         </section>
 
         {/* Distribution by Risk Tier */}
-        <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             Distribution by Risk Tier
           </h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Tier</th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Count</th>
+                <tr className="border-b border-border">
+                  <th className="text-left px-3 py-2 text-muted-foreground">Tier</th>
+                  <th className="text-right px-3 py-2 text-muted-foreground">Count</th>
                 </tr>
               </thead>
               <tbody>
                 {["High", "Elevated", "Moderate", "Low"].map((band) => (
-                  <tr key={band} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                    <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{band}</td>
-                    <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
+                  <tr key={band} className="border-b border-border">
+                    <td className="px-3 py-2 text-foreground">{band}</td>
+                    <td className="px-3 py-2 text-right text-foreground">
                       {distributionByBand[band] ?? 0}
                     </td>
                   </tr>
@@ -1168,34 +1102,34 @@ export function PortfolioClient({
         </section>
 
         {/* Top 5 Highest Risk */}
-        <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             Top 5 Highest Risk Deals
           </h2>
           {summary.topDealsByScore.length === 0 ? (
-            <p style={{ color: "#a1a1aa", fontSize: 14 }}>No scanned deals.</p>
+            <p className="text-muted-foreground text-sm">No scanned deals.</p>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                    <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Deal</th>
-                    <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Score</th>
-                    <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Tier</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left px-3 py-2 text-muted-foreground">Deal</th>
+                    <th className="text-right px-3 py-2 text-muted-foreground">Score</th>
+                    <th className="text-left px-3 py-2 text-muted-foreground">Tier</th>
                   </tr>
                 </thead>
                 <tbody>
                   {summary.topDealsByScore.map((d) => (
-                    <tr key={d.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                      <td style={{ padding: "8px 12px" }}>
-                        <Link href={`/app/deals/${d.id}`} style={{ color: "#3b82f6", textDecoration: "none" }}>
+                    <tr key={d.id} className="border-b border-border">
+                      <td className="px-3 py-2">
+                        <Link href={`/app/deals/${d.id}`} className="text-[#3b82f6] no-underline">
                           {d.name}
                         </Link>
                       </td>
-                      <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>
+                      <td className="px-3 py-2 text-right text-foreground">
                         {d.risk_index_score}
                       </td>
-                      <td style={{ padding: "8px 12px", color: "#a1a1aa" }}>{d.risk_index_band ?? "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{d.risk_index_band ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1205,27 +1139,27 @@ export function PortfolioClient({
         </section>
 
         {/* Exposure by Asset */}
-        <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             Exposure by Asset Type
           </h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Asset type</th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Total</th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Scanned</th>
+                <tr className="border-b border-border">
+                  <th className="text-left px-3 py-2 text-muted-foreground">Asset type</th>
+                  <th className="text-right px-3 py-2 text-muted-foreground">Total</th>
+                  <th className="text-right px-3 py-2 text-muted-foreground">Scanned</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(summary.exposureByAsset)
                   .sort((a, b) => b[1].total - a[1].total)
                   .map(([asset, { total, scanned }]) => (
-                    <tr key={asset} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                      <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{asset}</td>
-                      <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>{total}</td>
-                      <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>{scanned}</td>
+                    <tr key={asset} className="border-b border-border">
+                      <td className="px-3 py-2 text-foreground">{asset}</td>
+                      <td className="px-3 py-2 text-right text-foreground">{total}</td>
+                      <td className="px-3 py-2 text-right text-foreground">{scanned}</td>
                     </tr>
                   ))}
               </tbody>
@@ -1234,27 +1168,27 @@ export function PortfolioClient({
         </section>
 
         {/* Exposure by Market */}
-        <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             Exposure by Market
           </h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: "#a1a1aa" }}>Market</th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Total</th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: "#a1a1aa" }}>Scanned</th>
+                <tr className="border-b border-border">
+                  <th className="text-left px-3 py-2 text-muted-foreground">Market</th>
+                  <th className="text-right px-3 py-2 text-muted-foreground">Total</th>
+                  <th className="text-right px-3 py-2 text-muted-foreground">Scanned</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(summary.exposureByMarket)
                   .sort((a, b) => b[1].total - a[1].total)
                   .map(([key, { label, total, scanned }]) => (
-                    <tr key={key} style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                      <td style={{ padding: "8px 12px", color: "#e4e4e7" }}>{label || key}</td>
-                      <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>{total}</td>
-                      <td style={{ padding: "8px 12px", textAlign: "right", color: "#fafafa" }}>{scanned}</td>
+                    <tr key={key} className="border-b border-border">
+                      <td className="px-3 py-2 text-foreground">{label || key}</td>
+                      <td className="px-3 py-2 text-right text-foreground">{total}</td>
+                      <td className="px-3 py-2 text-right text-foreground">{scanned}</td>
                     </tr>
                   ))}
               </tbody>

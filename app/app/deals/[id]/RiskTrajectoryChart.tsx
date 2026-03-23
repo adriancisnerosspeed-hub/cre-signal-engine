@@ -43,7 +43,7 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
 
   if (sorted.length === 0) {
     return (
-      <p style={{ fontSize: 14, color: "#a1a1aa" }}>No trajectory data — run a scan to see score over time.</p>
+      <p className="text-sm text-muted-foreground">No trajectory data — run a scan to see score over time.</p>
     );
   }
 
@@ -80,17 +80,14 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
       {/* Hover tooltip */}
       {hoveredIndex !== null && (
         <div
+          className="bg-card border border-border rounded-md text-foreground"
           style={{
             position: "absolute",
             left: `${(points[hoveredIndex].x / VIEW_WIDTH) * 100}%`,
             top: `${(points[hoveredIndex].y / VIEW_HEIGHT) * 100}%`,
             transform: "translate(-50%, calc(-100% - 10px))",
             padding: "8px 12px",
-            backgroundColor: "#27272a",
-            border: "1px solid rgba(255,255,255,0.2)",
-            borderRadius: 6,
             fontSize: 12,
-            color: "#e4e4e7",
             whiteSpace: "nowrap",
             pointerEvents: "none",
             zIndex: 10,
@@ -99,11 +96,11 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
           <div style={{ fontWeight: 700, color: getBandColor(points[hoveredIndex].scan.risk_index_band) }}>
             Score: {points[hoveredIndex].scan.risk_index_score}
           </div>
-          <div style={{ color: "#a1a1aa" }}>{points[hoveredIndex].scan.risk_index_band ?? "Unknown"}</div>
+          <div className="text-muted-foreground">{points[hoveredIndex].scan.risk_index_band ?? "Unknown"}</div>
           {points[hoveredIndex].scan.risk_index_version && (
-            <div style={{ color: "#52525b", fontSize: 11 }}>v{points[hoveredIndex].scan.risk_index_version}</div>
+            <div className="text-muted-foreground/70" style={{ fontSize: 11 }}>v{points[hoveredIndex].scan.risk_index_version}</div>
           )}
-          <div style={{ color: "#52525b", fontSize: 11 }}>
+          <div className="text-muted-foreground/70" style={{ fontSize: 11 }}>
             {new Date(points[hoveredIndex].scan.created_at).toLocaleDateString()}
           </div>
         </div>
@@ -225,7 +222,7 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
           y={CHART_PADDING.top}
           textAnchor="end"
           dominantBaseline="hanging"
-          fill="#71717a"
+          className="fill-muted-foreground/70"
           fontSize={10}
         >
           100
@@ -235,7 +232,7 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
           y={CHART_PADDING.top + plotHeight}
           textAnchor="end"
           dominantBaseline="middle"
-          fill="#71717a"
+          className="fill-muted-foreground/70"
           fontSize={10}
         >
           0
@@ -245,13 +242,14 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
 
       {/* Single-scan prompt */}
       {sorted.length === 1 && (
-        <p style={{ fontSize: 13, color: "#71717a", marginTop: 8, fontStyle: "italic" }}>
+        <p className="text-[13px] text-muted-foreground/70 mt-2 italic">
           Re-scan this deal to track risk over time.
         </p>
       )}
 
       {/* X-axis: dates below chart */}
       <div
+        className="text-muted-foreground/70"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -259,7 +257,6 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
           paddingLeft: CHART_PADDING.left,
           paddingRight: CHART_PADDING.right,
           fontSize: 10,
-          color: "#71717a",
         }}
       >
         {sorted.map((s) => (
@@ -275,23 +272,23 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
       {/* Legend for markers */}
       {(sorted.some(hasTierOverride) || sorted.some(hasVersionDrift)) && (
         <div
+          className="text-muted-foreground"
           style={{
             display: "flex",
             flexWrap: "wrap",
             gap: "12px 16px",
             marginTop: 8,
             fontSize: 11,
-            color: "#a1a1aa",
           }}
         >
           {sorted.some(hasTierOverride) && (
             <span>
-              <span style={{ color: "#eab308" }}>▲</span> Tier override
+              <span style={{ color: "#eab308" }}>&#9650;</span> Tier override
             </span>
           )}
           {sorted.some(hasVersionDrift) && (
             <span>
-              <span style={{ color: "rgb(200, 140, 0)" }}>◆</span> Version drift
+              <span style={{ color: "rgb(200, 140, 0)" }}>&#9670;</span> Version drift
             </span>
           )}
         </div>

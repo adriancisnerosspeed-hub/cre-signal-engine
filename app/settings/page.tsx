@@ -125,22 +125,14 @@ export default async function SettingsPage() {
       />
 
       {process.env.NODE_ENV === "development" && (
-        <section
-          style={{
-            marginBottom: 24,
-            padding: 16,
-            border: "1px dashed rgba(255,255,255,0.2)",
-            borderRadius: 8,
-            backgroundColor: "rgba(0,0,0,0.2)",
-          }}
-        >
-          <h2 style={{ fontSize: 14, fontWeight: 600, color: "#a1a1aa", marginBottom: 8 }}>
+        <section className="mb-6 p-4 border border-dashed border-border rounded-lg bg-muted/30">
+          <h2 className="text-sm font-semibold text-muted-foreground mb-2">
             [Dev] Workspace
           </h2>
-          <p style={{ fontSize: 13, color: "#e4e4e7", margin: 0 }}>
-            current_org_id: <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4 }}>{currentOrg?.id ?? "—"}</code>
+          <p className="text-[13px] text-foreground m-0">
+            current_org_id: <code className="bg-muted/50 px-1.5 py-0.5 rounded">{currentOrg?.id ?? "—"}</code>
           </p>
-          <p style={{ fontSize: 13, color: "#e4e4e7", margin: "4px 0 0" }}>
+          <p className="text-[13px] text-foreground mt-1 mb-0">
             org name: <strong>{currentOrg?.name ?? "—"}</strong>
           </p>
         </section>
