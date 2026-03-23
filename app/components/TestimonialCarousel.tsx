@@ -59,35 +59,35 @@ export default function TestimonialCarousel({ testimonials, className, compact }
             <CarouselItem key={t.id} className="pl-2 md:basis-full md:pl-4">
               <blockquote
                 className={cn(
-                  "rounded-xl border border-zinc-700/80 bg-zinc-900/60 p-6 text-left shadow-sm ring-1 ring-white/5 backdrop-blur-sm",
+                  "rounded-xl border border-border bg-card p-6 text-left shadow-sm ring-1 ring-black/[0.04] backdrop-blur-sm dark:bg-card/80 dark:ring-white/5",
                   compact && "p-4 md:p-5"
                 )}
               >
                 <p
                   className={cn(
-                    "text-zinc-100 leading-relaxed",
+                    "text-foreground leading-relaxed",
                     compact ? "text-sm md:text-[15px]" : "text-base md:text-lg"
                   )}
                 >
                   “{t.quote}”
                 </p>
-                <footer className="mt-4 space-y-1 border-t border-zinc-700/80 pt-4 text-sm text-zinc-400">
-                  {t.attribution && <cite className="not-italic font-medium">{t.attribution}</cite>}
+                <footer className="mt-4 space-y-1 border-t border-border pt-4 text-sm text-muted-foreground">
+                  {t.attribution && <cite className="not-italic font-medium text-foreground">{t.attribution}</cite>}
                   {t.firm_type && (
-                    <p className="m-0 text-xs uppercase tracking-wide text-zinc-500">{t.firm_type}</p>
+                    <p className="m-0 text-xs uppercase tracking-wide text-muted-foreground">{t.firm_type}</p>
                   )}
-                  {t.deal_context && <p className="m-0 text-xs text-zinc-500">{t.deal_context}</p>}
+                  {t.deal_context && <p className="m-0 text-xs text-muted-foreground">{t.deal_context}</p>}
                 </footer>
               </blockquote>
             </CarouselItem>
           ))}
         </CarouselContent>
         <CarouselPrevious
-          className="left-0 border-zinc-600 bg-zinc-900/90 text-zinc-200 hover:bg-zinc-800 md:-left-2"
+          className="left-0 border-border bg-background text-foreground hover:bg-muted md:-left-2"
           variant="outline"
         />
         <CarouselNext
-          className="right-0 border-zinc-600 bg-zinc-900/90 text-zinc-200 hover:bg-zinc-800 md:-right-2"
+          className="right-0 border-border bg-background text-foreground hover:bg-muted md:-right-2"
           variant="outline"
         />
       </Carousel>

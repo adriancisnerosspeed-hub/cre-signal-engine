@@ -33,7 +33,7 @@ export default async function LandingPage() {
           {["Audit-Ready", "Versioned", "Deterministic"].map((label) => (
             <span
               key={label}
-              className="rounded-full border border-zinc-600/80 bg-zinc-900/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-300 ring-1 ring-white/5"
+              className="rounded-full border border-zinc-200 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-600 shadow-sm ring-1 ring-zinc-950/5 dark:border-zinc-600/80 dark:bg-zinc-900/80 dark:text-zinc-300 dark:ring-white/5"
             >
               {label}
             </span>
@@ -42,10 +42,10 @@ export default async function LandingPage() {
 
         <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-12">
           <div className="text-center lg:text-left">
-            <h1 className="landing-hero-title text-balance text-zinc-50">
+            <h1 className="landing-hero-title text-balance">
               Institutional Risk Governance for Commercial Real Estate.
             </h1>
-            <p className="landing-hero-tagline text-pretty text-zinc-400">
+            <p className="landing-hero-tagline text-pretty">
               CRE Signal Engine transforms deal assumptions into deterministic risk scores, frozen
               benchmark percentiles, and enforceable portfolio policies — versioned, auditable, and
               IC-ready.
@@ -59,18 +59,18 @@ export default async function LandingPage() {
       {/* What This Is */}
       <section className="landing-section">
         <h2 className="landing-section-title">A Risk Governance Layer — Not a Scoring Gadget.</h2>
-        <p className="mb-4 text-center text-[15px] leading-relaxed text-zinc-400">
+        <p className="mb-4 text-center text-[15px] leading-relaxed text-muted-foreground">
           CRE Signal Engine is designed for underwriting teams and capital allocators who require
           defensibility, consistency, and auditability.
         </p>
-        <p className="mb-2 text-center text-sm text-zinc-500">It provides:</p>
-        <ul className="landing-bullets mb-4 list-disc pl-5 text-left text-[15px] leading-relaxed text-zinc-300 md:mx-auto md:max-w-xl">
+        <p className="mb-2 text-center text-sm text-muted-foreground">It provides:</p>
+        <ul className="landing-bullets mb-4 list-disc pl-5 text-left text-[15px] leading-relaxed text-foreground/90 md:mx-auto md:max-w-xl">
           <li>A deterministic Risk Index™ (Institutional Stable)</li>
           <li>Snapshot-based cohort benchmarking</li>
           <li>Portfolio-level governance policies</li>
           <li>Versioned exports and audit-ready documentation</li>
         </ul>
-        <p className="text-center text-sm italic leading-relaxed text-zinc-500">
+        <p className="text-center text-sm italic leading-relaxed text-muted-foreground">
           Every score references a methodology version.
           <br />
           Every percentile references a frozen cohort snapshot.
@@ -82,12 +82,12 @@ export default async function LandingPage() {
       {/* What This Is Not */}
       <section className="landing-section">
         <h2 className="landing-section-title">What This Is Not</h2>
-        <ul className="landing-bullets mb-3 list-disc pl-5 text-left text-[15px] leading-relaxed text-zinc-300 md:mx-auto md:max-w-xl">
+        <ul className="landing-bullets mb-3 list-disc pl-5 text-left text-[15px] leading-relaxed text-foreground/90 md:mx-auto md:max-w-xl">
           <li>Not an AI opinion engine</li>
           <li>Not a black-box model</li>
           <li>Not a replacement for underwriting judgment</li>
         </ul>
-        <p className="text-center text-[15px] leading-relaxed text-zinc-400">
+        <p className="text-center text-[15px] leading-relaxed text-muted-foreground">
           Final investment decisions remain human.
           <br />
           CRE Signal Engine structures and governs the risk conversation.
@@ -98,28 +98,28 @@ export default async function LandingPage() {
       <section className="landing-section">
         <h2 className="landing-section-title">How It Works</h2>
         <div className="landing-steps">
-          <div className="landing-step border-zinc-700/80 bg-zinc-900/40">
+          <div className="landing-step">
             <span className="landing-step-num">1</span>
             <h3 className="landing-step-title">Standardize</h3>
             <p className="landing-step-desc">
               Upload or input deal assumptions. Normalize percent fields. Lock scoring version.
             </p>
           </div>
-          <div className="landing-step border-zinc-700/80 bg-zinc-900/40">
+          <div className="landing-step">
             <span className="landing-step-num">2</span>
             <h3 className="landing-step-title">Score</h3>
             <p className="landing-step-desc">
               Compute deterministic Risk Index™ with explainability and tier controls.
             </p>
           </div>
-          <div className="landing-step border-zinc-700/80 bg-zinc-900/40">
+          <div className="landing-step">
             <span className="landing-step-num">3</span>
             <h3 className="landing-step-title">Benchmark</h3>
             <p className="landing-step-desc">
               Compare against frozen cohort snapshots using midrank percentile methodology.
             </p>
           </div>
-          <div className="landing-step border-zinc-700/80 bg-zinc-900/40">
+          <div className="landing-step">
             <span className="landing-step-num">4</span>
             <h3 className="landing-step-title">Govern</h3>
             <p className="landing-step-desc">
@@ -130,9 +130,9 @@ export default async function LandingPage() {
       </section>
 
       {/* Testimonials */}
-      <section className="landing-section border-t border-zinc-800/80">
+      <section className="landing-section border-t border-border">
         <h2 className="landing-section-title">What operators say</h2>
-        <p className="mb-8 text-center text-sm text-zinc-500">
+        <p className="mb-8 text-center text-sm text-muted-foreground">
           Anonymized case studies from underwriting and capital teams.
         </p>
         <TestimonialCarousel testimonials={testimonials} />
@@ -141,7 +141,7 @@ export default async function LandingPage() {
       {/* Institutional Output Example */}
       <section className="landing-section">
         <h2 className="landing-section-title">Institutional Output Example</h2>
-        <div className="landing-signal-mock border-zinc-700/80 bg-zinc-900/40">
+        <div className="landing-signal-mock">
           <div className="landing-signal-mock-block">
             <div className="landing-signal-mock-label">Risk Index</div>
             <p className="landing-signal-mock-text">62 (Elevated)</p>
@@ -167,7 +167,7 @@ export default async function LandingPage() {
             <p className="landing-signal-mock-text">WARN (1 violation)</p>
           </div>
         </div>
-        <p className="mt-3 text-center text-[13px] text-zinc-500">
+        <p className="mt-3 text-center text-[13px] text-muted-foreground">
           This shows governance, not AI tagging.
         </p>
       </section>
@@ -176,7 +176,7 @@ export default async function LandingPage() {
       <section className="landing-section">
         <h2 className="landing-section-title">Pricing</h2>
         <div className="landing-pricing max-w-5xl">
-          <div className="landing-plan border-zinc-700/80 bg-zinc-900/40">
+          <div className="landing-plan">
             <h3 className="landing-plan-name">Free</h3>
             <p className="landing-plan-price">3 lifetime scans</p>
             <p className="landing-plan-desc">
@@ -187,11 +187,11 @@ export default async function LandingPage() {
               Get started
             </Link>
           </div>
-          <div className="landing-plan border-zinc-700/80 bg-zinc-900/40">
+          <div className="landing-plan">
             <h3 className="landing-plan-name">Starter</h3>
             <p className="landing-plan-price">
               $97{" "}
-              <span className="text-sm font-normal text-zinc-400">/ workspace / month</span>
+              <span className="text-sm font-normal text-muted-foreground">/ workspace / month</span>
             </p>
             <p className="landing-plan-desc">
               10 scans / month · Full Risk Index™ · IC-ready PDF export · 1 governance policy · 2
@@ -201,14 +201,14 @@ export default async function LandingPage() {
               View plans
             </Link>
           </div>
-          <div className="landing-plan featured relative border-blue-500/60 bg-zinc-900/40">
+          <div className="landing-plan featured relative">
             <span className="absolute -top-2.5 left-6 rounded bg-blue-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white">
               Most popular
             </span>
             <h3 className="landing-plan-name">Analyst</h3>
             <p className="landing-plan-price">
               $297{" "}
-              <span className="text-sm font-normal text-zinc-400">/ workspace / month</span>
+              <span className="text-sm font-normal text-muted-foreground">/ workspace / month</span>
             </p>
             <p className="landing-plan-desc">
               Unlimited scans · Risk trajectory · Benchmark percentiles · Up to 3 policies · 5 members
@@ -218,11 +218,11 @@ export default async function LandingPage() {
               View plans
             </Link>
           </div>
-          <div className="landing-plan border-zinc-700/80 bg-zinc-900/40">
+          <div className="landing-plan">
             <h3 className="landing-plan-name">Fund · Enterprise</h3>
             <p className="landing-plan-price">
-              $797 <span className="text-sm font-normal text-zinc-400">/ mo</span> ·{" "}
-              <span className="text-sm font-normal text-zinc-400">Custom</span>
+              $797 <span className="text-sm font-normal text-muted-foreground">/ mo</span> ·{" "}
+              <span className="text-sm font-normal text-muted-foreground">Custom</span>
             </p>
             <p className="landing-plan-desc">
               Custom cohorts · Snapshot build · Unlimited policies · API access · Enterprise SLA
@@ -235,11 +235,11 @@ export default async function LandingPage() {
       </section>
 
       {/* Footer CTA */}
-      <section className="landing-footer-cta border-t border-zinc-800/80">
+      <section className="landing-footer-cta border-t border-border">
         <LandingCta />
       </section>
 
-      <footer className="landing-footer border-zinc-800/80">
+      <footer className="landing-footer border-border">
         <Link href="/sample-report">Sample Report</Link>
         <Link href="/terms">Terms</Link>
         <Link href="/privacy">Privacy</Link>

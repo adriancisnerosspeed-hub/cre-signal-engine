@@ -68,16 +68,16 @@ export default function DemoSnapshotForm({ className }: { className?: string }) 
   return (
     <Card
       className={cn(
-        "border-zinc-700/80 bg-zinc-900/80 text-zinc-100 shadow-xl ring-1 ring-white/10 backdrop-blur-sm",
+        "border-border bg-card text-card-foreground shadow-lg ring-1 ring-black/5 dark:bg-card/95 dark:ring-white/10",
         className
       )}
       size="sm"
     >
       <CardHeader className="gap-1">
-        <CardTitle className="text-lg font-semibold tracking-tight text-zinc-50">
+        <CardTitle className="text-lg font-semibold tracking-tight">
           Instant Risk Snapshot
         </CardTitle>
-        <CardDescription className="text-zinc-400">
+        <CardDescription>
           Get a personalized sample IC memo PDF — no login. We will email it with a short booking
           link.
         </CardDescription>
@@ -85,7 +85,7 @@ export default function DemoSnapshotForm({ className }: { className?: string }) 
       <CardContent>
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
           <div className="grid gap-1.5">
-            <label htmlFor="demo-name" className="text-xs font-medium text-zinc-400">
+            <label htmlFor="demo-name" className="text-xs font-medium text-muted-foreground">
               Name
             </label>
             <Input
@@ -95,12 +95,12 @@ export default function DemoSnapshotForm({ className }: { className?: string }) 
               autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="border-zinc-600 bg-zinc-950/80 text-zinc-100 placeholder:text-zinc-500"
+              className="bg-background"
               placeholder="Alex Morgan"
             />
           </div>
           <div className="grid gap-1.5">
-            <label htmlFor="demo-email" className="text-xs font-medium text-zinc-400">
+            <label htmlFor="demo-email" className="text-xs font-medium text-muted-foreground">
               Work email
             </label>
             <Input
@@ -111,12 +111,12 @@ export default function DemoSnapshotForm({ className }: { className?: string }) 
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="border-zinc-600 bg-zinc-950/80 text-zinc-100 placeholder:text-zinc-500"
+              className="bg-background"
               placeholder="you@firm.com"
             />
           </div>
           <div className="grid gap-1.5">
-            <label htmlFor="demo-firm" className="text-xs font-medium text-zinc-400">
+            <label htmlFor="demo-firm" className="text-xs font-medium text-muted-foreground">
               Firm
             </label>
             <Input
@@ -125,12 +125,12 @@ export default function DemoSnapshotForm({ className }: { className?: string }) 
               required
               value={firm}
               onChange={(e) => setFirm(e.target.value)}
-              className="border-zinc-600 bg-zinc-950/80 text-zinc-100 placeholder:text-zinc-500"
+              className="bg-background"
               placeholder="Atlas Capital Partners"
             />
           </div>
           <div className="grid gap-1.5">
-            <label htmlFor="demo-deal-type" className="text-xs font-medium text-zinc-400">
+            <label htmlFor="demo-deal-type" className="text-xs font-medium text-muted-foreground">
               Deal type
             </label>
             <select
@@ -138,7 +138,7 @@ export default function DemoSnapshotForm({ className }: { className?: string }) 
               name="dealType"
               value={dealType}
               onChange={(e) => setDealType(e.target.value as DealType)}
-              className="h-8 w-full rounded-lg border border-zinc-600 bg-zinc-950/80 px-2.5 text-sm text-zinc-100 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/40"
+              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               {DEAL_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -148,7 +148,7 @@ export default function DemoSnapshotForm({ className }: { className?: string }) 
             </select>
           </div>
           <div className="grid gap-1.5">
-            <label htmlFor="demo-raw" className="text-xs font-medium text-zinc-400">
+            <label htmlFor="demo-raw" className="text-xs font-medium text-muted-foreground">
               Optional: paste assumptions (JSON or notes)
             </label>
             <textarea
@@ -157,7 +157,7 @@ export default function DemoSnapshotForm({ className }: { className?: string }) 
               rows={3}
               value={rawAssumptions}
               onChange={(e) => setRawAssumptions(e.target.value)}
-              className="min-h-[72px] w-full resize-y rounded-lg border border-zinc-600 bg-zinc-950/80 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/40"
+              className="min-h-[72px] w-full resize-y rounded-lg border border-input bg-background px-2.5 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
               placeholder='e.g. {"noi": 2.1e6, "ltv": 0.62} or free text'
             />
           </div>
@@ -173,14 +173,14 @@ export default function DemoSnapshotForm({ className }: { className?: string }) 
             <p
               className={cn(
                 "text-center text-sm",
-                status === "success" ? "text-emerald-400" : "text-red-400"
+                status === "success" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
               )}
               role="status"
             >
               {message}
             </p>
           )}
-          <p className="text-center text-[11px] leading-snug text-zinc-500">
+          <p className="text-center text-[11px] leading-snug text-muted-foreground">
             Sample output is illustrative. Not investment advice. By submitting, you agree we may
             follow up about CRE Signal Engine.
           </p>
