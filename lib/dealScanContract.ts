@@ -170,7 +170,7 @@ function normalizeTrigger(s: unknown): string {
 }
 
 function riskDedupeKey(r: DealScanRisk): string {
-  return `${r.risk_type}:${normalizeTrigger(r.what_changed_or_trigger).toLowerCase().slice(0, 200)}`;
+  return r.risk_type;
 }
 
 const SEVERITY_ORDER: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
@@ -178,13 +178,13 @@ const CONFIDENCE_ORDER_RISK: Record<string, number> = { High: 3, Medium: 2, Low:
 
 function normalizeRisks(raw: unknown[] | undefined): DealScanRisk[] {
   if (!Array.isArray(raw)) return [];
-  const seen = new Set<string>();
-  const result: DealScanRisk[] = [];
 
+  // Parse all risks first
+  const parsed: DealScanRisk[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
-    const risk: DealScanRisk = {
+    parsed.push({
       risk_type: normalizeRiskType(o.risk_type),
       severity: normalizeSeverity(o.severity),
       what_changed_or_trigger: normalizeTrigger(o.what_changed_or_trigger),
@@ -195,28 +195,69 @@ function normalizeRisks(raw: unknown[] | undefined): DealScanRisk[] {
       evidence_snippets: Array.isArray(o.evidence_snippets)
         ? o.evidence_snippets.filter((x): x is string => typeof x === "string").slice(0, 10)
         : [],
-    };
+    });
+  }
+
+  // Deduplicate by risk_type: keep highest severity, then highest confidence.
+  // Merge trigger text from all instances so context isn't lost.
+  const byType = new Map<string, DealScanRisk[]>();
+  for (const risk of parsed) {
     const key = riskDedupeKey(risk);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(risk);
+    if (!byType.has(key)) byType.set(key, []);
+    byType.get(key)!.push(risk);
   }
 
-  // Single DataMissing: if multiple DataMissing (e.g. missing assumptions), collapse to one.
-  const dataMissingRisks = result.filter((r) => r.risk_type === "DataMissing");
-  const others = result.filter((r) => r.risk_type !== "DataMissing");
-  if (dataMissingRisks.length > 1) {
-    const single: DealScanRisk = {
-      ...dataMissingRisks[0],
-      what_changed_or_trigger:
-        dataMissingRisks.some((r) => r.what_changed_or_trigger?.length)
-          ? dataMissingRisks.map((r) => r.what_changed_or_trigger).filter(Boolean).join("; ").slice(0, 500)
-          : "Key assumptions or data missing.",
+  const result: DealScanRisk[] = [];
+  for (const [, group] of byType) {
+    // Sort: highest severity first, then highest confidence
+    group.sort((a, b) => {
+      const sevDiff = (SEVERITY_ORDER[b.severity] ?? 0) - (SEVERITY_ORDER[a.severity] ?? 0);
+      if (sevDiff !== 0) return sevDiff;
+      return (CONFIDENCE_ORDER_RISK[b.confidence] ?? 0) - (CONFIDENCE_ORDER_RISK[a.confidence] ?? 0);
+    });
+    const best = group[0];
+    // Merge trigger text from all instances
+    if (group.length > 1) {
+      const triggers = group
+        .map((r) => r.what_changed_or_trigger)
+        .filter(Boolean);
+      const uniqueTriggers = [...new Set(triggers)];
+      best.what_changed_or_trigger = uniqueTriggers.join("; ").slice(0, 500);
+    }
+    result.push(best);
+  }
+
+  return applySupplyPressureGrouping(capRisksBySeverityConfidence(result));
+}
+
+const SUPPLY_KEYWORDS = ["pipeline", "supply", "units", "completions", "deliveries", "inventory"];
+
+const DEMOTE_SEVERITY: Record<string, Severity> = {
+  High: "Medium",
+  Medium: "Low",
+  Low: "Low",
+};
+
+/**
+ * When both VacancyUnderstated and RentGrowthAggressive survive dedup,
+ * demote RentGrowthAggressive if its trigger references supply-related terms.
+ * This prevents double-counting supply pressure across two risk types.
+ */
+function applySupplyPressureGrouping(risks: DealScanRisk[]): DealScanRisk[] {
+  const hasVacancy = risks.some((r) => r.risk_type === "VacancyUnderstated");
+  if (!hasVacancy) return risks;
+
+  return risks.map((r) => {
+    if (r.risk_type !== "RentGrowthAggressive") return r;
+    const triggerLower = (r.what_changed_or_trigger || "").toLowerCase();
+    const hasSupplyTerm = SUPPLY_KEYWORDS.some((kw) => triggerLower.includes(kw));
+    if (!hasSupplyTerm) return r;
+    return {
+      ...r,
+      severity: DEMOTE_SEVERITY[r.severity] ?? r.severity,
+      what_changed_or_trigger: `${r.what_changed_or_trigger} [supply overlap with VacancyUnderstated]`,
     };
-    return capRisksBySeverityConfidence([single, ...others]);
-  }
-
-  return capRisksBySeverityConfidence(result);
+  });
 }
 
 /** Keep top MAX_RISKS_PER_SCAN by severity (desc) then confidence (desc). */

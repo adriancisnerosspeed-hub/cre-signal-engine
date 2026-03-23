@@ -225,17 +225,41 @@ This file is AI-facing project memory. Read it before doing substantial work.
 
 ---
 
-## 8. User Improvement Log
+## 8. Risk Scoring And Determinism Friction
 
-### 8a. Better At Spotting Spec-vs-Repo Drift ✓✓
+### 8a. AI Extraction Variance Causes Score Instability Even With temperature=0 ✓✓
+- **What happened:** Same deal text scanned 5 times in 2 minutes produced scores of 41→47→44→47→41. The root cause was GPT producing slightly different risk lists, triggers, and evidence snippets per call. The trigger-text-based dedup key (`${risk_type}:${trigger.slice(0,200).lower()}`) meant rephrased triggers created duplicate risks that changed the score.
+- **Best fix (v3):** Changed risk dedup to use `risk_type` only (highest severity wins, triggers merged). Added deterministic severity overrides for all risk types with numeric proxies. Added post-normalization scoring-input-hash cache so identical normalized inputs always reuse exact prior scores.
+- **Pre-emption for future AI:** Never use AI-generated free-text fields (trigger text, evidence snippets) as dedup keys or scoring inputs. Only use structured fields (risk_type, severity, confidence) that can be deterministically overridden.
+
+### 8b. Overlay Severity Bump Double-Counts Macro Penalty ✓
+- **What happened:** `crossReferenceOverlay.ts` had a `bumpedSeverity()` function that mutated individual risk severity after linking macro signals. This was non-deterministic (depended on which signals existed in a 30-day window) and also double-counted the macro penalty that was already captured via `macroLinkedCount`/`macroDecayedWeight` in `computeRiskIndex()`.
+- **Best fix (v3):** Removed the severity bump entirely. Macro penalty is now only captured through the macro count/weight parameters in the scoring engine.
+- **Pre-emption for future AI:** The scoring engine should be the single place where macro impact is accounted for. Never mutate individual risk severity based on signal overlay — use aggregate parameters instead.
+
+### 8c. Model Switch (gpt-4o → gpt-5.4-mini) Amplified Extraction Variance ✓
+- **What happened:** Switching from gpt-4o to gpt-5.4-mini caused further score drift because different models extract different assumptions/risks from the same text. The weak trigger-text-based dedup let model-specific noise through.
+- **Best fix (v3):** The three-layer determinism protection (input-text cache, risk_type dedup + severity overrides, scoring-input cache) makes scoring robust to model switches. Different models may still extract different risk_types, but the scoring from normalized inputs is guaranteed stable.
+- **Pre-emption for future AI:** When switching extraction models, run the stress harness (`npx tsx scripts/stressRiskIndexV2.ts`) and verify all assertions pass. Score stability should not depend on which model is used.
+
+### 8d. Supply/Vacancy Risk Overlap Creates Double-Counting ✓
+- **What happened:** VacancyUnderstated and RentGrowthAggressive often covered the same underlying supply risk (e.g., "3-year pipeline of 12,000 units"). Both risks were scored independently, effectively double-counting supply pressure.
+- **Best fix (v3):** Added supply pressure grouping: when both risks are present and RentGrowthAggressive's trigger contains supply keywords, its severity is demoted one level with a transparent marker `[supply overlap with VacancyUnderstated]`.
+- **Pre-emption for future AI:** When two risk types commonly share an underlying cause, add grouping logic to prevent double-counting rather than relying on the AI to avoid overlap.
+
+---
+
+## 9. User Improvement Log
+
+### 9a. Better At Spotting Spec-vs-Repo Drift ✓✓
 - **Observed improvement:** The user increasingly notices when a prompt or plan may not match the current repo and asks for an audit before implementation.
 - **What helped:** Showing the gap plainly: "Here is what the spec says, here is what already exists, here is what is still missing."
 
-### 8b. Better At Product And Governance Reasoning Than At Coding Mechanics ✓✓✓
+### 9b. Better At Product And Governance Reasoning Than At Coding Mechanics ✓✓✓
 - **Observed improvement:** The user now contributes stronger requirements around determinism, auditability, role/plan behavior, and operator workflow even though hands-on coding remains a weak area.
 - **What helped:** Framing problems in product/system terms instead of raw code terms.
 
-### 8c. Better At Asking For Automation Instead Of Accepting Painful Manual Steps ✓✓
+### 9c. Better At Asking For Automation Instead Of Accepting Painful Manual Steps ✓✓
 - **Observed improvement:** The user explicitly asks for CLI-based or fully handled flows now, especially when past manual flows were painful.
 - **What helped:** Demonstrating once that a CLI/script can replace a dashboard chore and then reusing that pattern.
 

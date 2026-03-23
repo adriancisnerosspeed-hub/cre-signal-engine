@@ -50,15 +50,6 @@ function signalTypeMatchesRisk(signalType: string, riskType: string): boolean {
   }
 }
 
-/**
- * Optionally bump severity when we link a relevant macro signal.
- */
-function bumpedSeverity(current: string): string {
-  if (current === "High") return "High";
-  if (current === "Low") return "Medium";
-  return current;
-}
-
 /** True if signal appears to be multifamily supply (infer from signal_type; signals table has no asset_type). */
 function isMultifamilySupplySignal(signalType: string): boolean {
   const t = signalType.toLowerCase();
@@ -174,14 +165,7 @@ export async function runOverlay(
       });
   }
 
-  for (const risk of riskRows) {
-    if (!riskIdsWithLink.has(risk.id)) continue;
-    const newSeverity = bumpedSeverity(risk.severity_current);
-    if (newSeverity !== risk.severity_current) {
-      await supabase
-        .from("deal_risks")
-        .update({ severity_current: newSeverity })
-        .eq("id", risk.id);
-    }
-  }
+  // Severity bump removed in v3: macro signal impact is captured via macroLinkedCount /
+  // macroDecayedWeight in computeRiskIndex. Bumping severity here was double-counting
+  // and introducing non-determinism (dependent on 30-day signal window).
 }

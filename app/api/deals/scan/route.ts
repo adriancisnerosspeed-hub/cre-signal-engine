@@ -252,10 +252,24 @@ export async function POST(request: Request) {
     severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring),
   }));
 
+  // Canonical scoring-input hash: deterministic fingerprint of normalized inputs.
+  // Used for post-normalization cache so identical normalized inputs always produce identical scores.
+  const canonicalScoringInput = JSON.stringify({
+    risks: stabilizedRisks
+      .map((r) => ({ risk_type: r.risk_type, severity_current: r.severity_current, confidence: r.confidence }))
+      .sort((a, b) => a.risk_type.localeCompare(b.risk_type)),
+    assumptions: Object.entries(assumptionsForScoring)
+      .filter(([, v]) => v?.value != null)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => [k, v?.value]),
+  });
+  const scoringInputHash = inputTextHash(canonicalScoringInput);
+
   const completedAt = new Date().toISOString();
   const p_scan_row = {
     deal_input_id: dealInputId,
     input_text_hash: rawText ? inputTextHash(rawText) : null,
+    scoring_input_hash: scoringInputHash,
     extraction: normalized as unknown as Record<string, unknown>,
     status: "completed",
     completed_at: completedAt,
@@ -290,6 +304,7 @@ export async function POST(request: Request) {
         deal_id: dealId,
         deal_input_id: p_scan_row.deal_input_id ?? null,
         input_text_hash: p_scan_row.input_text_hash ?? null,
+        scoring_input_hash: p_scan_row.scoring_input_hash ?? null,
         extraction: p_scan_row.extraction as Record<string, unknown>,
         status: p_scan_row.status,
         completed_at: p_scan_row.completed_at,
@@ -432,69 +447,100 @@ export async function POST(request: Request) {
   const { computeRiskIndex, RISK_INDEX_VERSION } = await import("@/lib/riskIndex");
 
   // Log scoring inputs hash for determinism audit trail
-  const scoringInputSummary = JSON.stringify({
-    risks: stabilizedRisks.map((r) => ({ risk_type: r.risk_type, severity_current: r.severity_current, confidence: r.confidence })),
-    assumptions: Object.fromEntries(Object.entries(assumptionsForScoring).map(([k, v]) => [k, v?.value])),
-    macroLinkedCount,
-  });
-  console.info("[deal_scan] scoring_inputs", { scan_id: scan.id, deal_id: dealId, inputs_hash: inputTextHash(scoringInputSummary) });
+  console.info("[deal_scan] scoring_inputs", { scan_id: scan.id, deal_id: dealId, scoring_input_hash: scoringInputHash });
+
+  // Scoring-input cache: if a previous scan on the same deal produced identical normalized inputs, reuse exact score.
+  const SCORING_CACHE_TTL_HOURS = parseInt(process.env.SCAN_CACHE_TTL_HOURS || "168", 10);
+  const scoringCacheWindow = new Date(Date.now() - SCORING_CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
+  const { data: cachedScore } = await service
+    .from("deal_scans")
+    .select("risk_index_score, risk_index_band, risk_index_breakdown, macro_linked_count")
+    .eq("deal_id", dealId)
+    .eq("scoring_input_hash", scoringInputHash)
+    .eq("status", "completed")
+    .not("risk_index_score", "is", null)
+    .gte("created_at", scoringCacheWindow)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const riskFingerprint = stabilizedRisks
+    .map((r) => `${r.risk_type}:${r.severity_current}`)
+    .sort()
+    .join("|");
 
   const deltaComparable = previousScore != null && previousVersion === RISK_INDEX_VERSION;
-  const riskIndex = computeRiskIndex({
-    risks: stabilizedRisks.map((r) => ({
-      severity_current: r.severity_current,
-      confidence: r.confidence,
-      risk_type: r.risk_type,
-    })),
-    assumptions: assumptionsForScoring,
-    macroLinkedCount,
-    macroDecayedWeight,
-    ...(previousScore != null && {
-      previous_score: previousScore,
-      previous_risk_index_version: previousVersion,
-    }),
-  });
 
-  const purchasePrice = assumptionsForScoring.purchase_price?.value;
-  let breakdown = riskIndex.breakdown;
-  if (previousScore != null && !deltaComparable) {
-    breakdown = {
-      ...breakdown,
-      previous_score: previousScore,
-      delta_comparable: false,
-      delta_score: undefined,
-      delta_band: undefined,
-      deterioration_flag: undefined,
-    };
-  }
-  if (macroTimestampMissing) {
-    const flags = (breakdown.edge_flags ?? []).slice();
-    if (!flags.includes("EDGE_MACRO_TIMESTAMP_MISSING")) flags.push("EDGE_MACRO_TIMESTAMP_MISSING");
-    breakdown = { ...breakdown, edge_flags: flags };
-  }
-  if (unitInferred) {
-    const flags = (breakdown.edge_flags ?? []).slice();
-    if (!flags.includes("EDGE_UNIT_INFERRED")) flags.push("EDGE_UNIT_INFERRED");
-    breakdown = { ...breakdown, edge_flags: flags, review_flag: true };
-  }
-  try {
-    const { getPortfolioPurchasePriceP80 } = await import("@/lib/portfolioSummary");
-    const p80 = await getPortfolioPurchasePriceP80(service, orgId);
-    if (p80 != null && typeof purchasePrice === "number" && purchasePrice >= p80) {
-      breakdown = { ...breakdown, exposure_bucket: "High" as const };
-      if ((riskIndex.band === "Elevated" || riskIndex.band === "High") && breakdown.exposure_bucket === "High") {
-        breakdown = { ...breakdown, alert_tags: ["HIGH_IMPACT_RISK"] };
-      }
-    } else if (breakdown.exposure_bucket !== "High") {
-      breakdown = { ...breakdown, exposure_bucket: "Normal" as const };
+  let score: number;
+  let band: string;
+  let breakdown: Record<string, unknown>;
+
+  if (cachedScore?.risk_index_score != null && cachedScore?.risk_index_band) {
+    // Cache hit: reuse exact score/band/breakdown from previous identical-input scan
+    score = cachedScore.risk_index_score as number;
+    band = cachedScore.risk_index_band as string;
+    breakdown = (cachedScore.risk_index_breakdown as Record<string, unknown>) ?? {};
+    breakdown.risk_fingerprint = riskFingerprint;
+    console.info("[deal_scan] scoring_input_cache_hit", { scan_id: scan.id, deal_id: dealId, score, band });
+  } else {
+    // Cache miss: compute fresh score
+    const riskIndex = computeRiskIndex({
+      risks: stabilizedRisks.map((r) => ({
+        severity_current: r.severity_current,
+        confidence: r.confidence,
+        risk_type: r.risk_type,
+      })),
+      assumptions: assumptionsForScoring,
+      macroLinkedCount,
+      macroDecayedWeight,
+      ...(previousScore != null && {
+        previous_score: previousScore,
+        previous_risk_index_version: previousVersion,
+      }),
+    });
+
+    const purchasePrice = assumptionsForScoring.purchase_price?.value;
+    let bd = riskIndex.breakdown;
+    if (previousScore != null && !deltaComparable) {
+      bd = {
+        ...bd,
+        previous_score: previousScore,
+        delta_comparable: false,
+        delta_score: undefined,
+        delta_band: undefined,
+        deterioration_flag: undefined,
+      };
     }
-  } catch {
-    // optional: leave exposure_bucket unset if portfolio query fails
-  }
+    if (macroTimestampMissing) {
+      const flags = (bd.edge_flags ?? []).slice();
+      if (!flags.includes("EDGE_MACRO_TIMESTAMP_MISSING")) flags.push("EDGE_MACRO_TIMESTAMP_MISSING");
+      bd = { ...bd, edge_flags: flags };
+    }
+    if (unitInferred) {
+      const flags = (bd.edge_flags ?? []).slice();
+      if (!flags.includes("EDGE_UNIT_INFERRED")) flags.push("EDGE_UNIT_INFERRED");
+      bd = { ...bd, edge_flags: flags, review_flag: true };
+    }
+    try {
+      const { getPortfolioPurchasePriceP80 } = await import("@/lib/portfolioSummary");
+      const p80 = await getPortfolioPurchasePriceP80(service, orgId);
+      if (p80 != null && typeof purchasePrice === "number" && purchasePrice >= p80) {
+        bd = { ...bd, exposure_bucket: "High" as const };
+        if ((riskIndex.band === "Elevated" || riskIndex.band === "High") && bd.exposure_bucket === "High") {
+          bd = { ...bd, alert_tags: ["HIGH_IMPACT_RISK"] };
+        }
+      } else if (bd.exposure_bucket !== "High") {
+        bd = { ...bd, exposure_bucket: "Normal" as const };
+      }
+    } catch {
+      // optional: leave exposure_bucket unset if portfolio query fails
+    }
 
-  // Enforce scan invariants: score 0–100, band in allowed set
-  const score = Math.max(0, Math.min(100, riskIndex.score));
-  const band = ["Low", "Moderate", "Elevated", "High"].includes(riskIndex.band) ? riskIndex.band : "Moderate";
+    // Enforce scan invariants: score 0–100, band in allowed set
+    score = Math.max(0, Math.min(100, riskIndex.score));
+    band = ["Low", "Moderate", "Elevated", "High"].includes(riskIndex.band) ? riskIndex.band : "Moderate";
+    breakdown = { ...bd, risk_fingerprint: riskFingerprint };
+  }
 
   const { data: finalizeRows, error: finalizeError } = await service.rpc("finalize_scan_risk_and_history", {
     p_scan_id: scan.id,
@@ -521,13 +567,14 @@ export async function POST(request: Request) {
     }
   }
 
+  const bdAny = breakdown as Record<string, unknown>;
   const auditInsert = await service.from("risk_audit_log").insert({
     deal_id: dealId,
     scan_id: scan.id,
     previous_score: previousScore ?? null,
     new_score: score,
-    delta: breakdown.delta_score ?? null,
-    band_change: breakdown.delta_band ?? null,
+    delta: (bdAny.delta_score as number | null) ?? null,
+    band_change: (bdAny.delta_band as string | null) ?? null,
     model_version: RISK_INDEX_VERSION,
     created_at: completedAt,
   });

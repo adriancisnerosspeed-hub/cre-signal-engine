@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { computeRiskIndex } from "./riskIndex";
+import { computeRiskIndex, scoreToBand } from "./riskIndex";
 
-// Fixed inputs for determinism testing
+// Fixed inputs for determinism testing — use canonical assumption keys
 const FIXED_RISKS = [
   { severity_current: "High", confidence: "High", risk_type: "DebtCostRisk" },
   { severity_current: "Medium", confidence: "Medium", risk_type: "VacancyUnderstated" },
@@ -9,15 +9,16 @@ const FIXED_RISKS = [
 ];
 
 const FIXED_ASSUMPTIONS = {
-  ltv: { value: 72, unit: "%" },
-  cap_rate_in: { value: 5.5, unit: "%" },
-  exit_cap: { value: 6.0, unit: "%" },
-  vacancy: { value: 12, unit: "%" },
-  noi: { value: 660000, unit: "$" },
-  purchase_price: { value: 12000000, unit: "$" },
-  hold_period: { value: 5, unit: "years" },
-  rent_growth: { value: 3, unit: "%" },
-  dscr: { value: 1.25, unit: "x" },
+  ltv: { value: 72, unit: "%", confidence: "High" },
+  cap_rate_in: { value: 5.5, unit: "%", confidence: "High" },
+  exit_cap: { value: 6.0, unit: "%", confidence: "High" },
+  vacancy: { value: 12, unit: "%", confidence: "High" },
+  noi_year1: { value: 660000, unit: "USD", confidence: "High" },
+  purchase_price: { value: 12000000, unit: "USD", confidence: "High" },
+  hold_period_years: { value: 5, unit: "years", confidence: "High" },
+  rent_growth: { value: 3, unit: "%", confidence: "High" },
+  debt_rate: { value: 5, unit: "%", confidence: "High" },
+  expense_growth: { value: 3, unit: "%", confidence: "High" },
 };
 
 describe("computeRiskIndex determinism", () => {
@@ -102,5 +103,51 @@ describe("computeRiskIndex determinism", () => {
     // BASE_SCORE is 40, stabilizers may reduce it
     expect(result.score).toBeLessThanOrEqual(40);
     expect(result.score).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("v3 band thresholds", () => {
+  it("scoreToBand boundaries: Low 0-32, Moderate 33-53, Elevated 54-68, High 69+", () => {
+    expect(scoreToBand(0)).toBe("Low");
+    expect(scoreToBand(32)).toBe("Low");
+    expect(scoreToBand(33)).toBe("Moderate");
+    expect(scoreToBand(53)).toBe("Moderate");
+    expect(scoreToBand(54)).toBe("Elevated");
+    expect(scoreToBand(68)).toBe("Elevated");
+    expect(scoreToBand(69)).toBe("High");
+    expect(scoreToBand(100)).toBe("High");
+  });
+});
+
+describe("v3 completeness penalty", () => {
+  it("adds penalty when assumptions are sparse", () => {
+    const sparseResult = computeRiskIndex({
+      risks: [{ severity_current: "Medium", confidence: "High", risk_type: "DebtCostRisk" }],
+      assumptions: {}, // 0% completeness → 4 point penalty
+      macroLinkedCount: 0,
+    });
+    const fullResult = computeRiskIndex({
+      risks: [{ severity_current: "Medium", confidence: "High", risk_type: "DebtCostRisk" }],
+      assumptions: FIXED_ASSUMPTIONS, // 100% completeness → 0 penalty
+      macroLinkedCount: 0,
+    });
+    expect(sparseResult.score).toBeGreaterThan(fullResult.score);
+  });
+});
+
+describe("v3 missing-debt-rate penalty", () => {
+  it("adds 2 points when debt_rate missing and LTV > 65", () => {
+    const noDebtRate = computeRiskIndex({
+      risks: [{ severity_current: "Medium", confidence: "High", risk_type: "DebtCostRisk" }],
+      assumptions: { ...FIXED_ASSUMPTIONS, debt_rate: undefined },
+      macroLinkedCount: 0,
+    });
+    const withDebtRate = computeRiskIndex({
+      risks: [{ severity_current: "Medium", confidence: "High", risk_type: "DebtCostRisk" }],
+      assumptions: FIXED_ASSUMPTIONS, // LTV 72, debt_rate present
+      macroLinkedCount: 0,
+    });
+    // Missing debt_rate at LTV 72 adds penalty
+    expect(noDebtRate.score).toBeGreaterThan(withDebtRate.score);
   });
 });

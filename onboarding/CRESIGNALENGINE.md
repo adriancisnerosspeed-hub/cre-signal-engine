@@ -49,14 +49,19 @@ Core idea:
 ### Risk Index
 
 - Canonical implementation: `lib/riskIndex.ts`
-- Current methodology family: `RISK_INDEX_VERSION = "2.0 (Institutional Stable)"`
+- Current methodology family: `RISK_INDEX_VERSION = "3.0 (Institutional Stable v3)"`
+- Locked at: `2026-03-23`
 - Score range: 0-100
-- Bands:
-  - Low: 0-34
-  - Moderate: 35-54
-  - Elevated: 55-69
-  - High: 70+
-- This is supposed to stay deterministic and versioned.
+- Bands (v3):
+  - Low: 0-32
+  - Moderate: 33-53
+  - Elevated: 54-68
+  - High: 69+
+- This is deterministic and versioned. v3 introduced tighter band thresholds, stronger LTV+vacancy ramps, completeness penalty, missing-debt-rate penalty, and driver share cap of 35%.
+- Risk dedup is by `risk_type` (highest severity wins), not by trigger text. This eliminates AI extraction variance as a source of score instability.
+- Deterministic severity overrides in `lib/riskSeverityOverrides.ts` replace AI-assigned severity with assumption-driven severity for all risk types that have a numeric proxy.
+- Post-normalization scoring-input hash cache in the scan route guarantees identical normalized inputs produce identical scores even across different AI extraction runs.
+- Supply pressure grouping: when both VacancyUnderstated and RentGrowthAggressive are present with supply keywords, RentGrowthAggressive is demoted one level to avoid double-counting.
 
 ### Portfolio
 
@@ -139,7 +144,7 @@ Key server/business-logic hubs:
 - **Edge Function:** `supabase/functions/ai-insights/index.ts` — Deno; JWT auth; OpenAI Chat Completions (`gpt-4o-mini`, JSON object). Set secret **`OPENAI_API_KEY`** on the Supabase project for this function. `supabase/config.toml` sets `[functions.ai-insights] verify_jwt = true`.
 - **UI:** `app/app/deals/[id]/AiInsightsPanel.tsx` embedded on both `app/app/deals/[id]/page.tsx` (main deal overview tab, after explainability diff) and `app/app/deals/[id]/scans/[scanId]/page.tsx` (below Risk Index). Disclaimer + show/hide toggle. Both locations use the same `showAiInsightsPanel = canUseAiInsights && aiInsightsFlag` gating.
 
-### Supabase schema additions (migrations 051–056)
+### Supabase schema additions (migrations 051–060)
 
 - `051_feature_flags` — `feature_flags` (name, enabled, …); RLS: `platform_admin` only for authenticated reads/writes; service role bypasses RLS. Defines `public.is_platform_admin()` for policies.
 - `052_testimonials` — marketing testimonials; public read of `active` rows; `platform_admin` CRUD.
@@ -148,10 +153,11 @@ Key server/business-logic hubs:
 - `055_ai_insights_cache` — supplemental AI payloads keyed by `deal_scan_id`; org members SELECT via deal/org join; `platform_admin` can read all.
 - `056_memo_share_links_password` — optional `password_hash` on `memo_share_links` (Phase 6 share flow).
 - `057_seed_testimonials` — seeds three anonymized marketing testimonials when `testimonials` is empty.
-
 - `058_hardening_changelog_rls` — Tightens `changelog_entries` public read policy to only published rows (`published_at IS NOT NULL AND published_at <= now()`); drops the old unrestricted `USING (true)` policy.
+- `059_add_scoring_input_hash` — Adds `scoring_input_hash TEXT` column to `deal_scans` with partial index on `(deal_id, scoring_input_hash)` where hash is not null and status is completed. Used for post-normalization scoring-input cache.
+- `060_enable_ai_insights_flag` — Enables the `ai-insights` feature flag in `feature_flags` table.
 
-Next migration file index: **059**.
+Next migration file index: **061**.
 
 ### Public marketing / lead capture (Phase 2)
 
@@ -355,15 +361,19 @@ Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user expl
 2. User submits raw underwriting text.
 3. Scan route checks input-text-hash cache (7-day TTL by default, configurable via `SCAN_CACHE_TTL_HOURS` env var, default `168`). If a cached scan with identical input hash exists, it is reused immediately.
 4. If no cache hit, OpenAI extracts assumptions and risks using `gpt-5.4-mini` with `temperature: 0`, `top_p: 1`, `seed: 42`, `frequency_penalty: 0.1`, `presence_penalty: 0`, and `response_format: { type: "json_object" }` for structured, reproducible output.
-5. Overlay logic may connect relevant signals.
-6. Scoring inputs are hashed and logged (`scoring_inputs` log line) before `computeRiskIndex()` calculates score, band, and breakdown.
-7. Finalization writes scan outputs and history/audit rows. Completion log includes `temperature` and `seed` for auditability.
-8. Deal, portfolio, export, and governance surfaces consume the result.
+5. Risks are normalized and deduplicated by `risk_type` (highest severity wins, triggers merged). Supply pressure grouping demotes RentGrowthAggressive when VacancyUnderstated is present with supply keywords.
+6. Deterministic severity overrides replace AI-assigned severity with assumption-driven severity for all risk types with numeric proxies (`lib/riskSeverityOverrides.ts`).
+7. Overlay logic connects relevant macro signals. Macro penalty is captured via `macroLinkedCount`/`macroDecayedWeight` in `computeRiskIndex()` — no severity bump on individual risks.
+8. Post-normalization scoring-input hash is computed from canonical sorted risk/assumption data. If a recent completed scan with the same hash exists, its score/band/breakdown is reused verbatim (second-level cache).
+9. If no scoring cache hit, `computeRiskIndex()` calculates score, band, and breakdown. The `risk_fingerprint` is stored in the breakdown.
+10. Finalization writes scan outputs and history/audit rows. Both `scoring_input_hash` and completion metadata are stored.
+11. Deal, portfolio, export, and governance surfaces consume the result.
 
-**Score stability notes:**
+**Score stability notes (v3):**
 - The scoring function (`lib/riskIndex.ts`) is fully deterministic — identical inputs always produce identical scores.
-- Score variability between rescans comes from OpenAI extraction non-determinism. The `temperature: 0` + `seed: 42` + 7-day cache TTL combination minimizes this.
-- Pure determinism tests exist in `lib/riskIndex.test.ts` (10-call identical score, identical band/breakdown, predictable monotonicity).
+- **Three layers of determinism protection:** (1) input-text-hash cache (7-day TTL), (2) risk_type-based dedup + deterministic severity overrides eliminate AI variance, (3) scoring-input-hash cache guarantees identical normalized inputs reuse exact prior scores.
+- Score variability between rescans is now limited to genuinely different risk extractions that survive dedup and override.
+- Pure determinism tests exist in `lib/riskIndex.test.ts` and `lib/deterministicInvariant.test.ts` (20-call identical score, risk order invariance, severity monotonicity, trigger-text invariance).
 
 ### Macro Signal Display (Deal Detail)
 
@@ -400,10 +410,11 @@ Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user expl
 
 ## 10. Testing State
 
-- **42 test files**, 385 of 389 tests pass. 2 pre-existing failures remain.
+- **43 test files**, 402 of 406 tests pass. 4 pre-existing failures remain (3 PricingClient jest-dom matchers, 1 invite/accept mock).
 - `vitest.config.ts` resolves `@/` path aliases so all library and API route tests can import modules correctly.
 - Test files live next to source: `lib/foo.ts` → `lib/foo.test.ts`.
-- Key tested modules: `riskIndex`, `parseSignals`, `crossReferenceOverlay`/`macroRelevance`, `auth`/`apiAuth`, `rateLimit`, `usage`, `benchmark/*`, `policy/engine`, `entitlements`, `export/*`.
+- Key tested modules: `riskIndex`, `deterministicInvariant`, `riskSeverityOverrides`, `bandConsistency`, `dealScanContract`, `robustness`, `modelGovernance`, `parseSignals`, `crossReferenceOverlay`/`macroRelevance`, `auth`/`apiAuth`, `rateLimit`, `usage`, `benchmark/*`, `policy/engine`, `entitlements`, `export/*`.
+- v3 stress harness: `scripts/stressRiskIndexV2.ts` (10 scenarios + 7 assertions including completeness penalty, missing-debt-rate penalty, and trigger-text invariance).
 - Key untested areas: most API routes (92%), AI prompt templates, demo module, memo share auth, component rendering.
 - Full gap analysis and recommendations: `TEST_COVERAGE_ANALYSIS.md`.
 - When changing entitlements, always grep for the changed property in test files (obstacle 5a-pre).

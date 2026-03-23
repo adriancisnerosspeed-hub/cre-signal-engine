@@ -61,8 +61,7 @@ export default function OnboardingFlow({
     try {
       await fetch("/api/org/onboarding", { method: "PATCH" });
     } catch {
-      setCompleting(false);
-      return;
+      // Non-critical: onboarding completion flag failed, but navigation should proceed
     }
     router.push(path);
   }

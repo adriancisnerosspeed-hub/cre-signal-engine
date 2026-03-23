@@ -1,9 +1,11 @@
 /**
  * Deterministic severity overrides applied AFTER AI extraction, BEFORE scoring.
  * Reduces drift across runs when numeric assumptions exist.
+ * v3: expanded to cover all risk types with numeric proxies.
  */
 
 import type { DealScanAssumptions } from "./dealScanContract";
+import { computeAssumptionCompleteness } from "./assumptionValidation";
 
 function getValue(
   assumptions: DealScanAssumptions | undefined,
@@ -60,6 +62,34 @@ export function applySeverityOverride(
         return "Low";
       }
       break;
+
+    case "ExpenseUnderstated": {
+      const expenseGrowth = getValue(assumptions, "expense_growth");
+      if (expenseGrowth != null) {
+        if (expenseGrowth >= 5) return "High";
+        if (expenseGrowth >= 3) return "Medium";
+        return "Low";
+      }
+      break;
+    }
+
+    case "MarketLiquidityRisk":
+      if (ltv != null) {
+        if (ltv >= 80) return "High";
+        if (ltv >= 70) return "Medium";
+        return "Low";
+      }
+      break;
+
+    case "InsuranceRisk":
+      return "Medium";
+
+    case "DataMissing": {
+      const { pct } = computeAssumptionCompleteness(assumptions);
+      if (pct < 40) return "High";
+      if (pct < 70) return "Medium";
+      return "Low";
+    }
   }
 
   return aiSeverity; // fallback if no deterministic rule

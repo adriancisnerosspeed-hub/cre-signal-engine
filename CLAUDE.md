@@ -23,14 +23,16 @@ npm run test:watch   # Vitest watch mode
 1. User submits deal text → `POST /api/deals/scan`
 2. Input hash checked against 7-day cache (configurable via `SCAN_CACHE_TTL_HOURS`)
 3. OpenAI extracts assumptions/risks (`temperature: 0`, `top_p: 1`, `seed: 42`)
-4. Signal parsing → `lib/parseSignals.ts`
-5. Cross-reference overlay → `lib/crossReferenceOverlay.ts`
-6. Deterministic risk scoring → `lib/riskIndex.ts` (score 0–100, bands: Low/Moderate/Elevated/High)
-7. Finalization writes scan outputs + audit rows
+4. Risk normalization: dedup by `risk_type` (highest severity wins), supply pressure grouping, deterministic severity overrides
+5. Signal parsing → `lib/parseSignals.ts`
+6. Cross-reference overlay → `lib/crossReferenceOverlay.ts` (macro linking only, no severity bump)
+7. Scoring-input hash check: if identical normalized inputs seen before, reuse exact prior score
+8. Deterministic risk scoring → `lib/riskIndex.ts` (score 0–100, bands: Low 0-32 / Moderate 33-53 / Elevated 54-68 / High 69+)
+9. Finalization writes scan outputs + audit rows + scoring_input_hash
 
 ### Key Business Logic Hubs
 
-- `lib/riskIndex.ts` — Risk Index v2.0 (Institutional Stable). **Do not casually change scoring math.**
+- `lib/riskIndex.ts` — Risk Index v3.0 (Institutional Stable v3). **Do not casually change scoring math.**
 - `lib/portfolioSummary.ts` — Portfolio summary (band distribution, PRPI, concentration)
 - `lib/entitlements/workspace.ts` — Canonical entitlement enforcement (source of truth over pricing copy)
 - `lib/policy/engine.ts` — Governance policy evaluation
@@ -52,9 +54,9 @@ npm run test:watch   # Vitest watch mode
 
 ### Current State
 
-- **42 test files** covering **256 source files** (16% coverage), **385 of 389 tests passing**
+- **43 test files** covering **256 source files**, **402 of 406 tests passing**
 - `vitest.config.ts` configures `@/` path alias for module resolution
-- 2 pre-existing test failures remain: `PricingClient.test.tsx` (missing jest-dom matchers) and `invite/accept/route.test.ts` (incomplete mock)
+- 4 pre-existing test failures remain: `PricingClient.test.tsx` (3 — missing jest-dom matchers) and `invite/accept/route.test.ts` (1 — incomplete mock)
 - Tests use Vitest 2.0 with `@testing-library/react` and `jsdom` for component tests
 - See `TEST_COVERAGE_ANALYSIS.md` for full gap analysis and prioritized recommendations
 
@@ -75,6 +77,11 @@ npm run test:watch   # Vitest watch mode
 - `lib/apiAuth.test.ts` — 9 tests (token hashing, bearer extraction)
 - `lib/rateLimit.test.ts` — 9 tests (org scan rate limiting)
 - `lib/usage.test.ts` — 15 tests (daily usage tracking, RPC calls)
+- `lib/deterministicInvariant.test.ts` — 8 tests (v3 scoring invariants: order, trigger-text, monotonicity)
+- `lib/riskIndex.test.ts` — 8 tests (v3 determinism, bands, completeness/debt-rate penalties)
+- `lib/riskSeverityOverrides.test.ts` — 10 tests (all deterministic override rules)
+- `lib/bandConsistency.test.ts` — 4 tests (v3 band boundary consistency)
+- `lib/robustness.test.ts` — 41 tests (stress scenarios, invariance, monotonicity, PDF output)
 
 ### Remaining Critical Test Gaps
 
@@ -105,9 +112,13 @@ npm run test:watch   # Vitest watch mode
 | Billing docs | `docs/BILLING.md` |
 | Entitlements | `lib/entitlements/workspace.ts` |
 | Risk engine | `lib/riskIndex.ts` |
+| Severity overrides | `lib/riskSeverityOverrides.ts` |
+| Deal scan normalization | `lib/dealScanContract.ts` |
+| Macro overlay | `lib/crossReferenceOverlay.ts` |
+| Stress harness | `scripts/stressRiskIndexV2.ts` |
 | Scan pipeline | `app/api/deals/scan/route.ts` |
 | Stripe webhook | `app/api/stripe/webhook/route.ts` |
-| Migrations | `supabase/migrations/` (next index: 059) |
+| Migrations | `supabase/migrations/` (next index: 061) |
 | Feature flags | `lib/featureFlags.ts` (60s TTL cache) |
 
 ## User Context

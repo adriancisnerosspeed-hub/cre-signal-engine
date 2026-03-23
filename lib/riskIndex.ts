@@ -13,7 +13,7 @@
  */
 
 import type { DealScanAssumptions } from "./dealScanContract";
-import { validateAndSanitizeForRiskIndex } from "./assumptionValidation";
+import { validateAndSanitizeForRiskIndex, computeAssumptionCompleteness } from "./assumptionValidation";
 
 export type RiskIndexBand = "Low" | "Moderate" | "Elevated" | "High";
 
@@ -119,9 +119,11 @@ export const RAMP_VACANCY_HIGH = 35;
 
 /** v2.0 institutional baseline lock date (ISO). */
 export const RISK_INDEX_V2_LOCKED_AT = "2025-01-01";
+/** v3.0 lock date (ISO). */
+export const RISK_INDEX_V3_LOCKED_AT = "2026-03-23";
 
 /** Scoring logic version; stored on each scan for defensibility (e.g. older scans used older logic). */
-export const RISK_INDEX_VERSION = "2.0 (Institutional Stable)";
+export const RISK_INDEX_VERSION = "3.0 (Institutional Stable v3)";
 
 /**
  * MODEL GOVERNANCE:
@@ -132,20 +134,20 @@ export const RISK_INDEX_VERSION = "2.0 (Institutional Stable)";
  * - Updated stress harness output
  */
 
-/** Severity bands (v2.0: Low 0–34, Moderate 35–54, Elevated 55–69, High 70+). */
+/** Severity bands (v3.0: Low 0–32, Moderate 33–53, Elevated 54–68, High 69+). */
 export function scoreToBand(score: number): RiskIndexBand {
-  if (score <= 34) return "Low";
-  if (score <= 54) return "Moderate";
-  if (score <= 69) return "Elevated";
+  if (score <= 32) return "Low";
+  if (score <= 53) return "Moderate";
+  if (score <= 68) return "Elevated";
   return "High";
 }
 
 /** Minimum score for each band. When tier is forced up (e.g. DSCR), score is raised to this so score and band agree. */
 const BAND_MIN_SCORE: Record<RiskIndexBand, number> = {
   Low: 0,
-  Moderate: 35,
-  Elevated: 55,
-  High: 70,
+  Moderate: 33,
+  Elevated: 54,
+  High: 69,
 };
 
 function getAssumptionValue(
@@ -219,11 +221,11 @@ function rampDscrPenalty(dscr: number): number {
  * LTV + vacancy: scale penalty by distance into risk zone; tier overrides unchanged.
  */
 function rampLtvVacancyPenalty(ltv: number, vacancy: number): { penalty: number; forceMinBand: RiskIndexBand | null } {
-  if (ltv >= RAMP_LTV_HIGH && vacancy >= RAMP_VACANCY_HIGH) return { penalty: 8, forceMinBand: "High" };
-  if (ltv >= RAMP_LTV_MID && vacancy >= RAMP_VACANCY_MID) return { penalty: 5, forceMinBand: "Elevated" };
+  if (ltv >= RAMP_LTV_HIGH && vacancy >= RAMP_VACANCY_HIGH) return { penalty: 10, forceMinBand: "High" };
+  if (ltv >= RAMP_LTV_MID && vacancy >= RAMP_VACANCY_MID) return { penalty: 7, forceMinBand: "Elevated" };
   if (ltv >= RAMP_LTV_LOW && vacancy >= RAMP_VACANCY_LOW) {
     const dist = Math.min(1, ((ltv - RAMP_LTV_LOW) / 10 + (vacancy - RAMP_VACANCY_LOW) / 15) / 2);
-    return { penalty: 2 + Math.round(dist * 2), forceMinBand: null };
+    return { penalty: 3 + Math.round(dist * 3), forceMinBand: null };
   }
   return { penalty: 0, forceMinBand: null };
 }
@@ -266,6 +268,33 @@ function getDscrPenalty(
   const penalty = rampDscrPenalty(dscr);
   const forceMinBand: RiskIndexBand | null = dscr < RAMP_DSCR_TIER_OVERRIDE ? "Elevated" : null;
   return { penalty, forceMinBand };
+}
+
+/**
+ * v3: Missing debt rate penalty when DSCR cannot be computed.
+ * If debt_rate is missing AND LTV > 65, add 2 points (DSCR unverifiable at high leverage).
+ */
+function getMissingDebtRatePenalty(
+  assumptions: DealScanAssumptions | undefined
+): number {
+  const ltv = getAssumptionValue(assumptions, "ltv");
+  const debtRate = getAssumptionValue(assumptions, "debt_rate");
+  if (debtRate == null && ltv != null && ltv > 65) return 2;
+  return 0;
+}
+
+/**
+ * v3: Assumption completeness penalty.
+ * Sparse inputs increase uncertainty; penalty scales with missing key count.
+ */
+function getCompletenessPenalty(
+  assumptions: DealScanAssumptions | undefined
+): number {
+  const { pct } = computeAssumptionCompleteness(assumptions);
+  if (pct < 40) return 4;
+  if (pct < 60) return 2;
+  if (pct < 80) return 1;
+  return 0;
 }
 
 /**
@@ -363,8 +392,8 @@ function computePenalties(
   };
 }
 
-/** Max share of total contribution any single driver may have (institutional cap). */
-export const MAX_DRIVER_SHARE_PCT = 40;
+/** Max share of total contribution any single driver may have (institutional cap). v3: lowered from 40 to 35. */
+export const MAX_DRIVER_SHARE_PCT = 35;
 
 export type ComputeRiskIndexParams = {
   risks: RiskRow[];
@@ -474,6 +503,11 @@ export function computeRiskIndex(
     getDscrPenalty(assumptions);
   rawScore += dscrPenalty;
 
+  // v3 penalties
+  const missingDebtRatePenalty = getMissingDebtRatePenalty(assumptions);
+  const completenessPenalty = getCompletenessPenalty(assumptions);
+  rawScore += missingDebtRatePenalty + completenessPenalty;
+
   const ltv = getAssumptionValue(assumptions, "ltv");
   const vacancy = getAssumptionValue(assumptions, "vacancy");
   const exitCap = getAssumptionValue(assumptions, "exit_cap");
@@ -577,6 +611,7 @@ export function computeRiskIndex(
   driverMap.set("compression", (driverMap.get("compression") ?? 0) + compressionPenalty);
   driverMap.set("leverage", (driverMap.get("leverage") ?? 0) + ltvVacancyPenalty + dscrPenalty);
   driverMap.set("market", (driverMap.get("market") ?? 0) + macroPenalty);
+  driverMap.set("missing", (driverMap.get("missing") ?? 0) + missingDebtRatePenalty + completenessPenalty);
   driverMap.set("stabilizers", -stabilizerBenefit);
   driverConfidenceSum.set("compression", 1);
   driverConfidenceCount.set("compression", 1);
@@ -655,7 +690,7 @@ export function computeRiskIndex(
       market_weight: Math.min(100, Math.round(marketWeightPct)),
       confidence_factor: Math.round((totalConfidence / count) * 100) / 100,
       stabilizer_benefit: stabilizerBenefit,
-      penalty_total: Math.round(effectivePenaltyForScore + compressionPenalty + ltvVacancyPenalty + dscrPenalty),
+      penalty_total: Math.round(effectivePenaltyForScore + compressionPenalty + ltvVacancyPenalty + dscrPenalty + missingDebtRatePenalty + completenessPenalty),
       contributions,
       contribution_pct,
       top_drivers,

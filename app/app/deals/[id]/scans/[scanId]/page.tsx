@@ -213,6 +213,15 @@ export default async function ScanDetailPage({
       )}
 
       {showAiInsightsPanel && <AiInsightsPanel scanId={scanId} />}
+      {!showAiInsightsPanel && entitlements.canUseAiInsights && (
+        <section className="mb-8">
+          <div className="px-5 py-4 border border-border rounded-lg bg-card">
+            <p className="text-muted-foreground text-sm">
+              No new market signals for this scan.
+            </p>
+          </div>
+        </section>
+      )}
 
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-foreground mb-3">

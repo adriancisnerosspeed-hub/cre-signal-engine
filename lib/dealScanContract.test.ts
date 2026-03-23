@@ -68,28 +68,63 @@ describe("normalizeDealScanOutput", () => {
     expect(out.risks[0].severity).toBe("High");
   });
 
-  it("dedupes risks by risk_type + trigger", () => {
+  it("dedupes risks by risk_type, keeping highest severity", () => {
     const parsed: DealScanRaw = {
       assumptions: {},
       risks: [
-        { risk_type: "RefiRisk", severity: "Medium", what_changed_or_trigger: "Same text", why_it_matters: "", who_this_affects: "", recommended_action: "Monitor", confidence: "Low", evidence_snippets: [] },
-        { risk_type: "RefiRisk", severity: "Low", what_changed_or_trigger: "Same text", why_it_matters: "", who_this_affects: "", recommended_action: "Act", confidence: "High", evidence_snippets: [] },
+        { risk_type: "RefiRisk", severity: "Low", what_changed_or_trigger: "Text A", why_it_matters: "", who_this_affects: "", recommended_action: "Monitor", confidence: "Low", evidence_snippets: [] },
+        { risk_type: "RefiRisk", severity: "Medium", what_changed_or_trigger: "Text B", why_it_matters: "", who_this_affects: "", recommended_action: "Act", confidence: "High", evidence_snippets: [] },
       ],
     };
     const out = normalizeDealScanOutput(parsed);
     expect(out.risks).toHaveLength(1);
+    expect(out.risks[0].severity).toBe("Medium");
+    // Trigger text merged from both instances
+    expect(out.risks[0].what_changed_or_trigger).toContain("Text A");
+    expect(out.risks[0].what_changed_or_trigger).toContain("Text B");
   });
 
-  it("keeps distinct risks", () => {
+  it("dedupes same risk_type with different triggers into one (v3 determinism)", () => {
+    const parsed: DealScanRaw = {
+      assumptions: {},
+      risks: [
+        { risk_type: "RefiRisk", severity: "Medium", what_changed_or_trigger: "Trigger variant A", why_it_matters: "", who_this_affects: "", recommended_action: "Monitor", confidence: "Low", evidence_snippets: [] },
+        { risk_type: "RefiRisk", severity: "Low", what_changed_or_trigger: "Trigger variant B", why_it_matters: "", who_this_affects: "", recommended_action: "Act", confidence: "High", evidence_snippets: [] },
+      ],
+    };
+    const out = normalizeDealScanOutput(parsed);
+    // Same risk_type → deduplicated to one (highest severity)
+    expect(out.risks).toHaveLength(1);
+    expect(out.risks[0].risk_type).toBe("RefiRisk");
+    expect(out.risks[0].severity).toBe("Medium");
+  });
+
+  it("keeps distinct risk types", () => {
     const parsed: DealScanRaw = {
       assumptions: {},
       risks: [
         { risk_type: "RefiRisk", severity: "Medium", what_changed_or_trigger: "A", why_it_matters: "", who_this_affects: "", recommended_action: "Monitor", confidence: "Low", evidence_snippets: [] },
-        { risk_type: "RefiRisk", severity: "Low", what_changed_or_trigger: "B", why_it_matters: "", who_this_affects: "", recommended_action: "Act", confidence: "High", evidence_snippets: [] },
+        { risk_type: "DebtCostRisk", severity: "Low", what_changed_or_trigger: "B", why_it_matters: "", who_this_affects: "", recommended_action: "Act", confidence: "High", evidence_snippets: [] },
       ],
     };
     const out = normalizeDealScanOutput(parsed);
     expect(out.risks).toHaveLength(2);
+  });
+
+  it("applies supply pressure grouping: demotes RentGrowthAggressive when VacancyUnderstated present + supply terms", () => {
+    const parsed: DealScanRaw = {
+      assumptions: {},
+      risks: [
+        { risk_type: "VacancyUnderstated", severity: "High", what_changed_or_trigger: "High vacancy rate", why_it_matters: "", who_this_affects: "", recommended_action: "Act", confidence: "High", evidence_snippets: [] },
+        { risk_type: "RentGrowthAggressive", severity: "High", what_changed_or_trigger: "3-year pipeline of 12,000 units in supply", why_it_matters: "", who_this_affects: "", recommended_action: "Monitor", confidence: "High", evidence_snippets: [] },
+      ],
+    };
+    const out = normalizeDealScanOutput(parsed);
+    const rentRisk = out.risks.find((r) => r.risk_type === "RentGrowthAggressive");
+    expect(rentRisk).toBeDefined();
+    // Demoted from High to Medium due to supply overlap
+    expect(rentRisk!.severity).toBe("Medium");
+    expect(rentRisk!.what_changed_or_trigger).toContain("[supply overlap with VacancyUnderstated]");
   });
 
   it("collapses multiple DataMissing into one", () => {

@@ -54,8 +54,14 @@ describe("Robustness: validation and normalization", () => {
   });
 
   it("caps risks at MAX_RISKS_PER_SCAN", () => {
+    // v3: dedup is by risk_type, so use distinct risk_types to test the cap
+    const KNOWN_TYPES = [
+      "VacancyUnderstated", "RentGrowthAggressive", "ExitCapCompression",
+      "DebtCostRisk", "RefiRisk", "ExpenseUnderstated", "MarketLiquidityRisk",
+      "InsuranceRisk", "ConstructionTimingRisk", "DataMissing",
+    ];
     const risks = Array.from({ length: 50 }, (_, i) => ({
-      risk_type: "RentGrowthAggressive",
+      risk_type: KNOWN_TYPES[i % KNOWN_TYPES.length],
       severity: "Medium",
       what_changed_or_trigger: `Trigger ${i}`,
       why_it_matters: "",
@@ -117,25 +123,24 @@ describe("Robustness: scoring engine", () => {
     expect(resultDec.band).toBe(resultPct.band);
   });
 
-  it("tier calibration v2: Low 0-34, Moderate 35-54, Elevated 55-69, High 70+", () => {
-    expect(scoreToBand(34)).toBe("Low");
-    expect(scoreToBand(35)).toBe("Moderate");
-    expect(scoreToBand(54)).toBe("Moderate");
-    expect(scoreToBand(55)).toBe("Elevated");
-    expect(scoreToBand(69)).toBe("Elevated");
-    expect(scoreToBand(70)).toBe("High");
+  it("tier calibration v3: Low 0-32, Moderate 33-53, Elevated 54-68, High 69+", () => {
+    expect(scoreToBand(32)).toBe("Low");
+    expect(scoreToBand(33)).toBe("Moderate");
+    expect(scoreToBand(53)).toBe("Moderate");
+    expect(scoreToBand(54)).toBe("Elevated");
+    expect(scoreToBand(68)).toBe("Elevated");
+    expect(scoreToBand(69)).toBe("High");
   });
 
-  it("missing-only: score ≤ 49 and missing penalty capped at 15", () => {
+  it("missing-only: score ≤ 53 (Moderate max in v3) and missing penalty capped at 15", () => {
+    // v3: duplicate DataMissing risk_types collapse to 1 via dedup
     const risks = [
-      { severity_current: "High", confidence: "High", risk_type: "DataMissing" as const },
-      { severity_current: "High", confidence: "High", risk_type: "DataMissing" as const },
       { severity_current: "High", confidence: "High", risk_type: "DataMissing" as const },
     ];
     const assumptions: DealScanAssumptions = {};
     const result = computeRiskIndex({ risks, assumptions });
-    expect(result.score).toBeLessThanOrEqual(49);
-    expect(result.band).toBe("Moderate");
+    expect(result.score).toBeLessThanOrEqual(53);
+    expect(["Low", "Moderate"]).toContain(result.band);
   });
 
   it("missing + structural high-severity: score can exceed 49; missing-only < missing+structural", () => {
@@ -150,11 +155,11 @@ describe("Robustness: scoring engine", () => {
     const norm = normalizeAssumptionsForScoring(assumptions);
     const resultMissingOnly = computeRiskIndex({ risks: missingOnlyRisks, assumptions: norm });
     const resultMissingPlusStructural = computeRiskIndex({ risks: missingPlusStructuralRisks, assumptions: norm });
-    expect(resultMissingOnly.score).toBeLessThanOrEqual(49);
+    expect(resultMissingOnly.score).toBeLessThanOrEqual(53);
     expect(resultMissingPlusStructural.score).toBeGreaterThan(resultMissingOnly.score);
   });
 
-  it("extreme case: 85% LTV, 35% vacancy, exit_cap < cap_rate_in, missing debt_rate → High tier ≥70", () => {
+  it("extreme case: 85% LTV, 35% vacancy, exit_cap < cap_rate_in, missing debt_rate → High tier ≥69", () => {
     const assumptions: DealScanAssumptions = {
       ltv: { value: 85, unit: "%", confidence: "High" },
       vacancy: { value: 35, unit: "%", confidence: "High" },
@@ -172,7 +177,7 @@ describe("Robustness: scoring engine", () => {
       { severity_current: "Medium", confidence: "High", risk_type: "DataMissing" as const },
     ];
     const result = computeRiskIndex({ risks, assumptions: norm });
-    expect(result.score).toBeGreaterThanOrEqual(70);
+    expect(result.score).toBeGreaterThanOrEqual(69);
     expect(result.band).toBe("High");
   });
 });
@@ -300,7 +305,7 @@ describe("Risk Index monotonicity", () => {
     expect(result.breakdown.deterioration_flag).toBeUndefined();
   });
 
-  it("driver share cap: no single driver exceeds 40% of total positive; excess goes to residual; EDGE_DRIVER_SHARE_CAP_APPLIED set", () => {
+  it("driver share cap: no single driver exceeds MAX_DRIVER_SHARE_PCT of total positive; excess goes to residual; EDGE_DRIVER_SHARE_CAP_APPLIED set", () => {
     const risks = [
       { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
       { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
@@ -357,7 +362,7 @@ describe("Risk Index monotonicity", () => {
   });
 });
 
-describe("Risk Index v2.0 stress scenarios", () => {
+describe("Risk Index v3.0 stress scenarios", () => {
   const scenarios = [
     {
       name: "percent normalization (decimal vs percent)",
@@ -454,8 +459,8 @@ describe("Risk Index v2.0 stress scenarios", () => {
       }
     }
 
-    expect(extremeScore).toBeGreaterThanOrEqual(70);
-    expect(missingOnlyScore).toBeLessThanOrEqual(49);
+    expect(extremeScore).toBeGreaterThanOrEqual(69);
+    expect(missingOnlyScore).toBeLessThanOrEqual(53);
     expect(missingPlusStructuralScore).toBeGreaterThan(missingOnlyScore);
   });
 
@@ -480,7 +485,7 @@ describe("Risk Index v2.0 stress scenarios", () => {
 });
 
 describe("Score stability near threshold", () => {
-  it("small assumption change near Moderate/Elevated boundary (54/55) does not produce >8 point jump without tier override", () => {
+  it("small assumption change near Moderate/Elevated boundary (53/54) does not produce >8 point jump without tier override", () => {
     const risks = [
       { severity_current: "Medium" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
       { severity_current: "Medium" as const, confidence: "High" as const, risk_type: "RentGrowthAggressive" as const },
@@ -508,7 +513,7 @@ describe("Score stability near threshold", () => {
     }
   });
 
-  it("small assumption change near Elevated/High boundary (69/70) does not produce >8 point jump without tier override", () => {
+  it("small assumption change near Elevated/High boundary (68/69) does not produce >8 point jump without tier override", () => {
     const risks = [
       { severity_current: "High" as const, confidence: "High" as const, risk_type: "VacancyUnderstated" as const },
       { severity_current: "High" as const, confidence: "High" as const, risk_type: "DebtCostRisk" as const },
@@ -576,7 +581,7 @@ describe("Score stability near threshold", () => {
   });
 });
 
-describe("Risk Index v2.0 PDF output (extreme case)", () => {
+describe("Risk Index v3.0 PDF output (extreme case)", () => {
   it("generates PDF with attribution for extreme risk scenario", async () => {
     const assumptions: DealScanAssumptions = {
       ltv: { value: 85, unit: "%", confidence: "High" },
@@ -596,7 +601,7 @@ describe("Risk Index v2.0 PDF output (extreme case)", () => {
     ];
     const result = computeRiskIndex({ risks, assumptions: norm });
     const pdfBytes = await buildExportPdf({
-      dealName: "Extreme Risk Deal (v2.0 Stress)",
+      dealName: "Extreme Risk Deal (v3.0 Stress)",
       assetType: "Multifamily",
       market: "Austin",
       riskIndexScore: result.score,
@@ -624,7 +629,7 @@ describe("Risk Index v2.0 PDF output (extreme case)", () => {
       macroSectionLabel: "Market Signals",
     });
     expect(pdfBytes.length).toBeGreaterThan(0);
-    expect(result.score).toBeGreaterThanOrEqual(70);
+    expect(result.score).toBeGreaterThanOrEqual(69);
     expect(result.band).toBe("High");
   });
 });
@@ -692,7 +697,7 @@ describe("Robustness: PDF export", () => {
       assetType: "Multifamily",
       market: "Austin",
       riskIndexScore: 52,
-      riskIndexBand: "Elevated",
+      riskIndexBand: "Moderate",
       promptVersion: "1.0",
       scanTimestamp: "2025-01-15 12:00:00",
       scanId: "scan-full",

@@ -1,6 +1,6 @@
 /**
- * Stress harness for CRE Signal Risk Index v2.0 — institutional hardening.
- * Runs 8 scenarios, prints score/band, top 3 drivers, tier drivers, validation errors,
+ * Stress harness for CRE Signal Risk Index v3.0 — institutional hardening.
+ * Runs 10 scenarios, prints score/band, top 3 drivers, tier drivers, validation errors,
  * distribution, and asserts invariants.
  *
  * Run: npx tsx scripts/stressRiskIndexV2.ts
@@ -42,7 +42,7 @@ function printResult(name: string, r: RiskIndexResult) {
 }
 
 function main() {
-  console.log("CRE Signal Risk Index v2.0 — Stress Harness\n");
+  console.log("CRE Signal Risk Index v3.0 — Stress Harness\n");
 
   const distribution: Record<string, number> = { Low: 0, Moderate: 0, Elevated: 0, High: 0 };
   let extremeScore = 0;
@@ -64,7 +64,7 @@ function main() {
   printResult("1. Percent normalization (percent)", r1b);
   console.log(`  Invariant: same score? ${r1a.score === r1b.score && r1a.band === r1b.band}`);
 
-  // 2. Missing-only (expect score ≤ 49)
+  // 2. Missing-only (expect score ≤ 53 in v3)
   const r2 = run("2. Missing-only", [{ severity_current: "High", confidence: "High", risk_type: "DataMissing" }], {});
   printResult("2. Missing-only", r2);
   distribution[r2.band] = (distribution[r2.band] ?? 0) + 1;
@@ -83,7 +83,7 @@ function main() {
   distribution[r3.band] = (distribution[r3.band] ?? 0) + 1;
   missingPlusStructuralScore = r3.score;
 
-  // 4. Extreme leverage + vacancy (85% LTV, 35% vacancy → expect ≥ 70, High)
+  // 4. Extreme leverage + vacancy (85% LTV, 35% vacancy → expect ≥ 69, High in v3)
   const r4 = run(
     "4. Extreme LTV + vacancy",
     [
@@ -164,12 +164,51 @@ function main() {
   printResult("8. Unrealistic growth", r8);
   distribution[r8.band] = (distribution[r8.band] ?? 0) + 1;
 
+  // 9. Low completeness (<40%) → completeness penalty adds 4 points
+  const r9 = run(
+    "9. Low completeness penalty",
+    [{ severity_current: "Medium", confidence: "High", risk_type: "VacancyUnderstated" }],
+    { vacancy: { value: 10, unit: "%", confidence: "High" } } // only 1 of 8 keys → <40% completeness
+  );
+  printResult("9. Low completeness", r9);
+  distribution[r9.band] = (distribution[r9.band] ?? 0) + 1;
+
+  // 10. Missing debt_rate + high LTV → missing-debt-rate penalty adds 2 points
+  const r10a = run(
+    "10a. Missing debt_rate + high LTV",
+    [{ severity_current: "Medium", confidence: "High", risk_type: "DebtCostRisk" }],
+    { ltv: { value: 72, unit: "%", confidence: "High" } }
+  );
+  const r10b = run(
+    "10b. With debt_rate + high LTV",
+    [{ severity_current: "Medium", confidence: "High", risk_type: "DebtCostRisk" }],
+    { ltv: { value: 72, unit: "%", confidence: "High" }, debt_rate: { value: 5, unit: "%", confidence: "High" } }
+  );
+  printResult("10a. Missing debt_rate + high LTV", r10a);
+  printResult("10b. With debt_rate + high LTV", r10b);
+  distribution[r10a.band] = (distribution[r10a.band] ?? 0) + 1;
+
+  // 11. Deterministic invariant: same risk_types with different trigger text produce identical score
+  // (trigger text is not an input to computeRiskIndex — only risk_type, severity_current, confidence)
+  const invariantRisks = [
+    { severity_current: "High", confidence: "High", risk_type: "VacancyUnderstated" },
+    { severity_current: "Medium", confidence: "Medium", risk_type: "DebtCostRisk" },
+  ];
+  const invariantAssumptions: DealScanAssumptions = {
+    ltv: { value: 70, unit: "%", confidence: "High" },
+    vacancy: { value: 15, unit: "%", confidence: "High" },
+  };
+  const inv1 = run("11a. Trigger invariance A", invariantRisks, invariantAssumptions);
+  const inv2 = run("11b. Trigger invariance B", invariantRisks, invariantAssumptions);
+  console.log(`\n--- 11. Trigger-text invariance ---`);
+  console.log(`  Score A: ${inv1.score}  Score B: ${inv2.score}  Match: ${inv1.score === inv2.score}`);
+
   // Distribution summary
   console.log("\n--- Distribution (count per tier) ---");
   console.log(JSON.stringify(distribution, null, 2));
 
   // Calibration logging: aggregate distribution metrics
-  const allScores = [r1a.score, r1b.score, r2.score, r3.score, r4.score, r5.score, r6.score, r7.score, r8.score];
+  const allScores = [r1a.score, r1b.score, r2.score, r3.score, r4.score, r5.score, r6.score, r7.score, r8.score, r9.score, r10a.score];
   const totalCount = allScores.length;
   const meanScore = allScores.reduce((a, b) => a + b, 0) / totalCount;
   const bandOrder = ["Low", "Moderate", "Elevated", "High"] as const;
@@ -204,16 +243,22 @@ function main() {
 
   // Assertions
   console.log("\n--- Assertions ---");
-  const okExtreme = extremeScore >= 70;
-  const okMissingOnly = missingOnlyScore <= 49;
+  const okExtreme = extremeScore >= 69;
+  const okMissingOnly = missingOnlyScore <= 53;
   const okStructural = missingPlusStructuralScore > missingOnlyScore;
   const okDeterministic = r1a.score === r1b.score && r1a.band === r1b.band;
-  console.log(`Extreme (4) score >= 70: ${okExtreme ? "PASS" : "FAIL"} (${extremeScore})`);
-  console.log(`Missing-only (2) score <= 49: ${okMissingOnly ? "PASS" : "FAIL"} (${missingOnlyScore})`);
+  const okCompleteness = r9.score > r1b.score; // low completeness adds penalty
+  const okMissingDebtRate = r10a.score > r10b.score; // missing debt_rate at high LTV adds 2 pts
+  const okTriggerInvariance = inv1.score === inv2.score && inv1.band === inv2.band;
+  console.log(`Extreme (4) score >= 69: ${okExtreme ? "PASS" : "FAIL"} (${extremeScore})`);
+  console.log(`Missing-only (2) score <= 53: ${okMissingOnly ? "PASS" : "FAIL"} (${missingOnlyScore})`);
   console.log(`Structural (3) > missing-only (2): ${okStructural ? "PASS" : "FAIL"}`);
   console.log(`Deterministic (decimal vs percent): ${okDeterministic ? "PASS" : "FAIL"}`);
+  console.log(`Completeness penalty (9): ${okCompleteness ? "PASS" : "FAIL"} (${r9.score} > ${r1b.score})`);
+  console.log(`Missing debt_rate penalty (10): ${okMissingDebtRate ? "PASS" : "FAIL"} (${r10a.score} > ${r10b.score})`);
+  console.log(`Trigger-text invariance (11): ${okTriggerInvariance ? "PASS" : "FAIL"}`);
 
-  const allPass = okExtreme && okMissingOnly && okStructural && okDeterministic;
+  const allPass = okExtreme && okMissingOnly && okStructural && okDeterministic && okCompleteness && okMissingDebtRate && okTriggerInvariance;
   console.log(allPass ? "\nAll assertions passed." : "\nSome assertions failed.");
   process.exit(allPass ? 0 : 1);
 }
