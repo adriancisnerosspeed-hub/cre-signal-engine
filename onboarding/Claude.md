@@ -152,6 +152,13 @@ Pushed to `origin/main`.
 - **Fix:** Merged both tabs into a single **"Plan & flags"** tab via new `PlanAndFlagsPanel.tsx`. Plan selector now defaults to the selected org's current plan. Single-org workspaces show the org info inline (no dropdown needed). Feature flags shown as simple on/off toggle rows instead of full CRUD table.
 - The old `FeatureFlagsPanel.tsx` and `TierSetterPanel.tsx` files are no longer imported but remain in the repo.
 
+### Invite Email Not Delivering
+
+- **Root cause:** Invite emails use an async outbox pattern — clicking "Send invite" queues the email in `email_outbox`, and a cron job (`/api/cron/email/process`) runs every 2 minutes on Vercel to actually send it. If the cron isn't running (Hobby plan = once/day, or `CRON_SECRET` not set), emails never get delivered.
+- **Fix (dev tools):** Added `POST /api/owner/process-outbox` route and a "Process email queue" button in the Test Tools tab. This manually triggers the outbox processor so invite emails deliver immediately without waiting for the cron.
+- **Fix (UX):** Changed the success message from "Invite sent to {email}" to "Invite queued for {email} — email will be delivered shortly." to set correct expectations.
+- **Env vars required:** `RESEND_API_KEY` must be set. `CRON_SECRET` must be set for the automated cron. `RESEND_FROM` defaults to Resend sandbox if not set.
+
 ### Files Modified
 
 | File | Change |
@@ -161,9 +168,12 @@ Pushed to `origin/main`.
 | `app/owner/dev/PlanAndFlagsPanel.tsx` | New combined panel: tier override + feature flag toggles |
 | `app/owner/dev/UsageLeadsPanel.tsx` | Clickable stat boxes with detail dialogs |
 | `app/api/owner/tier-override/route.ts` | Add `clearFeatureFlagCache()` after plan update |
+| `app/api/owner/process-outbox/route.ts` | New route: manually trigger email outbox processing |
+| `app/owner/dev/TestToolsPanel.tsx` | Add "Process email queue" button |
+| `app/settings/workspace/WorkspaceClient.tsx` | Change "Invite sent" to "Invite queued" message |
 | `onboarding/Claude.md` | This session log |
 | `onboarding/CRESIGNALENGINE.md` | Updated owner dev dashboard docs |
-| `onboarding/Obstacles.md` | Added 4j (AI insights dual-gate), 4k (tab consolidation) |
+| `onboarding/Obstacles.md` | Added 4j, 4k, 4l entries |
 
 ---
 

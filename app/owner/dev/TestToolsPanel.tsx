@@ -10,6 +10,7 @@ export function TestToolsPanel() {
   const [scanId, setScanId] = useState("");
   const [dryRunJson, setDryRunJson] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  const [outboxBusy, setOutboxBusy] = useState(false);
 
   async function sendTestEmail() {
     try {
@@ -19,6 +20,26 @@ export function TestToolsPanel() {
       toast("Test email sent", "info");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Failed", "error");
+    }
+  }
+
+  async function processOutbox() {
+    setOutboxBusy(true);
+    try {
+      const res = await fetch("/api/owner/process-outbox", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed");
+      const { processed, sent, failed } = json as { processed: number; sent: number; failed: number };
+      if (processed === 0) {
+        toast("No queued emails to process", "info");
+      } else {
+        toast(`Processed ${processed}: ${sent} sent, ${failed} failed`, sent > 0 ? "info" : "error");
+      }
+      setDryRunJson(JSON.stringify(json, null, 2));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Failed", "error");
+    } finally {
+      setOutboxBusy(false);
     }
   }
 
@@ -63,14 +84,26 @@ export function TestToolsPanel() {
       <CardHeader>
         <CardTitle>Test tools</CardTitle>
         <CardDescription>
-          Resend test email, risk index dry-run (no OpenAI), and AI insights for a scan in your current workspace (requires PRO+ entitlements and the ai-insights flag).
+          Resend test email, process queued emails, risk index dry-run (no OpenAI), and AI insights for a scan in your current workspace (requires PRO+ entitlements and the ai-insights flag).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="space-y-3">
+          <p className="text-xs font-medium text-muted-foreground">Email</p>
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" onClick={() => void sendTestEmail()}>
+              Send test email
+            </Button>
+            <Button type="button" variant="outline" disabled={outboxBusy} onClick={() => void processOutbox()}>
+              {outboxBusy ? "Processing…" : "Process email queue"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <strong>Process email queue</strong> manually runs the cron outbox processor — use this after sending an invite to deliver it immediately instead of waiting for the cron job.
+          </p>
+        </div>
+
         <div className="flex flex-wrap gap-3">
-          <Button type="button" onClick={() => void sendTestEmail()}>
-            Send test email
-          </Button>
           <Button type="button" variant="outline" onClick={() => void runDryScan()}>
             Run risk index dry-run
           </Button>

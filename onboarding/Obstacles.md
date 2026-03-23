@@ -154,6 +154,12 @@ This file is AI-facing project memory. Read it before doing substantial work.
 - **Best fix:** Added `clearFeatureFlagCache()` to the tier override route. Added a yellow reminder banner in the TierSetterPanel that appears when PRO+ or ENTERPRISE is selected, explaining the dual-gate requirement.
 - **Pre-emption for future AI:** When a feature is gated by BOTH a plan entitlement AND a feature flag, make the dependency explicit in the admin UI. Don't assume users will discover the second gate on their own. Any admin route that changes state consumed by feature-flag-gated code paths should also clear the flag cache.
 
+### 4l. Invite Emails Not Delivering — Async Outbox Not Obvious ✓
+- **What happened:** User sent a workspace invite and saw "Invite sent to {email}", but the recipient never received the email. The invite was queued in `email_outbox` but the cron job wasn't processing it (either cron not running, `CRON_SECRET` not set, or Vercel Hobby plan limiting cron frequency to once/day).
+- **Root cause:** The invite system uses an async outbox pattern: clicking "Send invite" inserts into `email_outbox` with `status='QUEUED'`, and a separate cron job (`/api/cron/email/process`) processes the queue. The UI said "Invite sent" even though the email was only queued, not sent.
+- **Best fix:** Added `POST /api/owner/process-outbox` route and "Process email queue" button in dev tools Test Tools tab so the owner can manually trigger delivery. Changed the success message to "Invite queued for {email} — email will be delivered shortly."
+- **Pre-emption for future AI:** When an operation uses an outbox/queue pattern, always provide a manual trigger in dev tools and make the UI message reflect the actual state (queued vs sent). Users will assume "sent" means delivered.
+
 ---
 
 ## 5. Entitlements, Billing, And Pricing Drift
