@@ -354,7 +354,7 @@ Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user expl
 1. User creates or selects a deal.
 2. User submits raw underwriting text.
 3. Scan route checks input-text-hash cache (7-day TTL by default, configurable via `SCAN_CACHE_TTL_HOURS` env var, default `168`). If a cached scan with identical input hash exists, it is reused immediately.
-4. If no cache hit, OpenAI extracts assumptions and risks using `temperature: 0`, `top_p: 1`, `seed: 42` for maximum determinism.
+4. If no cache hit, OpenAI extracts assumptions and risks using `gpt-5.4-mini` with `temperature: 0`, `top_p: 1`, `seed: 42`, `frequency_penalty: 0.1`, `presence_penalty: 0`, and `response_format: { type: "json_object" }` for structured, reproducible output.
 5. Overlay logic may connect relevant signals.
 6. Scoring inputs are hashed and logged (`scoring_inputs` log line) before `computeRiskIndex()` calculates score, band, and breakdown.
 7. Finalization writes scan outputs and history/audit rows. Completion log includes `temperature` and `seed` for auditability.

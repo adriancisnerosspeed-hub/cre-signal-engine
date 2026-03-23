@@ -185,18 +185,23 @@ export async function POST(request: Request) {
 
   const client = new OpenAI({ apiKey });
   const completion = await client.chat.completions.create({
-    model: "gpt-4o",
+    // Using latest GPT-5.4 mini (March 2026) for better structured output + lower cost
+    model: "gpt-5.4-mini",
     temperature: 0,
     top_p: 1,
     seed: 42,
+    frequency_penalty: 0.1,
+    presence_penalty: 0,
+    response_format: { type: "json_object" },
     messages: [
       { role: "system", content: DEAL_SCAN_SYSTEM_PROMPT },
       { role: "user", content: rawText || "No underwriting text provided." },
     ],
   });
 
+  const model = completion.model ?? "gpt-5.4-mini";
+  console.log(`Extraction model used: ${model}, temperature=0, seed=42`);
   const content = completion.choices?.[0]?.message?.content ?? "";
-  const model = completion.model ?? "gpt-4o";
 
   // If extraction returned insufficient_data, return 400 without consuming a scan.
   try {
