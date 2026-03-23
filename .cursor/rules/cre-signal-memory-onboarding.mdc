@@ -1,0 +1,28 @@
+---
+description: Read and maintain CRE Signal Engine memory docs
+alwaysApply: true
+---
+
+# CRE Signal Engine Memory Rule
+
+For any non-trivial session in this repo:
+
+- Read `onboarding/ONBOARDING.md`, `onboarding/CRESIGNALENGINE.md`, `onboarding/Assist.md`, and `onboarding/Obstacles.md` before making substantial changes.
+- Treat those files as living project memory for future chats.
+
+When work is completed:
+
+- Update `onboarding/CRESIGNALENGINE.md` if features, plans, APIs, constraints, or architecture changed.
+- Update `onboarding/Assist.md` if you learned a durable user preference, explanation pattern, or workflow preference.
+- Update `onboarding/Obstacles.md` if you encountered a meaningful obstacle, repeated confusion, or a new best fix/pre-emption pattern.
+- If an obstacle already exists, increment its tick count instead of duplicating the entry.
+- If the user showed improvement on a previously hard topic, note that in `onboarding/Obstacles.md`.
+
+When there is drift between pricing copy, docs, and enforced backend behavior:
+
+- Document the drift explicitly.
+- Identify which source is actual enforcement.
+- Do not silently assume marketing copy and entitlements are synchronized.
+
+In the final response, mention when you updated any of these memory files.
+
