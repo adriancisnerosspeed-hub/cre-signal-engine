@@ -115,7 +115,7 @@ Core idea:
 - Payments: Stripe
 - AI: OpenAI
 - Email: Resend
-- Testing: Vitest
+- Testing: Vitest (config: `vitest.config.ts` with `@/` path alias)
 - PDF/ZIP tooling: `pdf-lib`, `jszip`
 
 Key server/business-logic hubs:
@@ -398,7 +398,19 @@ Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user expl
 
 ---
 
-## 10. Fast File Guide
+## 10. Testing State
+
+- **42 test files**, 385 of 389 tests pass. 2 pre-existing failures remain.
+- `vitest.config.ts` resolves `@/` path aliases so all library and API route tests can import modules correctly.
+- Test files live next to source: `lib/foo.ts` → `lib/foo.test.ts`.
+- Key tested modules: `riskIndex`, `parseSignals`, `crossReferenceOverlay`/`macroRelevance`, `auth`/`apiAuth`, `rateLimit`, `usage`, `benchmark/*`, `policy/engine`, `entitlements`, `export/*`.
+- Key untested areas: most API routes (92%), AI prompt templates, demo module, memo share auth, component rendering.
+- Full gap analysis and recommendations: `TEST_COVERAGE_ANALYSIS.md`.
+- When changing entitlements, always grep for the changed property in test files (obstacle 5a-pre).
+
+---
+
+## 11. Fast File Guide
 
 - Product/system overview: `docs/SYSTEM_OVERVIEW.md`
 - Billing and price-id mapping: `docs/BILLING.md`
@@ -409,4 +421,6 @@ Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user expl
 - Portfolio summary: `lib/portfolioSummary.ts`
 - Stripe webhook: `app/api/stripe/webhook/route.ts`
 - Governance roadmap/patch context: `docs/PHASE1_IMPLEMENTATION.md`, `docs/PHASE4_IMPLEMENTATION.md`, `docs/PHASE4_PATCHES_REFERENCE.md`
+- Claude Code project context: `CLAUDE.md`
+- Test coverage analysis: `TEST_COVERAGE_ANALYSIS.md`
 

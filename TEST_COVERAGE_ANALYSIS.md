@@ -6,7 +6,7 @@
 |----------|-------------|------------|----------|
 | API Routes | 73 | 6 | 8% |
 | Pages & Components | 85 | 1 | 1% |
-| Core Utilities (`lib/`) | 60 | 17 | 28% |
+| Core Utilities (`lib/`) | 60 | 22 | 37% |
 | Benchmark module | 9 | 4 | 44% |
 | Policy module | 4 | 1 | 25% |
 | Email module | 4 | 1 | 25% |
@@ -14,10 +14,23 @@
 | Entitlements module | 4 | 2 | 50% |
 | Prompts module | 3 | 0 | 0% |
 | Demo module | 2 | 0 | 0% |
-| **Total** | **256** | **36** | **14%** |
+| **Total** | **256** | **42** | **16%** |
 
-**Test results:** 22 of 35 test files passing (183 of 198 individual tests pass).
-13 test files currently fail — mostly due to `next/server` import resolution issues in the Vitest environment and some missing module stubs.
+**Test results:** 40 of 42 test files passing (385 of 389 individual tests pass).
+2 test files have pre-existing failures: `PricingClient.test.tsx` (missing `toBeInTheDocument` matcher) and `invite/accept/route.test.ts` (incomplete mock).
+
+**Infrastructure fix:** Added `vitest.config.ts` with `@/` path alias, which resolved the `next/server` import failures that previously broke 13 test files.
+
+### New tests added (this analysis)
+
+| Test File | Tests | What it covers |
+|-----------|-------|----------------|
+| `lib/parseSignals.test.ts` | 11 | Signal parsing from AI output — actionable/non-actionable, field extraction, sorting |
+| `lib/auth.test.ts` | 9 | `isOwner`, `canBypassRateLimit`, `canUseProFeature` |
+| `lib/apiAuth.test.ts` | 9 | `hashApiToken` consistency/trimming, `getBearerToken` extraction |
+| `lib/rateLimit.test.ts` | 9 | Org scan rate limiting — allow/block thresholds, custom options |
+| `lib/usage.test.ts` | 15 | Daily usage reads, RPC increments, error handling, NaN safety |
+| `lib/crossReferenceOverlay.test.ts` | 19 | `inferSignalContext`, `isSignalRelevant`, `runOverlay` early exits |
 
 ---
 
@@ -97,13 +110,13 @@ Only 6 of 73 API routes have tests. The most critical untested routes:
 
 ---
 
-## Priority 4: Fix Existing Broken Tests (13 failing files)
+## Priority 4: Fix Remaining Broken Tests (2 failing files)
 
-Before adding new tests, fix the 13 currently failing test files:
+~~13 test files were failing~~ → **Resolved to 2** by adding `vitest.config.ts` and running `npm install`.
 
-1. **`next/server` import resolution** — Most API route tests fail because Vitest can't resolve `next/server`. Fix by adding a proper `vitest.config.ts` with `deps.inline` or module aliasing.
-2. **Missing module stubs** — Some tests reference modules that need mocking (Supabase, Stripe).
-3. **`jsdom` environment** — `PricingClient.test.tsx` fails because `jsdom` isn't found by the npx-invoked vitest. Add vitest as a direct dependency or ensure `jsdom` is properly resolved.
+Remaining failures:
+1. **`app/pricing/PricingClient.test.tsx`** — Uses `toBeInTheDocument` from `@testing-library/jest-dom` but no setup file configures the matchers. Fix: add a vitest setup file that imports `@testing-library/jest-dom/vitest`.
+2. **`app/api/invite/accept/route.test.ts`** — Mock Supabase client is missing `.rpc()` method. Fix: add `rpc` to the mock.
 
 ---
 
@@ -124,11 +137,18 @@ Only `PricingClient.test.tsx` exists (and it's broken). Key components to test:
 
 ## Quick Wins (Highest ROI for Effort)
 
-1. **Create `vitest.config.ts`** — Fix `next/server` resolution so all 13 broken tests pass again. This unblocks ~15 failing tests immediately.
-2. **Add tests for `lib/parseSignals.ts`** — Pure function, easy to test, critical to correctness.
-3. **Add tests for `lib/crossReferenceOverlay.ts`** — Pure logic, high impact on risk scores.
-4. **Add tests for `lib/auth.ts` and `lib/apiAuth.ts`** — Security-critical, straightforward to mock.
-5. **Add tests for `lib/rateLimit.ts`** and `lib/usage.ts` — Protect against billing and abuse issues.
+1. ~~**Create `vitest.config.ts`**~~ — **DONE.** Fixed `next/server` resolution, unblocked 11 previously broken test files.
+2. ~~**Add tests for `lib/parseSignals.ts`**~~ — **DONE.** 11 tests covering field extraction, actionability, sorting.
+3. ~~**Add tests for `lib/crossReferenceOverlay.ts`**~~ — **DONE.** 19 tests for signal context inference, relevance filtering, overlay early exits.
+4. ~~**Add tests for `lib/auth.ts` and `lib/apiAuth.ts`**~~ — **DONE.** 18 tests for owner check, role gates, token hashing, bearer extraction.
+5. ~~**Add tests for `lib/rateLimit.ts`** and `lib/usage.ts`~~ — **DONE.** 24 tests for rate limiting and usage tracking.
+
+### Remaining Quick Wins
+6. **Fix `PricingClient.test.tsx`** — Add `@testing-library/jest-dom` setup for `toBeInTheDocument` matcher.
+7. **Fix `invite/accept/route.test.ts`** — Add `rpc` mock to the Supabase service mock.
+8. **Add tests for `lib/prompts/`** — Validate prompt structure and variable interpolation.
+9. **Add deal scan pipeline integration test** — Mock OpenAI, test the full scan flow end-to-end.
+10. **Add tests for `lib/memoShareAuth.ts`** — Password hash verification and cookie logic.
 
 ---
 

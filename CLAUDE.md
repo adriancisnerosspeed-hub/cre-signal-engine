@@ -52,9 +52,9 @@ npm run test:watch   # Vitest watch mode
 
 ### Current State
 
-- **36 test files** covering **256 source files** (14% coverage)
-- 22/35 test files pass; 13 fail due to `next/server` import resolution in Vitest
-- No `vitest.config.ts` exists yet — creating one to fix module resolution is the top infrastructure priority
+- **42 test files** covering **256 source files** (16% coverage), **385 of 389 tests passing**
+- `vitest.config.ts` configures `@/` path alias for module resolution
+- 2 pre-existing test failures remain: `PricingClient.test.tsx` (missing jest-dom matchers) and `invite/accept/route.test.ts` (incomplete mock)
 - Tests use Vitest 2.0 with `@testing-library/react` and `jsdom` for component tests
 - See `TEST_COVERAGE_ANALYSIS.md` for full gap analysis and prioritized recommendations
 
@@ -67,13 +67,22 @@ npm run test:watch   # Vitest watch mode
 - PDF/ZIP tests should validate structure, not raw binary content (see Obstacles 4d)
 - When changing entitlements, always grep for the changed property in test files (see Obstacles 5a-pre)
 
-### Critical Test Gaps
+### Recently Added Tests
+
+- `lib/parseSignals.test.ts` — 11 tests (signal parsing from AI output)
+- `lib/crossReferenceOverlay.test.ts` — 19 tests (signal context, relevance, overlay logic)
+- `lib/auth.test.ts` — 9 tests (owner check, role gates)
+- `lib/apiAuth.test.ts` — 9 tests (token hashing, bearer extraction)
+- `lib/rateLimit.test.ts` — 9 tests (org scan rate limiting)
+- `lib/usage.test.ts` — 15 tests (daily usage tracking, RPC calls)
+
+### Remaining Critical Test Gaps
 
 1. **Deal scan pipeline** — most important flow, minimal coverage
-2. **`lib/parseSignals.ts`** — zero tests, parses all AI output
-3. **`lib/crossReferenceOverlay.ts`** — zero tests, feeds risk scoring
-4. **Auth utilities** (`lib/auth.ts`, `lib/apiAuth.ts`) — zero tests
-5. **API routes** — 92% untested (67 of 73 routes)
+2. **API routes** — 92% untested (67 of 73 routes)
+3. **AI prompt templates** (`lib/prompts/`) — zero tests
+4. **Memo share auth** (`lib/memoShareAuth.ts`) — zero tests
+5. **Component/page tests** — only 1 exists (and broken)
 
 ## Constraints & Rules
 
