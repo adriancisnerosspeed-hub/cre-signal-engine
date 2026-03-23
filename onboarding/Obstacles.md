@@ -143,6 +143,12 @@ This file is AI-facing project memory. Read it before doing substantial work.
 - **Best fix:** Added the `AiInsightsPanel` to the main deal detail page (`app/app/deals/[id]/page.tsx`) in the overview tab, after the explainability diff section and before recent scans. Same dual gate: `canUseAiInsights && aiInsightsFlag`.
 - **Pre-emption for future AI:** When adding gated features, put them on the most visible surface the user is likely to visit, not only on deep drill-down pages.
 
+### 4j. AI Insights Dual-Gate Not Obvious From Tier Override Alone ✓
+- **What happened:** After changing the org tier to PRO+ via the dev tools tier override, the AI Insights panel still did not appear on deal pages. The user assumed changing the tier was sufficient.
+- **Root cause:** AI Insights requires TWO independent conditions: (1) `canUseAiInsights` entitlement from PRO+/ENTERPRISE plan, AND (2) the `ai-insights` feature flag must be enabled in the `feature_flags` table. The tier override only changes the plan — it does not auto-enable feature flags. Additionally, the tier override route did not call `clearFeatureFlagCache()`, so even if the flag was already enabled, cached values could persist for up to 60 seconds.
+- **Best fix:** Added `clearFeatureFlagCache()` to the tier override route. Added a yellow reminder banner in the TierSetterPanel that appears when PRO+ or ENTERPRISE is selected, explaining the dual-gate requirement.
+- **Pre-emption for future AI:** When a feature is gated by BOTH a plan entitlement AND a feature flag, make the dependency explicit in the admin UI. Don't assume users will discover the second gate on their own. Any admin route that changes state consumed by feature-flag-gated code paths should also clear the flag cache.
+
 ---
 
 ## 5. Entitlements, Billing, And Pricing Drift

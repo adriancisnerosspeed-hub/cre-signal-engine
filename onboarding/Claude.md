@@ -121,6 +121,46 @@ Pushed to `origin/main`.
 
 ---
 
+## Session 2: Dev Tools Enhancements & AI Insights Debugging
+
+**Date:** 2026-03-23
+**Model:** Claude Opus 4.6
+**Scope:** Clickable org/profile detail dialogs in Usage & Leads panel; AI Insights visibility debugging
+
+---
+
+### Clickable Org/Profile Detail Dialogs (Usage & Leads Panel)
+
+- **Files:** `app/owner/dev/page.tsx`, `app/owner/dev/OwnerDevDashboard.tsx`, `app/owner/dev/UsageLeadsPanel.tsx`
+- **What:** Organizations and Profiles stat boxes in the Usage & Leads dev tools tab are now clickable. Clicking opens a dialog showing all records linked to the SaaS.
+  - **Organizations dialog:** name, plan badge, billing status, member count, creator email, creation date, onboarding status. Orgs without completed onboarding show a "No onboarding" tag.
+  - **Profiles dialog:** email, role badge, org count, scans used, creation date. Profiles with no auth email show "No account / Anonymous" in yellow. Profiles with 0 org memberships show "0 (unlinked)".
+- **Data:** Server page now fetches all orgs, all profiles, org members, and auth user emails via `service.auth.admin.listUsers()`.
+- **Scope:** Changes are self-contained to `app/owner/dev/` — no impact on main app, API routes, or database.
+
+### AI Insights Not Appearing After Tier Override
+
+- **Root cause:** AI Insights requires TWO independent conditions: (1) plan must be PRO+ or ENTERPRISE (`canUseAiInsights` entitlement), AND (2) the `ai-insights` feature flag must be enabled in the `feature_flags` table via the Feature Flags tab.
+- **Additional bug:** The tier override route (`/api/owner/tier-override`) did not call `clearFeatureFlagCache()` after updating the plan, meaning cached feature flag values could persist up to 60 seconds after a tier change.
+- **Fix (route):** Added `clearFeatureFlagCache()` import and call in `app/api/owner/tier-override/route.ts`.
+- **Fix (UX):** Added a yellow reminder banner in `TierSetterPanel.tsx` that appears when PRO+ or ENTERPRISE is selected, explaining the dual-gate requirement.
+- **User action needed:** Go to Feature Flags tab → ensure a flag named `ai-insights` exists and is toggled ON. Then set the tier to PRO+ or ENTERPRISE. The AI Insights panel should appear on both the deal overview page and scan detail page.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `app/owner/dev/page.tsx` | Fetch all orgs, profiles, org members, and auth user emails |
+| `app/owner/dev/OwnerDevDashboard.tsx` | Add `OrgDetail` and `ProfileDetail` types |
+| `app/owner/dev/UsageLeadsPanel.tsx` | Clickable stat boxes with detail dialogs |
+| `app/api/owner/tier-override/route.ts` | Add `clearFeatureFlagCache()` after plan update |
+| `app/owner/dev/TierSetterPanel.tsx` | Add reminder banner about ai-insights flag requirement |
+| `onboarding/Claude.md` | This session log |
+| `onboarding/CRESIGNALENGINE.md` | Updated owner dev dashboard and AI Insights docs |
+| `onboarding/Obstacles.md` | Added 4j (AI insights dual-gate discovery) |
+
+---
+
 ## Known Accepted Risks (Unchanged)
 
 1. **Demo snapshot rate limit is in-memory** — per-instance only on Vercel serverless. Migrate to Redis/KV for strict global enforcement if needed.
