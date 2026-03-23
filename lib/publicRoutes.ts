@@ -14,10 +14,14 @@ export const PUBLIC_ROUTES = [
   "/auth/callback",
   "/sample-report",
   "/shared",
+  "/changelog",
 ] as const;
 
 /** API routes that must be public (e.g. Stripe webhook cannot send auth cookies). */
-export const PUBLIC_API_ROUTES = ["/api/stripe/webhook"] as const;
+export const PUBLIC_API_ROUTES = [
+  "/api/stripe/webhook",
+  "/api/leads/demo-snapshot",
+] as const;
 
 export function isPublicPath(pathname: string): boolean {
   if (PUBLIC_API_ROUTES.some((r) => pathname.startsWith(r))) return true;
