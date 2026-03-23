@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrg } from "@/lib/org";
+import { isOwner } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -13,7 +14,10 @@ export async function GET() {
   }
 
   const org = await getCurrentOrg(supabase, user);
-  return NextResponse.json(org ?? { id: null, name: null });
+  return NextResponse.json({
+    ...(org ?? { id: null, name: null }),
+    show_owner_dev: isOwner(user.email),
+  });
 }
 
 export async function PATCH(request: Request) {

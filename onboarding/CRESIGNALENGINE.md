@@ -172,7 +172,7 @@ Next migration file index: **059**.
 
 ### Owner developer dashboard (`/owner/dev`)
 
-- **Access:** `app/owner/layout.tsx` checks `isOwner(user.email)` from `lib/auth.ts` (matches `OWNER_EMAIL`, case-insensitive). Everyone else is redirected to `/app`. Independent of workspace plan.
+- **Access:** `app/owner/layout.tsx` checks `isOwner(user.email)` from `lib/auth.ts` (matches `OWNER_EMAIL`, case-insensitive). Everyone else is redirected to `/app`. Independent of workspace plan. **Nav:** logged-in users who are the owner see a **Dev tools** link in `app/components/AppNav.tsx` (driven by `show_owner_dev` on `GET /api/org/current`). Wrong URL **`/app/owner/dev`** redirects to **`/owner/dev`** via `app/app/owner/dev/page.tsx`.
 - **UI:** `app/owner/dev/page.tsx` loads aggregate stats via service role; `app/owner/dev/OwnerDevDashboard.tsx` tabbed panels: feature flags CRUD, risk index sandbox (client `computeRiskIndex` + optional IC memo PDF sample), usage/leads table, test tools (Resend, risk dry-run, fetch AI insights via existing scan route), localStorage A/B label, org `plan` override, debug actions (Stripe env check, reset `total_full_scans_used`, clear `usage_daily` for a user).
 - **APIs (owner session required):** `lib/ownerAuth.ts` `requireOwner()` then service role as needed — `GET`/`POST`/`PATCH`/`DELETE` `app/api/owner/feature-flags/route.ts` (clears `lib/featureFlags` cache on writes); `POST` `app/api/owner/test-email/route.ts`; `POST` `app/api/owner/test-scan/route.ts` (deterministic dry-run, no OpenAI); `POST` `app/api/owner/tier-override/route.ts`; `POST` `app/api/owner/debug/route.ts`.
 

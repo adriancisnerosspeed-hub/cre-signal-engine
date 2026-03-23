@@ -14,6 +14,7 @@ type CurrentOrg = { id: string; name: string } | null;
 export default function AppNav() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [currentOrg, setCurrentOrg] = useState<CurrentOrg>(null);
+  const [showOwnerDev, setShowOwnerDev] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -42,15 +43,20 @@ export default function AppNav() {
   useEffect(() => {
     if (!user) {
       setCurrentOrg(null);
+      setShowOwnerDev(false);
       return;
     }
     fetchJsonWithTimeout("/api/org/current", {}, 15000)
       .then((r) => {
-        const data = r.json as { id?: string; name?: string } | null;
+        const data = r.json as { id?: string; name?: string; show_owner_dev?: boolean } | null;
         if (data?.id && data?.name) setCurrentOrg({ id: data.id, name: data.name });
         else setCurrentOrg(null);
+        setShowOwnerDev(data?.show_owner_dev === true);
       })
-      .catch(() => setCurrentOrg(null));
+      .catch(() => {
+        setCurrentOrg(null);
+        setShowOwnerDev(false);
+      });
   }, [user]);
 
   async function handleSignOut() {
@@ -96,6 +102,15 @@ export default function AppNav() {
       <Link href="/pricing" className={pathname === "/pricing" ? activeClassName : linkClassName}>Pricing</Link>
       <Link href="/digest/preview" className={pathname === "/digest/preview" ? activeClassName : linkClassName}>Risk Brief</Link>
       <Link href="/settings" className={pathname === "/settings" ? activeClassName : linkClassName}>Settings</Link>
+      {showOwnerDev && (
+        <Link
+          href="/owner/dev"
+          className={pathname?.startsWith("/owner") ? activeClassName : linkClassName}
+          title="Owner developer tools"
+        >
+          Dev tools
+        </Link>
+      )}
       {currentOrg && (
         <span className="text-[13px] opacity-85 ml-auto mr-3 text-gray-600 dark:text-gray-400">
           Workspace: {currentOrg.name}
