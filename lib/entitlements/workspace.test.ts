@@ -30,14 +30,14 @@ describe("getWorkspaceEntitlements", () => {
       expect(e.maxLifetimeScans).toBeNull();
       expect(e.maxPortfolios).toBe(3);
     });
-    it("allows benchmark, policy, support bundle; disallows snapshot, cohort, invites", () => {
+    it("allows benchmark, policy, support bundle, invites; disallows snapshot, cohort", () => {
       const e = getWorkspaceEntitlements("PRO");
       expect(e.canUseBenchmark).toBe(true);
       expect(e.canUsePolicy).toBe(true);
       expect(e.canUseSupportBundle).toBe(true);
       expect(e.canBuildSnapshot).toBe(false);
       expect(e.canCreateCohort).toBe(false);
-      expect(e.canInviteMembers).toBe(false);
+      expect(e.canInviteMembers).toBe(true);
       expect(e.canUseAiInsights).toBe(false);
     });
     it("has maxActivePoliciesPerOrg 1", () => {

@@ -41,7 +41,13 @@ export default function OnboardingFlow({
   async function markComplete() {
     if (completing) return;
     setCompleting(true);
-    await fetch("/api/org/onboarding", { method: "PATCH" }).catch(() => {});
+    try {
+      await fetch("/api/org/onboarding", { method: "PATCH" });
+    } catch {
+      // allow retry
+    } finally {
+      setCompleting(false);
+    }
     router.refresh();
   }
 
@@ -52,7 +58,12 @@ export default function OnboardingFlow({
   async function handleFinishAndNavigate(path: string) {
     if (completing) return;
     setCompleting(true);
-    await fetch("/api/org/onboarding", { method: "PATCH" }).catch(() => {});
+    try {
+      await fetch("/api/org/onboarding", { method: "PATCH" });
+    } catch {
+      setCompleting(false);
+      return;
+    }
     router.push(path);
   }
 

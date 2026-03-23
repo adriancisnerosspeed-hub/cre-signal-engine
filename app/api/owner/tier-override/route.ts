@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireOwner } from "@/lib/ownerAuth";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -54,6 +55,9 @@ export async function POST(request: Request) {
     console.error("[owner/tier-override]", updateErr);
     return NextResponse.json({ error: updateErr.message }, { status: 500 });
   }
+
+  // Invalidate cached server components so entitlements refresh without manual page reload
+  revalidatePath("/app", "layout");
 
   return NextResponse.json({
     ok: true,

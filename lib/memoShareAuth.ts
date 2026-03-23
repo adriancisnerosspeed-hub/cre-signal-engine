@@ -2,6 +2,10 @@ import crypto from "crypto";
 
 const COOKIE_NAME = "memo_share_unlock";
 
+if (!process.env.MEMO_SHARE_COOKIE_SECRET) {
+  console.warn("[memoShareAuth] MEMO_SHARE_COOKIE_SECRET not set — falling back to service role key. Set a dedicated secret in production.");
+}
+
 function secret(): string {
   return (
     process.env.MEMO_SHARE_COOKIE_SECRET?.trim() ||

@@ -8,9 +8,11 @@ import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/works
 import { getRecommendedActions } from "@/lib/icRecommendedActions";
 import { checkBandConsistency } from "@/lib/bandConsistency";
 import { computeExplainabilityDiff } from "@/lib/explainabilityDiff";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import DealDetailClient from "./DealDetailClient";
+import { AiInsightsPanel } from "./AiInsightsPanel";
 import DemoDealDeleteButton from "./DemoDealDeleteButton";
 import RefreshPageButton from "./RefreshPageButton";
 import ExportPdfButton from "./ExportPdfButton";
@@ -111,16 +113,18 @@ export default async function DealPage({
   let scan: DealScan | null = null;
   let risks: DealRisk[] = [];
 
-  const [entitlements, workspaceEntitlements] = await Promise.all([
+  const service = createServiceRoleClient();
+  const [entitlements, workspaceEntitlements, aiInsightsFlag] = await Promise.all([
     getEntitlementsForUser(supabase, user.id),
     (async () => {
-      const service = createServiceRoleClient();
       const { entitlements: ws } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
       return ws;
     })(),
+    isFeatureEnabled(service, "ai-insights"),
   ]);
   const plan = entitlements.plan;
   const canUseTrajectory = workspaceEntitlements.canUseTrajectory;
+  const showAiInsightsPanel = workspaceEntitlements.canUseAiInsights && aiInsightsFlag;
 
   let narrativeContent: string | null = null;
   if (d.latest_scan_id) {
@@ -397,6 +401,10 @@ export default async function DealPage({
               </div>
             </section>
           )}
+          {showAiInsightsPanel && d.latest_scan_id && (
+            <AiInsightsPanel scanId={d.latest_scan_id} />
+          )}
+
           {last5Scans.length > 0 && (
             <section className="mb-8">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-3">

@@ -1,17 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/lib/toast";
 
 const PLANS = ["FREE", "PRO", "PRO+", "ENTERPRISE"] as const;
 
+const PLAN_DISPLAY_NAMES: Record<(typeof PLANS)[number], string> = {
+  FREE: "Free",
+  PRO: "Starter",
+  "PRO+": "Analyst",
+  ENTERPRISE: "Fund / Enterprise",
+};
+
 export function TierSetterPanel({
   organizations,
 }: {
   organizations: { id: string; plan: string; created_at: string }[];
 }) {
+  const router = useRouter();
   const [orgId, setOrgId] = useState(organizations[0]?.id ?? "");
   const [plan, setPlan] = useState<(typeof PLANS)[number]>("FREE");
   const [busy, setBusy] = useState(false);
@@ -32,7 +41,10 @@ export function TierSetterPanel({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed");
-      toast(`Plan set to ${plan} (was ${json.previous_plan})`, "info");
+      const displayName = PLAN_DISPLAY_NAMES[plan];
+      const prevDisplay = PLAN_DISPLAY_NAMES[json.previous_plan as keyof typeof PLAN_DISPLAY_NAMES] ?? json.previous_plan;
+      toast(`Plan set to ${displayName} (${plan}) — was ${prevDisplay} (${json.previous_plan})`, "info");
+      router.refresh();
     } catch (err) {
       toast(err instanceof Error ? err.message : "Failed", "error");
     } finally {
@@ -62,7 +74,7 @@ export function TierSetterPanel({
               </option>
               {organizations.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {o.plan} — {o.id.slice(0, 8)}…
+                  {PLAN_DISPLAY_NAMES[o.plan as keyof typeof PLAN_DISPLAY_NAMES] ?? o.plan} ({o.plan}) — {o.id.slice(0, 8)}…
                 </option>
               ))}
             </select>
@@ -83,7 +95,7 @@ export function TierSetterPanel({
             >
               {PLANS.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {PLAN_DISPLAY_NAMES[p]} ({p})
                 </option>
               ))}
             </select>
