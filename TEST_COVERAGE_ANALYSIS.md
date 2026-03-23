@@ -132,14 +132,71 @@ Only `PricingClient.test.tsx` exists (and it's broken). Key components to test:
 
 ---
 
+## Known Obstacles Relevant to Testing (from `onboarding/Obstacles.md`)
+
+These documented friction patterns directly affect testing strategy:
+
+### 4a. Cross-cutting changes frequently trigger adjacent TS/Next.js failures
+- Large changes often surface unrelated type/build failures. After adding tests, expect at least one follow-up fix pass.
+
+### 4d. Binary response typing and PDF internals are recurring sharp edges
+- ZIP/PDF routes and tests repeatedly hit issues around `Uint8Array` response bodies. Test PDF helpers/structure instead of raw compressed bytes. This is why `exportPdf.test.ts` and `buildMethodologyPdf.test.ts` are fragile.
+
+### 4e. Supabase Edge Functions (Deno) break Next.js `tsc` if included
+- `supabase/functions/` must be excluded from test discovery. Vitest config should exclude this path.
+
+### 5a-pre. Test assertions can lag behind implementation changes
+- Already observed: `workspace.test.ts` asserted `canInviteMembers: false` for PRO when implementation said `true`. **When changing entitlement logic, always grep for the changed property in test files.**
+
+### 6b. Silent inconsistencies are worse than visible warnings
+- Tests should verify that mismatches (band drift, version drift, delta comparability) produce explicit warnings/flags, not silent fallbacks.
+
+### 6c. Delta comparability must be earned, not assumed
+- `backtestEngine.ts` and risk trajectory logic should have tests that verify `delta_comparable` is never defaulted to `true` without supporting data.
+
+---
+
+## Deal Scan Pipeline — Critical Untested Path
+
+The scan pipeline (from `onboarding/CRESIGNALENGINE.md` §8) is the most important data flow and has minimal test coverage:
+
+1. **Input hash cache** (7-day TTL) — no tests for cache hit/miss/expiry logic
+2. **OpenAI extraction** (`temperature: 0`, `top_p: 1`, `seed: 42`) — extraction mocking needed for determinism tests
+3. **Signal parsing** (`lib/parseSignals.ts`) — zero tests
+4. **Cross-reference overlay** (`lib/crossReferenceOverlay.ts`) — zero tests
+5. **Risk scoring** (`lib/riskIndex.ts`) — has tests, but edge cases missing
+6. **Scoring input hash + audit log** — no tests for audit row creation
+7. **Finalization writes** — no tests for scan output persistence
+
+Testing this pipeline end-to-end (with mocked OpenAI) would be the single highest-value integration test.
+
+---
+
+## Entitlement Drift Risk
+
+Per `onboarding/CRESIGNALENGINE.md` §6, there is documented drift between pricing copy and enforced entitlements:
+
+| Feature | Pricing Page Says | Entitlements Enforce |
+|---------|-------------------|---------------------|
+| Starter scans | 10/month | Unlimited |
+| Starter members | 2 | 5 |
+| Analyst members | 5 | 10 |
+| Fund members | Up to 10 | Unlimited |
+
+Tests for `lib/entitlements/workspace.ts` should cover all four plan tiers exhaustively and be treated as the source of truth. Any pricing page test should validate against actual entitlement values, not marketing copy.
+
+---
+
 ## Summary
 
 The codebase has **14% test file coverage** (36 test files for 256 source files). The existing tests are well-written and focused on core risk/benchmark logic, but major gaps exist in:
 
 - **API routes** (92% untested) — the entire request/response layer
+- **Deal scan pipeline** — the most critical data flow has minimal coverage
 - **Signal parsing and cross-referencing** — the data pipeline feeding risk calculations
 - **Authentication and authorization** — security-critical code
 - **AI prompt construction** — drives the quality of AI-generated analysis
 - **Component rendering** — almost no UI tests
+- **Entitlement enforcement** — documented pricing/entitlement drift makes this a regression risk
 
-Fixing the broken test infrastructure (vitest config) should be the first step, followed by adding tests for the untested pure-logic modules in `lib/`.
+Fixing the broken test infrastructure (vitest config) should be the first step, followed by adding tests for the untested pure-logic modules in `lib/` and then the deal scan pipeline as an integration test.
