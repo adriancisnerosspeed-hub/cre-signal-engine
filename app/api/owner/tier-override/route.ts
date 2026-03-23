@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireOwner } from "@/lib/ownerAuth";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { clearFeatureFlagCache } from "@/lib/featureFlags";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
   }
 
   // Invalidate cached server components so entitlements refresh without manual page reload
+  clearFeatureFlagCache();
   revalidatePath("/app", "layout");
 
   return NextResponse.json({

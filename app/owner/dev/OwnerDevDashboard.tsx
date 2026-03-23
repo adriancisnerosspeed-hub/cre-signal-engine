@@ -1,13 +1,34 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FeatureFlagsPanel } from "./FeatureFlagsPanel";
+import { PlanAndFlagsPanel } from "./PlanAndFlagsPanel";
 import { RiskSandboxPanel } from "./RiskSandboxPanel";
 import { UsageLeadsPanel } from "./UsageLeadsPanel";
 import { TestToolsPanel } from "./TestToolsPanel";
 import { AbVariantPanel } from "./AbVariantPanel";
-import { TierSetterPanel } from "./TierSetterPanel";
 import { DebugPanel } from "./DebugPanel";
+
+export type OrgDetail = {
+  id: string;
+  name: string;
+  plan: string;
+  billing_status: string;
+  created_at: string;
+  created_by: string;
+  onboarding_completed: boolean;
+  member_count: number;
+  creator_email: string | null;
+};
+
+export type ProfileDetail = {
+  id: string;
+  role: string | null;
+  current_org_id: string | null;
+  total_full_scans_used: number | null;
+  created_at: string;
+  email: string | null;
+  org_count: number;
+};
 
 export type OwnerDevStats = {
   organizationCount: number;
@@ -23,6 +44,8 @@ export type OwnerDevStats = {
   }[];
   organizations: { id: string; plan: string; created_at: string }[];
   profileSamples: { id: string; role: string | null; total_full_scans_used: number | null }[];
+  allOrganizations: OrgDetail[];
+  allProfiles: ProfileDetail[];
 };
 
 export function OwnerDevDashboard({ stats, ownerEmail }: { stats: OwnerDevStats; ownerEmail: string }) {
@@ -33,16 +56,16 @@ export function OwnerDevDashboard({ stats, ownerEmail }: { stats: OwnerDevStats;
         <span className="font-mono">OWNER_EMAIL</span> matches your account.
       </p>
 
-      <Tabs defaultValue="flags" className="gap-4">
+      <Tabs defaultValue="plan" className="gap-4">
         <TabsList variant="line" className="flex h-auto min-h-8 w-full flex-wrap justify-start gap-1">
-          <TabsTrigger value="flags" className="text-xs sm:text-sm">
-            Feature flags
+          <TabsTrigger value="plan" className="text-xs sm:text-sm">
+            Plan &amp; flags
           </TabsTrigger>
           <TabsTrigger value="sandbox" className="text-xs sm:text-sm">
             Risk sandbox
           </TabsTrigger>
           <TabsTrigger value="usage" className="text-xs sm:text-sm">
-            Usage & leads
+            Usage &amp; leads
           </TabsTrigger>
           <TabsTrigger value="tests" className="text-xs sm:text-sm">
             Test tools
@@ -50,16 +73,13 @@ export function OwnerDevDashboard({ stats, ownerEmail }: { stats: OwnerDevStats;
           <TabsTrigger value="ab" className="text-xs sm:text-sm">
             A/B variants
           </TabsTrigger>
-          <TabsTrigger value="tier" className="text-xs sm:text-sm">
-            Tier override
-          </TabsTrigger>
           <TabsTrigger value="debug" className="text-xs sm:text-sm">
             Debug
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="flags" className="mt-4">
-          <FeatureFlagsPanel />
+        <TabsContent value="plan" className="mt-4">
+          <PlanAndFlagsPanel organizations={stats.organizations} />
         </TabsContent>
         <TabsContent value="sandbox" className="mt-4">
           <RiskSandboxPanel />
@@ -72,9 +92,6 @@ export function OwnerDevDashboard({ stats, ownerEmail }: { stats: OwnerDevStats;
         </TabsContent>
         <TabsContent value="ab" className="mt-4">
           <AbVariantPanel />
-        </TabsContent>
-        <TabsContent value="tier" className="mt-4">
-          <TierSetterPanel organizations={stats.organizations} />
         </TabsContent>
         <TabsContent value="debug" className="mt-4">
           <DebugPanel profileSamples={stats.profileSamples} />

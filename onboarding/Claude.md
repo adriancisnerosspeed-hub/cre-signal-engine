@@ -121,6 +121,62 @@ Pushed to `origin/main`.
 
 ---
 
+## Session 2: Dev Tools Enhancements & AI Insights Debugging
+
+**Date:** 2026-03-23
+**Model:** Claude Opus 4.6
+**Scope:** Clickable org/profile detail dialogs in Usage & Leads panel; AI Insights visibility debugging
+
+---
+
+### Clickable Org/Profile Detail Dialogs (Usage & Leads Panel)
+
+- **Files:** `app/owner/dev/page.tsx`, `app/owner/dev/OwnerDevDashboard.tsx`, `app/owner/dev/UsageLeadsPanel.tsx`
+- **What:** Organizations and Profiles stat boxes in the Usage & Leads dev tools tab are now clickable. Clicking opens a dialog showing all records linked to the SaaS.
+  - **Organizations dialog:** name, plan badge, billing status, member count, creator email, creation date, onboarding status. Orgs without completed onboarding show a "No onboarding" tag.
+  - **Profiles dialog:** email, role badge, org count, scans used, creation date. Profiles with no auth email show "No account / Anonymous" in yellow. Profiles with 0 org memberships show "0 (unlinked)".
+- **Data:** Server page now fetches all orgs, all profiles, org members, and auth user emails via `service.auth.admin.listUsers()`.
+- **Scope:** Changes are self-contained to `app/owner/dev/` — no impact on main app, API routes, or database.
+
+### AI Insights Not Appearing After Tier Override
+
+- **Root cause:** AI Insights requires TWO independent conditions: (1) plan must be PRO+ or ENTERPRISE (`canUseAiInsights` entitlement), AND (2) the `ai-insights` feature flag must be enabled in the `feature_flags` table via the Feature Flags tab.
+- **Additional bug:** The tier override route (`/api/owner/tier-override`) did not call `clearFeatureFlagCache()` after updating the plan, meaning cached feature flag values could persist up to 60 seconds after a tier change.
+- **Fix (route):** Added `clearFeatureFlagCache()` import and call in `app/api/owner/tier-override/route.ts`.
+- **Fix (UX):** Added a yellow reminder banner in `TierSetterPanel.tsx` that appears when PRO+ or ENTERPRISE is selected, explaining the dual-gate requirement.
+- **User action needed:** Go to Feature Flags tab → ensure a flag named `ai-insights` exists and is toggled ON. Then set the tier to PRO+ or ENTERPRISE. The AI Insights panel should appear on both the deal overview page and scan detail page.
+
+### Dev Tools Tab Consolidation
+
+- **Problem:** "Feature flags" and "Tier override" were separate tabs, which was confusing. The tier override plan dropdown always reset to FREE on refresh because it was hardcoded to default to `"FREE"` instead of reading the org's current plan. Two separate workspace/plan selectors felt redundant.
+- **Fix:** Merged both tabs into a single **"Plan & flags"** tab via new `PlanAndFlagsPanel.tsx`. Plan selector now defaults to the selected org's current plan. Single-org workspaces show the org info inline (no dropdown needed). Feature flags shown as simple on/off toggle rows instead of full CRUD table.
+- The old `FeatureFlagsPanel.tsx` and `TierSetterPanel.tsx` files are no longer imported but remain in the repo.
+
+### Invite Email Not Delivering
+
+- **Root cause:** Invite emails use an async outbox pattern — clicking "Send invite" queues the email in `email_outbox`, and a cron job (`/api/cron/email/process`) runs every 2 minutes on Vercel to actually send it. If the cron isn't running (Hobby plan = once/day, or `CRON_SECRET` not set), emails never get delivered.
+- **Fix (dev tools):** Added `POST /api/owner/process-outbox` route and a "Process email queue" button in the Test Tools tab. This manually triggers the outbox processor so invite emails deliver immediately without waiting for the cron.
+- **Fix (UX):** Changed the success message from "Invite sent to {email}" to "Invite queued for {email} — email will be delivered shortly." to set correct expectations.
+- **Env vars required:** `RESEND_API_KEY` must be set. `CRON_SECRET` must be set for the automated cron. `RESEND_FROM` defaults to Resend sandbox if not set.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `app/owner/dev/page.tsx` | Fetch all orgs, profiles, org members, and auth user emails |
+| `app/owner/dev/OwnerDevDashboard.tsx` | Merged Feature flags + Tier override into single "Plan & flags" tab |
+| `app/owner/dev/PlanAndFlagsPanel.tsx` | New combined panel: tier override + feature flag toggles |
+| `app/owner/dev/UsageLeadsPanel.tsx` | Clickable stat boxes with detail dialogs |
+| `app/api/owner/tier-override/route.ts` | Add `clearFeatureFlagCache()` after plan update |
+| `app/api/owner/process-outbox/route.ts` | New route: manually trigger email outbox processing |
+| `app/owner/dev/TestToolsPanel.tsx` | Add "Process email queue" button |
+| `app/settings/workspace/WorkspaceClient.tsx` | Change "Invite sent" to "Invite queued" message |
+| `onboarding/Claude.md` | This session log |
+| `onboarding/CRESIGNALENGINE.md` | Updated owner dev dashboard docs |
+| `onboarding/Obstacles.md` | Added 4j, 4k, 4l entries |
+
+---
+
 ## Known Accepted Risks (Unchanged)
 
 1. **Demo snapshot rate limit is in-memory** — per-instance only on Vercel serverless. Migrate to Redis/KV for strict global enforcement if needed.

@@ -103,6 +103,13 @@ export function TierSetterPanel({
           <Button type="submit" disabled={busy}>
             {busy ? "Saving…" : "Apply plan"}
           </Button>
+          {(plan === "PRO+" || plan === "ENTERPRISE") && (
+            <p className="rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-400">
+              <strong>Reminder:</strong> AI Insights requires BOTH the plan (PRO+ or Enterprise) AND the{" "}
+              <code className="font-mono">ai-insights</code> feature flag to be enabled in the{" "}
+              <strong>Feature flags</strong> tab. If you don&apos;t see AI Insights after changing the tier, check that the flag is on.
+            </p>
+          )}
         </form>
       </CardContent>
     </Card>

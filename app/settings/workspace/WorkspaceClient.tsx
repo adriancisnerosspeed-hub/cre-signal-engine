@@ -49,9 +49,9 @@ export default function WorkspaceClient({
         return;
       }
       setInviteEmail("");
-      setInviteSuccess(`Invite sent to ${email}`);
+      setInviteSuccess(`Invite queued for ${email} — email will be delivered shortly.`);
       router.refresh();
-      setTimeout(() => setInviteSuccess(null), 5000);
+      setTimeout(() => setInviteSuccess(null), 8000);
     } finally {
       setInviteLoading(false);
     }
