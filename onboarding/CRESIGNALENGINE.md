@@ -110,7 +110,7 @@ Core idea:
 ## 3. Architecture Snapshot
 
 - Framework: Next.js App Router
-- UI: React + Tailwind
+- UI: React + Tailwind v4 + shadcn/ui (base-nova preset, `components/ui/*`, `lib/utils.ts` `cn()`)
 - Database/Auth: Supabase
 - Payments: Stripe
 - AI: OpenAI
@@ -127,6 +127,18 @@ Key server/business-logic hubs:
 - `app/api/stripe/webhook/route.ts`
 - `lib/benchmark/*`
 - `lib/policy/*`
+- `lib/featureFlags.ts` — `isFeatureEnabled` / `getAllFlags` with in-memory TTL cache (reads `feature_flags`; use server client with appropriate role)
+
+### Supabase schema additions (migrations 051–056)
+
+- `051_feature_flags` — `feature_flags` (name, enabled, …); RLS: `platform_admin` only for authenticated reads/writes; service role bypasses RLS. Defines `public.is_platform_admin()` for policies.
+- `052_testimonials` — marketing testimonials; public read of `active` rows; `platform_admin` CRUD.
+- `053_leads` — lead capture rows; no authenticated insert policy (writes via service role); `platform_admin` SELECT.
+- `054_changelog_entries` — public read; `platform_admin` write.
+- `055_ai_insights_cache` — supplemental AI payloads keyed by `deal_scan_id`; org members SELECT via deal/org join; `platform_admin` can read all.
+- `056_memo_share_links_password` — optional `password_hash` on `memo_share_links` (Phase 6 share flow).
+
+Next migration file index: **057**.
 
 ---
 
