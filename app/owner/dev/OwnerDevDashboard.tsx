@@ -9,6 +9,28 @@ import { AbVariantPanel } from "./AbVariantPanel";
 import { TierSetterPanel } from "./TierSetterPanel";
 import { DebugPanel } from "./DebugPanel";
 
+export type OrgDetail = {
+  id: string;
+  name: string;
+  plan: string;
+  billing_status: string;
+  created_at: string;
+  created_by: string;
+  onboarding_completed: boolean;
+  member_count: number;
+  creator_email: string | null;
+};
+
+export type ProfileDetail = {
+  id: string;
+  role: string | null;
+  current_org_id: string | null;
+  total_full_scans_used: number | null;
+  created_at: string;
+  email: string | null;
+  org_count: number;
+};
+
 export type OwnerDevStats = {
   organizationCount: number;
   leadCount: number;
@@ -23,6 +45,8 @@ export type OwnerDevStats = {
   }[];
   organizations: { id: string; plan: string; created_at: string }[];
   profileSamples: { id: string; role: string | null; total_full_scans_used: number | null }[];
+  allOrganizations: OrgDetail[];
+  allProfiles: ProfileDetail[];
 };
 
 export function OwnerDevDashboard({ stats, ownerEmail }: { stats: OwnerDevStats; ownerEmail: string }) {
