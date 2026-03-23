@@ -3,17 +3,27 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getCurrentOrgId } from "@/lib/org";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { hash } from "bcryptjs";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ scanId: string }> };
 
-export async function POST(_request: Request, { params }: Params) {
+export async function POST(request: Request, { params }: Params) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  let body: { password?: string } = {};
+  try {
+    body = (await request.json()) as { password?: string };
+  } catch {
+    body = {};
+  }
+  const rawPw = typeof body.password === "string" ? body.password.trim() : "";
+  const password_hash = rawPw.length > 0 ? await hash(rawPw, 10) : null;
 
   const { scanId } = await params;
   if (!scanId || typeof scanId !== "string" || scanId.trim() === "") {
@@ -68,6 +78,7 @@ export async function POST(_request: Request, { params }: Params) {
       token,
       url: `/shared/memo/${token}`,
       view_count: (existing as { view_count: number }).view_count,
+      password_protected: !!(existing as { password_hash?: string | null }).password_hash,
     });
   }
 
@@ -78,6 +89,7 @@ export async function POST(_request: Request, { params }: Params) {
     organization_id: orgId,
     token,
     created_by: user.id,
+    ...(password_hash ? { password_hash } : {}),
   });
 
   if (insertError) {
@@ -85,7 +97,12 @@ export async function POST(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Failed to create share link" }, { status: 500 });
   }
 
-  return NextResponse.json({ token, url: `/shared/memo/${token}`, view_count: 0 });
+  return NextResponse.json({
+    token,
+    url: `/shared/memo/${token}`,
+    view_count: 0,
+    password_protected: !!password_hash,
+  });
 }
 
 export async function GET(_request: Request, { params }: Params) {
@@ -103,7 +120,7 @@ export async function GET(_request: Request, { params }: Params) {
 
   const { data: link } = await service
     .from("memo_share_links")
-    .select("id, token, view_count, created_at, expires_at, revoked_at")
+    .select("id, token, view_count, created_at, expires_at, revoked_at, password_hash")
     .eq("scan_id", scanId)
     .eq("organization_id", orgId)
     .is("revoked_at", null)
@@ -120,6 +137,7 @@ export async function GET(_request: Request, { params }: Params) {
     created_at: string;
     expires_at: string | null;
     revoked_at: string | null;
+    password_hash: string | null;
   };
 
   return NextResponse.json({
@@ -130,6 +148,7 @@ export async function GET(_request: Request, { params }: Params) {
       view_count: l.view_count,
       created_at: l.created_at,
       expires_at: l.expires_at,
+      password_protected: !!l.password_hash,
     },
   });
 }

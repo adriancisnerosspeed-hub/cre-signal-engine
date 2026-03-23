@@ -6,6 +6,7 @@ type ShareLink = {
   token: string;
   url: string;
   view_count: number;
+  password_protected?: boolean;
 };
 
 function getFullUrl(urlPath: string): string {
@@ -21,6 +22,8 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
   const [copied, setCopied] = useState(false);
   const [checked, setChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sharePassword, setSharePassword] = useState("");
+  const [usePassword, setUsePassword] = useState(false);
   const urlInputRef = useRef<HTMLInputElement>(null);
 
   // On open, check for existing link
@@ -34,7 +37,7 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
       .then((json) => {
         const j = json as { link?: ShareLink | null; error?: string };
         if (j.error) setError(j.error);
-        else if (j.link) setLink(j.link);
+        else if (j.link) setLink(j.link as ShareLink);
         setChecked(true);
       })
       .catch(() => {
@@ -57,14 +60,31 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/deals/scans/${scanId}/share`, { method: "POST" });
-      const json = (await res.json()) as { token?: string; url?: string; view_count?: number; error?: string };
+      const body =
+        usePassword && sharePassword.trim().length > 0 ? { password: sharePassword.trim() } : {};
+      const res = await fetch(`/api/deals/scans/${scanId}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = (await res.json()) as {
+        token?: string;
+        url?: string;
+        view_count?: number;
+        password_protected?: boolean;
+        error?: string;
+      };
       if (!res.ok) {
         setError(json.error ?? "Failed to create share link");
         return;
       }
       if (json.token && json.url) {
-        const newLink: ShareLink = { token: json.token, url: json.url, view_count: json.view_count ?? 0 };
+        const newLink: ShareLink = {
+          token: json.token,
+          url: json.url,
+          view_count: json.view_count ?? 0,
+          password_protected: json.password_protected,
+        };
         setLink(newLink);
         setError(null);
         // Auto-copy so user gets link formed and copied in one step
@@ -197,6 +217,11 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
               <>
                 <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 12 }}>
                   Anyone with this link can view the IC memo narrative and risk score. Financial inputs are not shown.
+                  {link.password_protected && (
+                    <span style={{ display: "block", marginTop: 8, color: "#eab308", fontWeight: 600 }}>
+                      Password protected — recipients must enter the password you set.
+                    </span>
+                  )}
                 </p>
                 <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                   <input
@@ -259,10 +284,41 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
                 <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 16 }}>
                   Create a public link that lets anyone view the IC memo narrative and risk score. Financial inputs and assumptions are not shared.
                 </p>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={usePassword}
+                    onChange={(e) => {
+                      setUsePassword(e.target.checked);
+                      if (!e.target.checked) setSharePassword("");
+                    }}
+                  />
+                  <span style={{ color: "#e4e4e7", fontSize: 13 }}>Require password to open</span>
+                </label>
+                {usePassword && (
+                  <input
+                    type="password"
+                    value={sharePassword}
+                    onChange={(e) => setSharePassword(e.target.value)}
+                    placeholder="Password"
+                    autoComplete="new-password"
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      marginBottom: 16,
+                      backgroundColor: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      borderRadius: 6,
+                      color: "#e4e4e7",
+                      fontSize: 14,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                )}
                 <button
                   type="button"
                   onClick={handleCreate}
-                  disabled={loading}
+                  disabled={loading || (usePassword && sharePassword.trim().length === 0)}
                   style={{
                     padding: "10px 20px",
                     backgroundColor: "#3b82f6",
@@ -271,7 +327,8 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
                     borderRadius: 6,
                     fontWeight: 600,
                     fontSize: 14,
-                    cursor: "pointer",
+                    cursor: loading || (usePassword && sharePassword.trim().length === 0) ? "not-allowed" : "pointer",
+                    opacity: loading || (usePassword && sharePassword.trim().length === 0) ? 0.6 : 1,
                   }}
                 >
                   Create share link

@@ -145,6 +145,18 @@
   min-height: calc(100vh - 52px);
 }
 
+/* Premium public landing: fixed dark institutional palette (independent of user theme) */
+.landing.landing-premium {
+  --landing-bg: #09090b;
+  --landing-fg: #fafafa;
+  --landing-muted: #a1a1aa;
+  --landing-border: #27272a;
+  --landing-card: #18181b;
+  --landing-accent: #3b82f6;
+  background: linear-gradient(180deg, #09090b 0%, #0c0c12 45%, #09090b 100%);
+  color: var(--landing-fg);
+}
+
 .landing-hero {
   text-align: center;
   padding: 64px 24px 56px;

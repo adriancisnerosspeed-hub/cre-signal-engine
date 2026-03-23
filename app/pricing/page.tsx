@@ -1,12 +1,32 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import TestimonialCarousel from "@/app/components/TestimonialCarousel";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/org";
 import { getPlanForUser } from "@/lib/entitlements";
 import { getDisplayPlan } from "@/lib/pricingDisplayPlan";
+import { getActiveTestimonials } from "@/lib/marketing/testimonials";
+import { getSiteUrl } from "@/lib/site";
 import PricingClient from "./PricingClient";
 import PricingComparisonTable from "./PricingComparisonTable";
 
+export const metadata: Metadata = {
+  title: "Pricing & Plans",
+  description:
+    "Plans for underwriting teams deploying real capital — Starter, Analyst, Fund, and Enterprise with governance and benchmark features.",
+  openGraph: {
+    title: "Pricing — CRE Signal Engine",
+    description:
+      "Choose a plan aligned with your team: risk governance, benchmarks, portfolio policies, and exports.",
+    url: `${getSiteUrl()}/pricing`,
+  },
+  alternates: {
+    canonical: `${getSiteUrl()}/pricing`,
+  },
+};
+
 export default async function PricingPage() {
+  const testimonials = await getActiveTestimonials();
   const supabase = await createClient();
   const {
     data: { user },
@@ -42,6 +62,13 @@ export default async function PricingPage() {
         Built for underwriting teams deploying real capital.
       </p>
 
+      <section className="mb-10" aria-label="Customer testimonials">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-200 mb-3">
+          What operators say
+        </h2>
+        <TestimonialCarousel testimonials={testimonials} compact />
+      </section>
+
       <div className="flex flex-col gap-6">
         {/* Starter — $97/mo */}
         <section
@@ -57,7 +84,12 @@ export default async function PricingPage() {
             For individual underwriters and small teams getting started with risk governance.
           </p>
           <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc">
-            <li>10 scans / month</li>
+            <li>
+              10 scans / month{" "}
+              <span className="text-[12px] text-gray-400 dark:text-zinc-500">
+                (Starter workspaces currently receive unlimited scans; pricing copy may update.)
+              </span>
+            </li>
             <li>Full CRE Signal Risk Index™</li>
             <li>IC-ready PDF export</li>
             <li>Share links</li>

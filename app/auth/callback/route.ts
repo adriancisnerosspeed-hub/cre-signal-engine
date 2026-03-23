@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { ensureProfile } from "@/lib/auth";
 import { ensureDefaultOrganization } from "@/lib/org";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { captureServerEvent } from "@/lib/posthogServer";
 import { NextResponse } from "next/server";
 import { parse as parseCookieHeader } from "cookie";
 
@@ -62,6 +63,9 @@ export async function GET(request: Request) {
     } catch {
       // Don't block sign-in if default org bootstrap fails
     }
+    await captureServerEvent(session.user.id, "user_signed_in", {
+      provider: session.user.app_metadata?.provider ?? "unknown",
+    });
   }
 
   const redirectTo = next.startsWith("/") ? next : "/app";

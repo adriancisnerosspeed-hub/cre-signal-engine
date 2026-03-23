@@ -1,0 +1,5 @@
+# Minimal Supabase CLI config for Edge Functions.
+# Run `supabase link` / `supabase functions deploy ai-insights` against your project.
+
+[functions.ai-insights]
+verify_jwt = true

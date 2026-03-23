@@ -27,6 +27,8 @@ export interface WorkspaceEntitlements {
   canUseGovernanceExport: boolean;
   /** Snapshot version lock on portfolio view (PRO+ and ENTERPRISE). */
   canLockMethodVersion: boolean;
+  /** Supplemental AI Insights tab on deal scans (PRO+ and ENTERPRISE; feature-flag gated). */
+  canUseAiInsights: boolean;
 }
 
 export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlements {
@@ -46,6 +48,7 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canUseTrajectory: false,
         canUseGovernanceExport: false,
         canLockMethodVersion: false,
+        canUseAiInsights: false,
       };
     case "PRO":
       return {
@@ -62,6 +65,7 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canUseTrajectory: false,
         canUseGovernanceExport: false,
         canLockMethodVersion: false,
+        canUseAiInsights: false,
       };
     case "PRO+":
       return {
@@ -78,6 +82,7 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canUseTrajectory: true,
         canUseGovernanceExport: true,
         canLockMethodVersion: true,
+        canUseAiInsights: true,
       };
     case "ENTERPRISE":
       return {
@@ -94,6 +99,7 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canUseTrajectory: true,
         canUseGovernanceExport: true,
         canLockMethodVersion: true,
+        canUseAiInsights: true,
       };
   }
 }

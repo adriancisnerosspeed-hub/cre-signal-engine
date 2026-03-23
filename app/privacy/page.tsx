@@ -1,8 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { getSiteUrl } from "@/lib/site";
 
-export const metadata = {
-  title: "Privacy Policy | CRE Signal Engine",
-  description: "Privacy Policy for CRE Signal Engine",
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description: "Privacy Policy for CRE Signal Engine.",
+  openGraph: {
+    title: "Privacy Policy — CRE Signal Engine",
+    description: "How CRE Signal Engine handles your data.",
+    url: `${getSiteUrl()}/privacy`,
+  },
+  alternates: {
+    canonical: `${getSiteUrl()}/privacy`,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function PrivacyPage() {

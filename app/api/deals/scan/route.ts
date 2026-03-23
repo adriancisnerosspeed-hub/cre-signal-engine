@@ -10,6 +10,8 @@ import { DEAL_SCAN_SYSTEM_PROMPT, DEAL_SCAN_PROMPT_VERSION } from "@/lib/prompts
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { checkOrgScanRateLimit } from "@/lib/rateLimit";
+import { captureServerEvent } from "@/lib/posthogServer";
 
 export const runtime = "nodejs";
 
@@ -154,6 +156,27 @@ export async function POST(request: Request) {
     }
   }
 
+  const platformPlan = await getPlanForUser(service, user.id);
+  const isPlatformAdmin = platformPlan === "platform_admin";
+
+  if (!isPlatformAdmin) {
+    const dealOrgId = (deal as { organization_id: string }).organization_id;
+    const limit = await checkOrgScanRateLimit(service, dealOrgId);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Too many scans for this workspace. Try again in a little while.",
+          code: "SCAN_RATE_LIMIT",
+          retry_after_sec: limit.retryAfterSec,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limit.retryAfterSec ?? 3600) },
+        }
+      );
+    }
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
@@ -249,10 +272,6 @@ export async function POST(request: Request) {
     confidence: r.confidence,
     evidence_snippets: r.evidence_snippets,
   }));
-
-  // Platform admin bypass: skip scan limit enforcement entirely
-  const platformPlan = await getPlanForUser(service, user.id);
-  const isPlatformAdmin = platformPlan === "platform_admin";
 
   let scanId: string;
 
@@ -530,6 +549,13 @@ export async function POST(request: Request) {
     score,
     tier: band,
     macro_linked_count: macroLinkedCount,
+  });
+
+  await captureServerEvent(user.id, "deal_scan_completed", {
+    scan_id: scan.id,
+    deal_id: dealId,
+    risk_band: band,
+    risk_score: score,
   });
 
   return NextResponse.json({ scan_id: scan.id, deal_id: dealId });

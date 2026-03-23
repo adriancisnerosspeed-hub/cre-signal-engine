@@ -1,10 +1,11 @@
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { isMemoShareUnlockedFromRequest } from "@/lib/memoShareUnlock";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
@@ -17,7 +18,7 @@ export async function GET(
   // Lookup share link: memo_share_links by token, revoked_at IS NULL
   const { data: link, error: linkError } = await service
     .from("memo_share_links")
-    .select("id, scan_id, organization_id, view_count, expires_at")
+    .select("id, scan_id, organization_id, view_count, expires_at, password_hash")
     .eq("token", token)
     .is("revoked_at", null)
     .maybeSingle();
@@ -34,11 +35,20 @@ export async function GET(
     organization_id: string;
     view_count: number;
     expires_at: string | null;
+    password_hash: string | null;
   };
 
   // Check expiry
   if (l.expires_at && new Date(l.expires_at) < new Date()) {
     return NextResponse.json({ error: "Link has expired" }, { status: 410 });
+  }
+
+  const unlocked = await isMemoShareUnlockedFromRequest(token, l.password_hash, request);
+  if (!unlocked) {
+    return NextResponse.json(
+      { error: "Password required", password_required: true },
+      { status: 401 }
+    );
   }
 
   // Increment view count (fire-and-forget)

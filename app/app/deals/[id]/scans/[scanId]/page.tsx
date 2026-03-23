@@ -1,10 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getRiskTrend } from "@/lib/riskIndex";
 import { loadRisksAndLinks, diffRisks, type DealRiskRow } from "@/lib/dealScanData";
+import { AiInsightsPanel } from "@/app/app/deals/[id]/AiInsightsPanel";
 
 type Deal = {
   id: string;
@@ -54,6 +58,11 @@ export default async function ScanDetailPage({
       </main>
     );
   }
+
+  const service = createServiceRoleClient();
+  const { entitlements } = await getWorkspacePlanAndEntitlementsForUser(service, orgId, user.id);
+  const aiInsightsFlag = await isFeatureEnabled(service, "ai-insights");
+  const showAiInsightsPanel = entitlements.canUseAiInsights && aiInsightsFlag;
 
   const { data: deal, error: dealError } = await supabase
     .from("deals")
@@ -218,6 +227,8 @@ export default async function ScanDetailPage({
           </div>
         </section>
       )}
+
+      {showAiInsightsPanel && <AiInsightsPanel scanId={scanId} />}
 
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "#e4e4e7", marginBottom: 12 }}>

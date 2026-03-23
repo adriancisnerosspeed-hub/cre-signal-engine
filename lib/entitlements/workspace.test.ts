@@ -16,6 +16,7 @@ describe("getWorkspaceEntitlements", () => {
       expect(e.canUsePolicy).toBe(false);
       expect(e.canUseSupportBundle).toBe(false);
       expect(e.canInviteMembers).toBe(false);
+      expect(e.canUseAiInsights).toBe(false);
     });
     it("has maxActivePoliciesPerOrg 0", () => {
       const e = getWorkspaceEntitlements("FREE");
@@ -37,6 +38,7 @@ describe("getWorkspaceEntitlements", () => {
       expect(e.canBuildSnapshot).toBe(false);
       expect(e.canCreateCohort).toBe(false);
       expect(e.canInviteMembers).toBe(false);
+      expect(e.canUseAiInsights).toBe(false);
     });
     it("has maxActivePoliciesPerOrg 1", () => {
       const e = getWorkspaceEntitlements("PRO");
@@ -54,6 +56,10 @@ describe("getWorkspaceEntitlements", () => {
       const e = getWorkspaceEntitlements("PRO+");
       expect(e.canUseTrajectory).toBe(true);
       expect(e.canUseGovernanceExport).toBe(true);
+    });
+    it("allows supplemental AI insights entitlement (flag still required at runtime)", () => {
+      const e = getWorkspaceEntitlements("PRO+");
+      expect(e.canUseAiInsights).toBe(true);
     });
     it("allows method version lock on portfolio view", () => {
       const e = getWorkspaceEntitlements("PRO+");
@@ -82,6 +88,7 @@ describe("getWorkspaceEntitlements", () => {
       expect(e.canUsePolicy).toBe(true);
       expect(e.canUseSupportBundle).toBe(true);
       expect(e.canInviteMembers).toBe(true);
+      expect(e.canUseAiInsights).toBe(true);
     });
     it("has maxActivePoliciesPerOrg null (unlimited)", () => {
       const e = getWorkspaceEntitlements("ENTERPRISE");

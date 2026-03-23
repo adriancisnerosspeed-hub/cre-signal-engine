@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
+import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import UsageBanner from "./UsageBanner";
@@ -32,6 +33,12 @@ export default async function AppPage() {
 
   const orgId = await getCurrentOrgId(supabase, user);
 
+  let canInviteMembers = false;
+  if (orgId) {
+    const { entitlements } = await getWorkspacePlanAndEntitlementsForUser(supabase, orgId, user.id);
+    canInviteMembers = entitlements.canInviteMembers;
+  }
+
   // Fetch onboarding state + demo deal for onboarding modal
   let showOnboarding = false;
   let demoInfo: { dealId: string; dealName: string; riskScore: number | null; riskBand: string | null } | null = null;
@@ -44,6 +51,7 @@ export default async function AppPage() {
       .maybeSingle();
 
     if (org && !(org as { onboarding_completed?: boolean }).onboarding_completed) {
+      showOnboarding = true;
       const { data: demoDeal } = await supabase
         .from("deals")
         .select("id, name, latest_risk_score, latest_risk_band")
@@ -52,7 +60,6 @@ export default async function AppPage() {
         .maybeSingle();
 
       if (demoDeal) {
-        showOnboarding = true;
         const dd = demoDeal as { id: string; name: string; latest_risk_score: number | null; latest_risk_band: string | null };
         demoInfo = {
           dealId: dd.id,
@@ -77,7 +84,9 @@ export default async function AppPage() {
 
   return (
     <main className="max-w-[1000px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
-      {showOnboarding && <OnboardingFlow demo={demoInfo} />}
+      {showOnboarding && (
+        <OnboardingFlow demo={demoInfo} canInviteMembers={canInviteMembers} />
+      )}
       <div className="mb-6">
         <h1 className="text-[28px] font-bold text-gray-900 dark:text-white">
           Dashboard

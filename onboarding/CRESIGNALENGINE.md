@@ -129,6 +129,16 @@ Key server/business-logic hubs:
 - `lib/policy/*`
 - `lib/featureFlags.ts` — `isFeatureEnabled` / `getAllFlags` with in-memory TTL cache (reads `feature_flags`; use server client with appropriate role)
 
+### Supplemental AI Insights (Phase 3)
+
+- **Purpose:** Non-deterministic, supplemental market/macro-style bullets only. The CRE Signal Risk Index™ in `lib/riskIndex.ts` is never modified by this feature.
+- **Entitlements:** `WorkspaceEntitlements.canUseAiInsights` — `true` for `PRO+` and `ENTERPRISE`; `false` for `FREE` and `PRO`. Resolved with `getWorkspacePlanAndEntitlementsForUser` (so `platform_admin` gets Enterprise entitlements).
+- **Feature flag:** Row in `feature_flags` with `name = 'ai-insights'` must be `enabled` (checked server-side via `isFeatureEnabled`; service role bypasses RLS).
+- **Persistence:** `ai_insights_cache` (migration `055_ai_insights_cache`); inserts use the Edge Function with service role; API reads cache when `expires_at` is null or in the future (generation sets ~24h TTL).
+- **API:** `GET /app/api/deals/scans/[scanId]/ai-insights/route.ts` — session + current org, verifies deal/scan belongs to org, then cache hit or `supabase.functions.invoke('ai-insights', …)` with the user access token.
+- **Edge Function:** `supabase/functions/ai-insights/index.ts` — Deno; JWT auth; OpenAI Chat Completions (`gpt-4o-mini`, JSON object). Set secret **`OPENAI_API_KEY`** on the Supabase project for this function. `supabase/config.toml` sets `[functions.ai-insights] verify_jwt = true`.
+- **UI:** `app/app/deals/[id]/AiInsightsPanel.tsx` embedded on `app/app/deals/[id]/scans/[scanId]/page.tsx` (below Risk Index when eligible). Disclaimer + show/hide toggle.
+
 ### Supabase schema additions (migrations 051–056)
 
 - `051_feature_flags` — `feature_flags` (name, enabled, …); RLS: `platform_admin` only for authenticated reads/writes; service role bypasses RLS. Defines `public.is_platform_admin()` for policies.
@@ -137,8 +147,43 @@ Key server/business-logic hubs:
 - `054_changelog_entries` — public read; `platform_admin` write.
 - `055_ai_insights_cache` — supplemental AI payloads keyed by `deal_scan_id`; org members SELECT via deal/org join; `platform_admin` can read all.
 - `056_memo_share_links_password` — optional `password_hash` on `memo_share_links` (Phase 6 share flow).
+- `057_seed_testimonials` — seeds three anonymized marketing testimonials when `testimonials` is empty.
 
-Next migration file index: **057**.
+- `058_hardening_changelog_rls` — Tightens `changelog_entries` public read policy to only published rows (`published_at IS NOT NULL AND published_at <= now()`); drops the old unrestricted `USING (true)` policy.
+
+Next migration file index: **059**.
+
+### Public marketing / lead capture (Phase 2)
+
+- Landing (`app/page.tsx`): dark institutional palette (`.landing.landing-premium`), trust badges, hero + **Instant Risk Snapshot** form (`app/components/DemoSnapshotForm.tsx`).
+- **POST `/api/leads/demo-snapshot`**: Zod validation; inserts `leads` via service role; sample IC memo PDF via `lib/marketing/demoSnapshotPdf.ts` + `buildIcMemoPdf`; email with PDF attachment via `lib/email/sendDemoSnapshotEmail.ts`. Optional **`DEMO_CALENDLY_URL`** or **`NEXT_PUBLIC_CALENDLY_URL`** for the booking link (defaults to `https://calendly.com` if unset).
+- **Testimonials:** `lib/marketing/testimonials.ts` + types in `lib/marketing/types.ts`; `app/components/TestimonialCarousel.tsx` on home and `app/pricing/page.tsx`.
+- **Landing CTAs** (`app/components/LandingCta.tsx`): **Start Free Evaluation (3 scans)** → `/login?eval=true`.
+
+### Phase 5 — SEO, analytics, dark mode
+
+- **Site URL:** `lib/site.ts` — `getSiteUrl()` prefers `NEXT_PUBLIC_APP_URL`, then `NEXT_PUBLIC_SITE_URL`, then `https://${VERCEL_URL}`, else `http://localhost:3000`. Used for `metadataBase`, canonical URLs, `sitemap.xml`, and `robots.txt`.
+- **Root metadata:** `app/layout.tsx` — default title template, OpenGraph/Twitter, `suppressHydrationWarning` on `<html>`.
+- **Theme:** `next-themes` via `app/providers.tsx` (`attribute="class"`, `defaultTheme="system"`). `app/components/ThemeToggle.tsx` in `app/components/AppNav.tsx`.
+- **PostHog (optional):** `posthog-js` + `posthog-node`. Env: **`NEXT_PUBLIC_POSTHOG_KEY`**, **`POSTHOG_API_KEY`** (server fallback), **`NEXT_PUBLIC_POSTHOG_HOST`** (defaults `https://us.i.posthog.com`). Client: `app/providers.tsx` — init with `capture_pageview: false` + manual `$pageview` on route change (`Suspense` + `useSearchParams`). `lib/analyticsClient.ts` — `captureClientEvent`, `identifyAnalyticsUser`. Server: `lib/posthogServer.ts` — `captureServerEvent` (fire-and-forget `shutdown()` per call). Events: **`user_signed_in`** (`app/auth/callback/route.ts`), **`deal_scan_completed`** (`app/api/deals/scan/route.ts`), **`ic_memo_pdf_exported`** (`app/api/deals/export-pdf/route.ts`), **`demo_snapshot_lead_submitted`** (`app/components/DemoSnapshotForm.tsx`). `AppNav` calls **`identifyAnalyticsUser`** on session and **`posthog.reset()`** on sign-out.
+- **Sitemap / robots:** `app/sitemap.ts` (marketing routes: `/`, `/pricing`, `/sample-report`, `/terms`, `/privacy`, `/changelog`, `/login`). `app/robots.ts` — allows `/`; disallows `/api/`, `/app/`, `/owner/`, `/settings/`, `/auth/`, `/invite/`, `/digest/`.
+- **OG images:** `app/opengraph-image.tsx` (default marketing), `app/shared/memo/[token]/opengraph-image.tsx` (deal name when link exists and not password-only). `generateMetadata` on `app/shared/memo/[token]/page.tsx` includes canonical URLs and Twitter `summary_large_image`.
+- **Page metadata:** `app/page.tsx`, `app/pricing/page.tsx`, `app/sample-report/page.tsx`, `app/terms/page.tsx`, `app/privacy/page.tsx`, `app/changelog/page.tsx`, `app/login/layout.tsx` — titles, descriptions, `openGraph`/`alternates` where appropriate.
+
+### Owner developer dashboard (`/owner/dev`)
+
+- **Access:** `app/owner/layout.tsx` checks `isOwner(user.email)` from `lib/auth.ts` (matches `OWNER_EMAIL`, case-insensitive). Everyone else is redirected to `/app`. Independent of workspace plan.
+- **UI:** `app/owner/dev/page.tsx` loads aggregate stats via service role; `app/owner/dev/OwnerDevDashboard.tsx` tabbed panels: feature flags CRUD, risk index sandbox (client `computeRiskIndex` + optional IC memo PDF sample), usage/leads table, test tools (Resend, risk dry-run, fetch AI insights via existing scan route), localStorage A/B label, org `plan` override, debug actions (Stripe env check, reset `total_full_scans_used`, clear `usage_daily` for a user).
+- **APIs (owner session required):** `lib/ownerAuth.ts` `requireOwner()` then service role as needed — `GET`/`POST`/`PATCH`/`DELETE` `app/api/owner/feature-flags/route.ts` (clears `lib/featureFlags` cache on writes); `POST` `app/api/owner/test-email/route.ts`; `POST` `app/api/owner/test-scan/route.ts` (deterministic dry-run, no OpenAI); `POST` `app/api/owner/tier-override/route.ts`; `POST` `app/api/owner/debug/route.ts`.
+
+### Phase 6 — Onboarding, changelog, password shares, scan rate limit
+
+- **Onboarding:** `app/app/components/OnboardingFlow.tsx` — three steps (workspace → first scan → invite) using shadcn `Card` / `Button`; shown when `organizations.onboarding_completed` is false (`app/app/page.tsx`). Completes via `PATCH /api/org/onboarding`. Passes `canInviteMembers` from `getWorkspacePlanAndEntitlementsForUser` (FREE users see upgrade copy instead of invite CTA).
+- **Changelog:** Public `app/changelog/page.tsx` reads `changelog_entries` (published rows only). `app/app/layout.tsx` loads the latest published entry and renders `app/components/ChangelogBanner.tsx` (client: dismiss stores `cre_changelog_seen_id` in `localStorage`). `/changelog` is in `lib/publicRoutes.ts` `PUBLIC_ROUTES`.
+- **Password-protected memo shares:** `POST /api/deals/scans/[scanId]/share` accepts optional JSON `{ password }`; bcrypt hash stored in `memo_share_links.password_hash` (migration `056_memo_share_links_password`). `GET` on the same route returns `password_protected` (boolean). Viewers unlock via `POST /api/shared/memo/[token]/unlock` (sets httpOnly cookie `memo_share_unlock` using `lib/memoShareAuth.ts`; optional env **`MEMO_SHARE_COOKIE_SECRET`** — falls back to `SUPABASE_SERVICE_ROLE_KEY` if unset). `app/shared/memo/[token]/page.tsx` shows `SharedMemoPasswordForm` until unlocked; `GET /api/shared/memo/[token]` returns 401 `{ password_required: true }` unless cookie or `X-Share-Password` header matches (`lib/memoShareUnlock.ts`). `app/app/deals/[id]/ShareMemoModal.tsx` supports optional password when creating a link.
+- **Scan rate limit:** `lib/rateLimit.ts` — default **20** `deal_scans` rows per org per rolling hour (`ORG_SCAN_RATE_LIMIT_PER_HOUR`), counted before OpenAI on `POST /api/deals/scan` (skipped for `platform_admin`; does not apply to early `reused: true` responses). Returns **429** with `code: SCAN_RATE_LIMIT` and `Retry-After` header.
+- **Demo snapshot rate limit:** In-memory IP-based, 5 requests per 15 minutes per IP on `POST /api/leads/demo-snapshot`; prevents abuse of unauthenticated PDF generation + Resend email sends.
+- **Pricing drift note:** `app/pricing/page.tsx` Starter tier includes an inline note that Starter workspaces currently receive unlimited scans while marketing line may still say “10 scans / month” — enforcement remains `lib/entitlements/workspace.ts` (PRO = unlimited scans).
 
 ---
 
@@ -197,6 +242,7 @@ Canonical server-side source: `lib/entitlements/workspace.ts`
 - no trajectory
 - no governance export
 - no methodology lock
+- no supplemental AI Insights (`canUseAiInsights`)
 
 ### Basic / Starter Users (`PRO`)
 
@@ -211,6 +257,7 @@ Canonical server-side source: `lib/entitlements/workspace.ts`
 - no trajectory
 - no governance export
 - no methodology lock
+- no supplemental AI Insights (`canUseAiInsights`)
 
 ### Pro / Analyst Users (`PRO+`)
 
@@ -221,6 +268,7 @@ Canonical server-side source: `lib/entitlements/workspace.ts`
 - governance export enabled
 - methodology lock enabled
 - still no cohort creation or snapshot build
+- supplemental AI Insights entitlement enabled (`canUseAiInsights`; still requires feature flag `ai-insights`)
 
 ### Fund / Enterprise-Internal Users (`ENTERPRISE`)
 
@@ -235,6 +283,7 @@ Canonical server-side source: `lib/entitlements/workspace.ts`
 - governance export enabled
 - methodology lock enabled
 - API-token-oriented enterprise workflows exist around this tier
+- supplemental AI Insights entitlement enabled (`canUseAiInsights`; still requires feature flag `ai-insights`)
 
 ---
 

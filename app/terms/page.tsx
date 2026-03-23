@@ -1,8 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { getSiteUrl } from "@/lib/site";
 
-export const metadata = {
-  title: "Terms of Service | CRE Signal Engine",
-  description: "Terms of Service for CRE Signal Engine",
+export const metadata: Metadata = {
+  title: "Terms of Service",
+  description: "Terms of Service for CRE Signal Engine.",
+  openGraph: {
+    title: "Terms of Service — CRE Signal Engine",
+    description: "Terms governing use of CRE Signal Engine.",
+    url: `${getSiteUrl()}/terms`,
+  },
+  alternates: {
+    canonical: `${getSiteUrl()}/terms`,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function TermsPage() {

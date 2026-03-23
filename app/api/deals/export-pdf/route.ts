@@ -12,6 +12,7 @@ import { computeAssumptionCompleteness } from "@/lib/assumptionValidation";
 import { getRecommendedActions } from "@/lib/icRecommendedActions";
 import { checkBandConsistency } from "@/lib/bandConsistency";
 import { NextResponse } from "next/server";
+import { captureServerEvent } from "@/lib/posthogServer";
 
 const DEBUG_PDF_EXPORT = process.env.DEBUG_PDF_EXPORT === "true";
 
@@ -297,6 +298,11 @@ export async function POST(request: Request) {
       deal_id: (deal as { id: string }).id,
       risk_count: topRisks.length,
       macro_signal_count: macroSignals.length,
+    });
+
+    await captureServerEvent(user.id, "ic_memo_pdf_exported", {
+      scan_id: scanId,
+      deal_id: (deal as { id: string }).id,
     });
 
     const filename = `cre-signal-${dealName.replace(/\s+/g, "-").slice(0, 30)}-${new Date().toISOString().slice(0, 10)}.pdf`;

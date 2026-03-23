@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import posthog from "posthog-js";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
+import { identifyAnalyticsUser } from "@/lib/analyticsClient";
+import ThemeToggle from "./ThemeToggle";
 
 type CurrentOrg = { id: string; name: string } | null;
 
 export default function AppNav() {
-  const [user, setUser] = useState<{ email?: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [currentOrg, setCurrentOrg] = useState<CurrentOrg>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -29,6 +32,14 @@ export default function AppNav() {
   }, [router, supabase]);
 
   useEffect(() => {
+    if (user?.id) {
+      identifyAnalyticsUser(user.id, {
+        email: typeof user.email === "string" ? user.email : undefined,
+      });
+    }
+  }, [user]);
+
+  useEffect(() => {
     if (!user) {
       setCurrentOrg(null);
       return;
@@ -44,6 +55,9 @@ export default function AppNav() {
 
   async function handleSignOut() {
     await supabase.auth.signOut();
+    if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+      posthog.reset();
+    }
     router.push("/");
     router.refresh();
   }
@@ -60,7 +74,10 @@ export default function AppNav() {
         <Link href="/" className={pathname === "/" ? activeClassName : linkClassName}>Home</Link>
         <Link href="/sample-report" className={pathname === "/sample-report" ? activeClassName : linkClassName}>Sample Report</Link>
         <Link href="/pricing" className={pathname === "/pricing" ? activeClassName : linkClassName}>Pricing</Link>
-        <Link href="/login" className={`${linkClassName} ml-auto font-semibold`}>Sign in</Link>
+        <span className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
+          <Link href="/login" className={`${linkClassName} font-semibold`}>Sign in</Link>
+        </span>
       </nav>
     );
   }
@@ -84,9 +101,14 @@ export default function AppNav() {
           Workspace: {currentOrg.name}
         </span>
       )}
-      <button type="button" onClick={handleSignOut} className={`${buttonClassName} ${currentOrg ? "" : "ml-auto"}`}>
-        Sign out
-      </button>
+      <span
+        className={`flex items-center gap-2 ${currentOrg ? "" : "ml-auto"}`}
+      >
+        <ThemeToggle />
+        <button type="button" onClick={handleSignOut} className={buttonClassName}>
+          Sign out
+        </button>
+      </span>
     </nav>
   );
 }

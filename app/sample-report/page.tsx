@@ -1,11 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { renderMarkdown } from "@/lib/ui/renderMarkdown";
+import { getSiteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Sample IC Memo | CRE Signal Engine",
+  title: "Sample IC Memo",
   description:
     "See what a governed underwriting process looks like — no login required.",
+  openGraph: {
+    title: "Sample IC Memo — CRE Signal Engine",
+    description:
+      "Preview a structured investment committee memo with deterministic risk scoring and assumptions.",
+    url: `${getSiteUrl()}/sample-report`,
+    type: "article",
+  },
+  alternates: {
+    canonical: `${getSiteUrl()}/sample-report`,
+  },
 };
 
 const BAND_COLORS: Record<string, string> = {

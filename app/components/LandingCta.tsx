@@ -15,24 +15,31 @@ export default function LandingCta() {
       setIsLoggedIn(!!user);
       setMounted(true);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
       setIsLoggedIn(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  // SSR and initial render: show public CTA (no cookies / bot-safe)
+  // SSR and initial render: show public CTAs (no cookies / bot-safe)
   if (!mounted) {
     return (
-      <Link href="/login" className="landing-cta primary">
-        Get Started
-      </Link>
+      <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+        <Link href="/login" className="landing-cta primary">
+          Get Started
+        </Link>
+        <Link href="/login?eval=true" className="landing-cta secondary">
+          Start Free Evaluation (3 scans)
+        </Link>
+      </div>
     );
   }
 
   if (isLoggedIn) {
     return (
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+      <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
         <Link href="/app" className="landing-cta primary">
           Go to Dashboard
         </Link>
@@ -44,8 +51,13 @@ export default function LandingCta() {
   }
 
   return (
-    <Link href="/login" className="landing-cta primary">
-      Get Started
-    </Link>
+    <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+      <Link href="/login" className="landing-cta primary">
+        Get Started
+      </Link>
+      <Link href="/login?eval=true" className="landing-cta secondary">
+        Start Free Evaluation (3 scans)
+      </Link>
+    </div>
   );
 }

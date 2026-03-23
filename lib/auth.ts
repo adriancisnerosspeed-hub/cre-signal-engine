@@ -11,7 +11,8 @@ export const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "";
 /** Platform roles only. Entitlements from workspace plan; bypass only for platform_admin. */
 export type Role = "platform_admin" | "platform_dev" | "platform_support" | "user";
 
-function isOwnerEmail(email: string | undefined): boolean {
+/** True when email matches `OWNER_EMAIL` (case-insensitive). Safe to use in server components and API routes. */
+export function isOwner(email: string | undefined): boolean {
   if (!email || !OWNER_EMAIL.trim()) return false;
   return email.trim().toLowerCase() === OWNER_EMAIL.trim().toLowerCase();
 }
@@ -33,7 +34,7 @@ export async function ensureProfile(
     .eq("id", user.id)
     .maybeSingle();
 
-  const shouldBePlatformAdmin = isOwnerEmail(user.email);
+  const shouldBePlatformAdmin = isOwner(user.email);
 
   if (existing) {
     if (shouldBePlatformAdmin && existing.role !== "platform_admin") {

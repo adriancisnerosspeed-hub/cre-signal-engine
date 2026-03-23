@@ -111,6 +111,11 @@ This file is AI-facing project memory. Read it before doing substantial work.
 - **Best fix:** Wrap binary payloads in supported response types and test PDF helpers/structure instead of raw compressed bytes.
 - **Pre-emption for future AI:** For PDF or ZIP work, plan for special response typing and avoid fragile raw-binary string assertions.
 
+### 4e. Supabase Edge Functions (Deno) Break Next.js `tsc` If Included ✓
+- **What happened:** `next build` type-checks all `**/*.ts` including `supabase/functions/**` with `https://` ESM imports, which TypeScript cannot resolve in the Next project.
+- **Best fix:** Exclude `supabase/functions` in root `tsconfig.json` so Deno code is not part of the Next compile graph.
+- **Pre-emption for future AI:** If `next build` fails on a Deno URL inside `supabase/functions`, confirm `exclude` covers that folder before refactoring the edge function.
+
 ---
 
 ## 5. Entitlements, Billing, And Pricing Drift
