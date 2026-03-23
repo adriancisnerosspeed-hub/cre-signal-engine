@@ -89,6 +89,7 @@ Update this file whenever a preference becomes clearly durable across sessions.
   - `PRO+`
   - `ENTERPRISE`
 - Future chats must be careful not to assume user-facing tier names and internal plan slugs are one-to-one without checking current code.
+- The owner dev tools now show customer-facing names alongside internal slugs (e.g., `Starter (PRO)`). If the user references a tier by its customer-facing name, map it: Starter = PRO, Analyst = PRO+, Fund = ENTERPRISE.
 
 ---
 

@@ -127,9 +127,30 @@ This file is AI-facing project memory. Read it before doing substantial work.
   - `rgba(255,255,255,0.08)` / `#3f3f46` → `border-border`
 - **Pre-emption for future AI:** When adding new UI, always use Tailwind theme tokens (`text-foreground`, `bg-card`, `border-border`) instead of hex values. Check that `app/settings/page.tsx` uses `dark:` variants as the reference pattern. Never use inline `style={{}}` for colors that should adapt to theme.
 
+### 4g. Tier Override Requires Page Refresh Before Next Action ✓
+- **What happened:** After changing the org tier via the owner dev tools, the next scan request hit a 500 (ECONNRESET/terminated). The scan worked fine after a manual browser refresh.
+- **Root cause:** The tier-override API route updated the database but did not call `revalidatePath`, so Next.js server components continued serving stale entitlement data. A potential race condition with the `FOR UPDATE` lock in the scan RPC also contributed.
+- **Best fix:** Added `revalidatePath("/app", "layout")` to the tier-override API route and `router.refresh()` to the client-side TierSetterPanel after a successful change.
+- **Pre-emption for future AI:** Any API route that changes org-level state consumed by server components (plan, entitlements, feature flags) should call `revalidatePath` so the next navigation uses fresh data.
+
+### 4h. Dev Tools Showing Internal Slugs Instead Of Customer-Facing Names ✓
+- **What happened:** The tier setter in owner dev tools displayed `FREE`, `PRO`, `PRO+`, `ENTERPRISE` — the internal plan slugs. The user expected to see the customer-facing names (Starter, Analyst, Fund, Enterprise) and was confused by the mismatch.
+- **Best fix:** Updated the TierSetterPanel to show labels like `Starter (PRO)`, `Analyst (PRO+)`, `Fund / Enterprise (ENTERPRISE)` alongside internal values. The stored value stays the internal slug.
+- **Pre-emption for future AI:** Any admin/owner UI that displays plan names should show the customer-facing label alongside the internal slug, not just the slug.
+
+### 4i. AI Insights Panel Only Visible On Scan Detail Page ✓
+- **What happened:** The AI Insights panel was only rendered on the scan detail page (`/app/deals/[id]/scans/[scanId]`), not the main deal overview page. The user could not find it without clicking into a specific scan from the recent scans list.
+- **Best fix:** Added the `AiInsightsPanel` to the main deal detail page (`app/app/deals/[id]/page.tsx`) in the overview tab, after the explainability diff section and before recent scans. Same dual gate: `canUseAiInsights && aiInsightsFlag`.
+- **Pre-emption for future AI:** When adding gated features, put them on the most visible surface the user is likely to visit, not only on deep drill-down pages.
+
 ---
 
 ## 5. Entitlements, Billing, And Pricing Drift
+
+### 5a-pre. Test Assertions Can Lag Behind Implementation Changes ✓
+- **What happened:** `lib/entitlements/workspace.test.ts` asserted `canInviteMembers: false` for PRO, but the implementation in `workspace.ts` and the onboarding doc both said `true`. The test predated the PRO invite capability change and was never updated.
+- **Best fix:** Fixed the test assertion to match the implementation. Always verify test expectations against the current implementation when updating entitlements.
+- **Pre-emption for future AI:** When changing entitlement logic, grep for the changed property name in test files and update assertions to match.
 
 ### 5a. Workspace Plan, Profile Plan, And Pricing Display Can Drift Apart ✓✓
 - **What happened:** UI sometimes showed the wrong plan because it relied on profile-level state or stale display logic instead of workspace plan state.
