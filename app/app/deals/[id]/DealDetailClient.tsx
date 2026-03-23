@@ -10,10 +10,12 @@ export default function DealDetailClient({
   dealId,
   hasScan,
   workspaceId,
+  justUpdatedInputs = false,
 }: {
   dealId: string;
   hasScan: boolean;
   workspaceId?: string;
+  justUpdatedInputs?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,11 @@ export default function DealDetailClient({
       if (clearBannerTimeoutRef.current) clearTimeout(clearBannerTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!justUpdatedInputs) return;
+    toast("Deal inputs updated successfully.", "success");
+  }, [justUpdatedInputs]);
 
   async function handleRunScan() {
     setError(null);

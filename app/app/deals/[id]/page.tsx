@@ -70,11 +70,12 @@ export default async function DealPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; updated?: string }>;
 }) {
   const { id: dealId } = await params;
-  const { tab } = await searchParams;
+  const { tab, updated } = await searchParams;
   const activeTab = tab === "ic-summary" ? "ic-summary" : "overview";
+  const justUpdatedInputs = updated === "1";
   const supabase = await createClient();
   const {
     data: { user },
@@ -239,7 +240,7 @@ export default async function DealPage({
   return (
     <main className="max-w-[800px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
       <div style={{ marginBottom: 24 }}>
-        <Link href="/app/deals" style={{ color: "#a1a1aa", fontSize: 14, textDecoration: "none" }}>
+        <Link href="/app/deals" className="text-muted-foreground text-sm no-underline">
           ← Back to deals
         </Link>
       </div>
@@ -292,13 +293,24 @@ export default async function DealPage({
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Link
+            href={`/app/deals/${d.id}/edit`}
+            className="py-2 px-3 rounded-md border border-gray-300 dark:border-white/20 text-sm font-semibold text-gray-700 dark:text-gray-200 no-underline hover:bg-gray-50 dark:hover:bg-white/5"
+          >
+            Reset / Edit inputs
+          </Link>
           {scan?.status === "completed" && (
             <ExportPdfButton
               scanId={scan.id}
               scanExportEnabled={entitlements.scan_export_enabled}
             />
           )}
-          <DealDetailClient dealId={d.id} hasScan={!!scan} workspaceId={orgId} />
+          <DealDetailClient
+            dealId={d.id}
+            hasScan={!!scan}
+            workspaceId={orgId}
+            justUpdatedInputs={justUpdatedInputs}
+          />
         </div>
       </div>
 
@@ -502,23 +514,71 @@ export default async function DealPage({
                       {r.confidence && `Confidence: ${r.confidence}`}
                     </p>
                     {linksByRisk[r.id]?.length > 0 && (
-                      <div className="mt-2.5 pt-2.5 border-t border-gray-200 dark:border-white/[0.08]">
-                        <p className="text-[12px] text-gray-400 dark:text-zinc-500 mb-1">Linked macro signals:</p>
-                        <ul className="m-0 pl-4 text-[13px] text-gray-500 dark:text-gray-400">
-                          {linksByRisk[r.id].map((link) => (
-                            <li key={link.signal_id}>
-                              {link.signal_type && <strong>{link.signal_type}</strong>}
-                              {link.what_changed && ` — ${link.what_changed.slice(0, 120)}${link.what_changed.length > 120 ? "…" : ""}`}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                      <p className="mt-2 text-[11px] text-muted-foreground m-0">
+                        {linksByRisk[r.id].length} linked signal{linksByRisk[r.id].length !== 1 ? "s" : ""}
+                      </p>
                     )}
                   </li>
                 ))}
               </ul>
             )}
           </section>
+
+          {/* Consolidated Linked Macro Signals */}
+          {(() => {
+            // Build deduplicated signal map: signal_id → { signal info, affected risk types }
+            const signalMap = new Map<string, { signal_id: string; signal_type: string | null; what_changed: string | null; affectedRisks: string[] }>();
+            for (const risk of risks) {
+              const links = linksByRisk[risk.id] ?? [];
+              for (const link of links) {
+                const existing = signalMap.get(link.signal_id);
+                if (existing) {
+                  if (!existing.affectedRisks.includes(risk.risk_type)) {
+                    existing.affectedRisks.push(risk.risk_type);
+                  }
+                } else {
+                  signalMap.set(link.signal_id, {
+                    signal_id: link.signal_id,
+                    signal_type: link.signal_type,
+                    what_changed: link.what_changed,
+                    affectedRisks: [risk.risk_type],
+                  });
+                }
+              }
+            }
+            const uniqueSignals = [...signalMap.values()];
+            if (uniqueSignals.length === 0) return null;
+            return (
+              <section className="mt-6">
+                <h2 className="text-lg font-semibold text-foreground mb-3 border-l-2 border-blue-500 pl-3">
+                  Linked Macro Signals ({uniqueSignals.length})
+                </h2>
+                <ul className="list-none p-0 m-0">
+                  {uniqueSignals.map((sig) => (
+                    <li key={sig.signal_id} className="py-3 px-4 border border-border rounded-lg mb-2 bg-card">
+                      <div className="flex justify-between items-start flex-wrap gap-2">
+                        <span className="font-semibold text-foreground text-sm">
+                          {sig.signal_type ?? "Unknown"}
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {sig.affectedRisks.map((rt) => (
+                            <span key={rt} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                              {rt}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      {sig.what_changed && (
+                        <p className="mt-1.5 text-[13px] text-muted-foreground m-0">
+                          {sig.what_changed.slice(0, 200)}{sig.what_changed.length > 200 ? "…" : ""}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })()}
           </>
           )}
 
