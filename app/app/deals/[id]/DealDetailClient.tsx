@@ -82,7 +82,10 @@ export default function DealDetailClient({
         setError(msg);
         return;
       }
-      if (hasScan && !data.reused) {
+      if (hasScan && data.reused) {
+        setScanBanner(null);
+        toast("Score unchanged — deal text has not changed since last scan.", "success");
+      } else if (hasScan && !data.reused) {
         setScanBanner("completed");
         clearBannerTimeoutRef.current = setTimeout(() => setScanBanner(null), 3000);
       } else {
