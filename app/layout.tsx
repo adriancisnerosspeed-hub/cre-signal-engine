@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AppNav from "./components/AppNav";
 import { Providers } from "./providers";
+import { Toaster } from "@/components/ui/sonner";
 import { getSiteUrl } from "@/lib/site";
 
 const geistSans = Geist({
@@ -60,6 +61,7 @@ export default function RootLayout({
         <Providers>
           <AppNav />
           {children}
+          <Toaster position="bottom-right" richColors closeButton />
         </Providers>
       </body>
     </html>
