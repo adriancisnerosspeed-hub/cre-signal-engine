@@ -188,3 +188,52 @@ Pushed to `origin/main`.
 ## Manual QA Checklist (For User)
 
 These require a running app + browser. Documented in the plan file at `.claude/plans/zany-dreaming-flute.md`, Step 7 (manual QA). Nine tests covering: guest lead flow, owner flag toggle, tier override enforcement, cross-user feature flag, changelog security, password-protected share, theme toggle, onboarding flow, and SEO (sitemap/robots).
+
+---
+
+## Session 3: Toast UX + Score Debug Panel
+
+**Date:** 2026-03-24
+**Model:** Claude Opus 4.6
+**Scope:** Replace window.alert() toasts with Sonner, add owner-only Score Debug panel to deal detail page
+
+---
+
+### Toast System Upgrade
+
+- **Files:** `lib/toast.ts`, `app/layout.tsx`
+- **Problem:** All toast notifications (12 call sites) used `window.alert()` — blocking browser dialog that felt outdated and error-like. Most visible on rescan: "Score unchanged — deal text has not changed since last scan."
+- **Fix:** Replaced `window.alert()` with Sonner (already installed as dependency, `Toaster` component existed in `components/ui/sonner.tsx` but was never mounted). Now maps `toast("msg", "success"|"error"|"info")` to `sonnerToast.success()` / `.error()` / `.info()`. Mounted `<Toaster position="bottom-right" richColors closeButton />` in root layout.
+
+### Score Debug Panel (Owner-Only)
+
+- **Files:** `app/api/deals/[id]/score-debug/route.ts`, `app/app/deals/[id]/ScoreDebugPanel.tsx`, `app/app/deals/[id]/page.tsx`
+- **Problem:** User (owner) wanted to understand exactly why deterministic scores fluctuate between rescans. Previous investigation (Session 1, Step 8) showed score drift comes from OpenAI extraction non-determinism (different risk lists → different scores), not from the scoring math itself. But there was no tool to inspect this.
+- **Solution:** Built a fully deterministic (no AI/API needed) Score Debug panel:
+  - **API route** (`GET /api/deals/[id]/score-debug`): Owner-gated. Returns all completed scans with full breakdowns, risks, assumptions, audit log entries, input/scoring hashes.
+  - **Client component** (`ScoreDebugPanel`): Collapsible panel on deal detail page (visible only to owner). Select any two scan versions from dropdowns. Shows:
+    - Score delta with significance flag (≥8 pts)
+    - Diagnostic flags: same input hash, same scoring hash, version mismatch, potential bugs (same scoring hash but different score = non-determinism detected)
+    - Natural-language explanation summary: which risks were added/removed/changed severity, which assumptions changed, stabilizer changes, tier override changes, largest driver shift
+    - Score contribution diff table (per-driver point changes)
+    - Risk diff (NEW/GONE/SEV/CONF tags with point impact)
+    - Assumption diff
+    - Scoring mechanics comparison (penalties, stabilizers, structural/market weights, tier overrides)
+    - Full metadata (dates, models, versions, hashes truncated)
+  - Single-scan inspector mode when only one scan selected
+  - Gated: `isOwner(user.email)` check in both API route and page rendering
+
+### Key Finding for Owner
+
+The debug panel will make it clear that score changes between rescans of identical deal text are caused by OpenAI returning slightly different risk extractions (different risk_type list or severity assignments), not by bugs in the scoring engine. When `input_text_hash` matches but `scoring_input_hash` differs, the AI extracted differently. When both hashes match, the score must be identical — if not, the panel flags it as a bug.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `lib/toast.ts` | Replace `window.alert()` with Sonner `toast.success()` / `.error()` / `.info()` |
+| `app/layout.tsx` | Mount `<Toaster>` from `components/ui/sonner.tsx` |
+| `app/api/deals/[id]/score-debug/route.ts` | New: owner-only API returning all scan versions with full debug data |
+| `app/app/deals/[id]/ScoreDebugPanel.tsx` | New: client component for comparing scan versions deterministically |
+| `app/app/deals/[id]/page.tsx` | Import ScoreDebugPanel, gate behind `isOwner()`, render above overview tab |
+| `onboarding/Claude.md` | This session log |

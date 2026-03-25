@@ -9,6 +9,7 @@ import { getRecommendedActions } from "@/lib/icRecommendedActions";
 import { checkBandConsistency } from "@/lib/bandConsistency";
 import { computeExplainabilityDiff } from "@/lib/explainabilityDiff";
 import { isFeatureEnabled } from "@/lib/featureFlags";
+import { isOwner } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import DealDetailClient from "./DealDetailClient";
@@ -21,6 +22,7 @@ import IcStatusBlock from "./IcStatusBlock";
 import PercentileBlock from "./PercentileBlock";
 import ScenarioComparisonBlock from "./ScenarioComparisonBlock";
 import RiskTrajectoryChart from "./RiskTrajectoryChart";
+import ScoreDebugPanel from "./ScoreDebugPanel";
 
 type Deal = {
   id: string;
@@ -123,6 +125,7 @@ export default async function DealPage({
     isFeatureEnabled(service, "ai-insights"),
   ]);
   const plan = entitlements.plan;
+  const ownerMode = isOwner(user.email ?? undefined);
   const canUseTrajectory = workspaceEntitlements.canUseTrajectory;
   const showAiInsightsPanel = workspaceEntitlements.canUseAiInsights && aiInsightsFlag;
 
@@ -357,6 +360,10 @@ export default async function DealPage({
               IC Summary
             </Link>
           </nav>
+
+          {ownerMode && (
+            <ScoreDebugPanel dealId={d.id} />
+          )}
 
           {activeTab === "overview" && (
           <>
