@@ -253,6 +253,12 @@ This file is AI-facing project memory. Read it before doing substantial work.
 - **Best fix (v3):** Added supply pressure grouping: when both risks are present and RentGrowthAggressive's trigger contains supply keywords, its severity is demoted one level with a transparent marker `[supply overlap with VacancyUnderstated]`.
 - **Pre-emption for future AI:** When two risk types commonly share an underlying cause, add grouping logic to prevent double-counting rather than relying on the AI to avoid overlap.
 
+### 8e. Severity Override AI Fallback Defeats Determinism ✓✓
+- **What happened:** After rewriting severity override thresholds (v3.1), three risk types (ExitCapCompression, RefiRisk, ExpenseUnderstated) still bounced between different severities across rescans. 4 rescans of identical input showed Medium↔High flips.
+- **Root cause:** Every override case used `break` after its threshold checks. When assumptions were present but below the lowest threshold, the `break` fell through to `return aiSeverity`, letting non-deterministic AI severity win. The bug was present in ALL 6 numeric-proxy overrides, not just the 3 reported.
+- **Best fix (v3.1):** Added `return "Low"` floor after the last threshold in every case. AI severity is now ONLY used when required values are literally null/missing. Added a randomized-AI-severity stress test (20 runs per risk type, random High/Medium/Low AI input, asserts exactly 1 unique output).
+- **Pre-emption for future AI:** When writing deterministic overrides, NEVER use `break` after threshold checks when the input value is available. Every code path where the required assumptions exist MUST end with an explicit return. The pattern is: `if (value != null) { ... return "Low"; /* floor */ }` — the `break` goes OUTSIDE the null check, not inside.
+
 ---
 
 ## 9. User Improvement Log

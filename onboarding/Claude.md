@@ -444,3 +444,123 @@ Comprehensive overhaul to eliminate score variance between rescans. Same deal te
 ```
 
 Pushed to `origin/main`.
+
+---
+
+## Session 7: Severity Override v3.1 — Revised Thresholds + Risk Removal
+
+**Date:** 2026-03-25
+**Model:** Claude Opus 4.6
+**Scope:** Rewrite all severity override thresholds, add risk removal functions, bump to v3.1
+
+---
+
+### Problem
+
+Severity overrides used incorrect or overly simple proxies (e.g., DebtCostRisk keyed only on debt_rate, RefiRisk keyed on debt_rate + hold without LTV). Thresholds didn't match institutional CRE expectations. No mechanism to remove risks that assumptions prove are non-issues (e.g., conservative exit cap, reasonable expense growth).
+
+### Threshold Rewrites (`lib/riskSeverityOverrides.ts`)
+
+| Risk Type | v3 Proxy | v3.1 Proxy | v3.1 Thresholds |
+|-----------|----------|------------|-----------------|
+| DebtCostRisk | debt_rate only | **LTV-primary** + debt_rate secondary | ≥80→H, ≥75 OR (≥65 AND rate>6.5)→M, ≥60 AND rate≥6.0→L |
+| RefiRisk | debt_rate + hold | **LTV + hold + debt_rate** with debt_rate-only fallback | ≥75 AND hold≤3→H, ≥70 AND hold≤5 AND rate≥6.5→M, LTV<70 fallback: rate≥6.5 AND hold≤5→M |
+| VacancyUnderstated | vacancy only | vacancy + **construction context** | ≥15→H, ≥10→M, ≥5 with construction keywords→M (bump up), ≥5→L |
+| RentGrowthAggressive | ≥5/4/3 | ≥**8/5/3** (shifted up) | H/M/L |
+| ExitCapCompression | spread ≤0/0.25/0.5 | spread ≤**-0.5/0/0.5** + **removal** | H/M/L, >0.5→remove |
+| ExpenseUnderstated | <2/3/≥3→L | <2→M, 2-3→L, **≥3→remove**, missing+NOI→M | + missing-data path |
+| DataMissing | completeness pct | **count-based** (6 critical keys) + removal | 3+ missing→H, 1-2→M, 0→remove |
+
+### New Functions
+
+- `shouldRemoveExitCapCompression(assumptions)` — true when exit_cap > cap_rate_in by > 0.5%
+- `shouldRemoveExpenseUnderstated(assumptions)` — true when expense_growth ≥ 3.0%
+- `applySeverityOverride` now accepts optional 4th parameter `context?: { hasConstructionKeywords?: boolean }`
+
+### Scoring Engine Changes (`lib/riskIndex.ts`)
+
+- DataMissing cap raised from 3 → 9 points (`Math.min(sevPoints * conf, 9)`)
+- Version bumped to `3.1 (Institutional Stable v3.1)`, locked at `2026-03-25`
+
+### Consumer Updates
+
+- `app/api/deals/scan/route.ts` — imports new removal functions + construction keyword context
+- `lib/demo/runDemoScan.ts` — same pattern
+- `app/owner/dev/RiskSandboxPanel.tsx` — passes `{ hasConstructionKeywords: false }` context
+- `lib/riskInjection.ts` — exported `hasConstructionKeyword` for consumer use
+
+### Reference Building Expected Outputs (v3.1)
+
+68% LTV, 5yr hold, 6.85% rate, 7% vacancy+renovation, 3.5% rent_growth, 6.1% exit / 5.6% entry, 2.8% expense_growth:
+- DebtCostRisk → Medium, RefiRisk → Medium, VacancyUnderstated → Medium (construction bump)
+- RentGrowthAggressive → Low, ExitCapCompression → Low, ExpenseUnderstated → Low
+- ConstructionTimingRisk → Medium, InsuranceRisk → Medium
+- DataMissing → REMOVED
+
+### Tests
+
+33 tests in `lib/riskSeverityOverrides.test.ts` (was 18):
+- All threshold tests rewritten for v3.1
+- New: `shouldRemoveExitCapCompression` (4 tests), `shouldRemoveExpenseUnderstated` (4 tests)
+- New: VacancyUnderstated construction-keyword bump tests
+- New: RefiRisk debt_rate-only fallback tests, ExpenseUnderstated missing-data path tests
+- Updated reference building determinism test
+
+### Commit
+
+```
+b3c3415 Revise severity override thresholds to v3.1
+```
+
+---
+
+## Session 8: Fix Severity Overrides — No AI Fallback When Assumptions Present
+
+**Date:** 2026-03-25
+**Model:** Claude Opus 4.6
+**Scope:** Eliminate AI severity fallback for all overrides when required assumption values exist
+
+---
+
+### Problem
+
+After the v3.1 threshold revision, three overrides (ExitCapCompression, RefiRisk, ExpenseUnderstated) were still bouncing between different severities across rescans. Root cause: `break` statements in the switch cases let the function fall through to `return aiSeverity` when assumptions were present but didn't match the highest thresholds. This defeated the entire purpose of deterministic overrides.
+
+Evidence: 4 rescans of identical input showed ExitCapCompression bouncing Medium↔High, RefiRisk bouncing Medium↔High, ExpenseUnderstated bouncing Medium↔High.
+
+### Root Cause (All 6 Numeric Overrides Had the Same Bug)
+
+```typescript
+case "SomeRisk":
+  if (value != null) {
+    if (value >= threshold1) return "High";
+    if (value >= threshold2) return "Medium";
+    // BUG: value below threshold2 falls through break → aiSeverity wins
+  }
+  break;
+```
+
+### Fix
+
+Added `return "Low"` floor after the last threshold check in every case where the required assumption values are present. AI severity fallback now ONLY applies when required values are null/missing.
+
+| Risk Type | Fix |
+|-----------|-----|
+| DebtCostRisk | LTV present → `return "Low"` floor |
+| RefiRisk | All 3 values present → `return "Low"` floor; added partial-data paths for LTV+hold and debt_rate+hold |
+| VacancyUnderstated | Vacancy present → `return "Low"` floor |
+| RentGrowthAggressive | rent_growth present → `return "Low"` floor |
+| ExitCapCompression | Both caps present → `return "Low"` floor |
+| ExpenseUnderstated | expense_growth present → `return "Low"` floor |
+
+### Stress Test Added
+
+New test: "NEVER falls back to AI severity when required assumptions are present" — runs all 9 risk types 20 times with randomized AI severity inputs. Asserts each risk type produces exactly 1 unique output regardless of AI input.
+
+### Commit
+
+```
+66cffcd Fix severity overrides to never fall back to AI when assumptions present
+```
+
+Pushed to `origin/main`.
