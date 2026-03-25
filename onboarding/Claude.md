@@ -275,6 +275,26 @@ The debug panel will make it clear that score changes between rescans of identic
 - "Injected Risks" section in single-scan view (cyan styling)
 - "(injected)" badge on risk rows in comparison view
 
+### ScanDevTools Panel (Scan Detail Page)
+
+- **File:** `app/app/deals/[id]/scans/[scanId]/ScanDevTools.tsx` (new), `app/app/deals/[id]/scans/[scanId]/page.tsx` (modified)
+- **Problem:** Owner had no way to inspect scoring identity, breakdown, contributions, or raw extraction on individual scan snapshots. The Score Debug panel on the deal overview page compares across scans but doesn't show per-scan detail.
+- **Solution:** Collapsible owner-only panel on the scan detail page showing:
+  - Force Rescan button
+  - Scoring identity: score, band, version, model, prompt version, input text hash, scoring input hash, scan ID
+  - Score breakdown: base (40) + penalties + stabilizers → final, with color-coded metric cards
+  - Band floor overrides, injected risks (cyan), edge flags, validation errors
+  - Per-driver score contributions sorted by magnitude, with contribution % and confidence multipliers
+  - Risk table with severity, confidence, calculated point values, "injected" and severity-override badges
+  - Collapsible raw extraction JSON viewer
+- **Gating:** `isOwner(user.email)` in the server page; `ScanDevTools` only rendered when `ownerMode` is true
+- **Data:** Extended scan query to include `risk_index_version`, `input_text_hash`, `scoring_input_hash`, and full `risk_index_breakdown` fields
+
+### Inline Force Rescan Button (Deal Detail Page)
+
+- **Problem:** The ForceRescanButton component was placed in the owner debug section near ScoreDebugPanel, but the user couldn't find it there. They wanted a dedicated button right next to the main "Rescan (Fresh)" button since the normal rescan was returning "Score unchanged" due to Layer 2 cache.
+- **Solution:** Added `isOwner` prop to `DealDetailClient`. When `isOwner && hasScan`, an inline "Force Rescan" button renders right next to the main scan button with subtle styling (transparent background, gray border, smaller font). Separate `handleForceRescan` handler calls `POST /api/deals/scan` with `{ deal_id, force: 1 }` and shows toast with result.
+
 ### Files Modified
 
 | File | Change |
@@ -283,8 +303,144 @@ The debug panel will make it clear that score changes between rescans of identic
 | `lib/riskInjection.test.ts` | New: 30 tests |
 | `app/api/deals/scan/route.ts` | Injection integration + owner force rescan (all-cache bypass) |
 | `app/app/deals/[id]/ScoreDebugPanel.tsx` | `injected_risk_types` in Breakdown type + UI badges |
-| `app/app/deals/[id]/ForceRescanButton.tsx` | New: owner-only force rescan button component |
-| `app/app/deals/[id]/page.tsx` | Import ForceRescanButton, render in owner section |
+| `app/app/deals/[id]/ForceRescanButton.tsx` | New: standalone owner-only force rescan button component (used in ScanDevTools) |
+| `app/app/deals/[id]/DealDetailClient.tsx` | `isOwner` prop + inline Force Rescan button next to main scan button |
+| `app/app/deals/[id]/page.tsx` | Pass `isOwner={ownerMode}` to DealDetailClient, import ForceRescanButton |
+| `app/app/deals/[id]/scans/[scanId]/ScanDevTools.tsx` | New: comprehensive owner-only scan debug panel |
+| `app/app/deals/[id]/scans/[scanId]/page.tsx` | Extended scan query, render ScanDevTools when owner |
 | `app/owner/dev/TestToolsPanel.tsx` | Force rescan tool with deal ID input |
 | `onboarding/CRESIGNALENGINE.md` | Updated section 8 with injection step + score stability notes |
 | `onboarding/Claude.md` | This session log |
+
+---
+
+## Session 5: Severity Override Expansion — Close the Last Variance Gap
+
+**Date:** 2026-03-25
+**Model:** Claude Opus 4.6
+**Scope:** Expand deterministic severity overrides to cover all risk types with numeric proxies, add DataMissing removal logic
+
+---
+
+### Problem
+
+The injection layer (Session 4) guarantees all math-warranted risks exist, but severity still varies because the AI assigns non-deterministic severity. When dedup picks the AI's severity over the injection's severity (highest wins), score swings +/- 1-2 points per flip. Additionally, several overrides used incorrect proxies (e.g., DebtCostRisk used LTV instead of debt_rate).
+
+### Changes
+
+**Severity override threshold rewrites (`lib/riskSeverityOverrides.ts`):**
+
+| Risk Type | Old Proxy | New Proxy | New Thresholds |
+|-----------|-----------|-----------|----------------|
+| DebtCostRisk | LTV >= 75/65 | debt_rate >= 7.5/6.5/6.0 | H/M/L |
+| RefiRisk | LTV >= 75/65 (shared with DebtCostRisk) | debt_rate + hold_period_years | H: dr>=7.5 AND hold>=7, M: dr>=7.0 OR hold>=7, else L |
+| ExitCapCompression | capRateIn - exitCap > 0.5/0.25 | exitCap - capRateIn <= 0/0.25/0.5 | H/M/L |
+| RentGrowthAggressive | >= 4/3 | >= 5.0/4.0/3.0 | H/M/L |
+| ExpenseUnderstated | >= 5/3 (higher=worse) | < 2.0/3.0 (lower=worse) | M/L, >=3.0 forced L |
+| VacancyUnderstated | >= 20/10 | >= 10/7/5 | H/M/L |
+| ConstructionTimingRisk | No override (aiSeverity) | Unconditional | Always Medium |
+
+**DataMissing removal (`shouldRemoveDataMissing`):**
+- New exported function checks if all 8 core assumptions (purchase_price, noi_year1, cap_rate_in, exit_cap, vacancy, ltv, debt_rate, rent_growth) have non-null numeric value AND High confidence
+- When true, DataMissing is filtered out of the risk list before scoring
+- Applied in main scan route and demo scan
+
+**RiskSandboxPanel updates:**
+- Added debt_rate slider (default 6.5, range 3-10, step 0.05)
+- Added DebtCostRisk to BASE_RISKS
+- debt_rate passed in assumptions for correct override preview
+
+### Reference building expected outputs
+
+With debt_rate 6.85%, hold 5yr, exit_cap 6.1%, cap_rate_in 5.6%, rent_growth 3.5%, expense_growth 2.8%, vacancy 7%, all High confidence:
+- DebtCostRisk → Medium, RefiRisk → Low, ExitCapCompression → Low
+- RentGrowthAggressive → Low, ExpenseUnderstated → Low, VacancyUnderstated → Medium
+- ConstructionTimingRisk → Medium, InsuranceRisk → Medium
+- DataMissing → REMOVED
+
+### Tests
+
+18 tests in `lib/riskSeverityOverrides.test.ts`:
+- All existing tests rewritten for new thresholds
+- New: ConstructionTimingRisk always Medium
+- New: `shouldRemoveDataMissing` (5 tests: all High → true, mixed confidence → false, missing key → false, undefined → false, null value → false)
+- New: Reference building determinism test (20 iterations × 8 risk types, cycling AI severity through Low/Medium/High)
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `lib/riskSeverityOverrides.ts` | All threshold changes + `shouldRemoveDataMissing` export |
+| `lib/riskSeverityOverrides.test.ts` | Full rewrite: 18 tests (was 10) |
+| `app/api/deals/scan/route.ts` | DataMissing filter after severity overrides |
+| `lib/demo/runDemoScan.ts` | DataMissing filter |
+| `app/owner/dev/RiskSandboxPanel.tsx` | debt_rate slider + DebtCostRisk in BASE_RISKS |
+| `onboarding/CRESIGNALENGINE.md` | Updated severity override docs + five layers of determinism |
+| `onboarding/Claude.md` | This session log |
+
+---
+
+## Session 6: Risk Index v3.0 — Full Deterministic Scoring Overhaul
+
+**Date:** 2026-03-25
+**Model:** Claude Opus 4.6
+**Scope:** Lock v3 scoring engine, tighter bands, new penalties, three-layer score stability, update all tests
+
+---
+
+### Overview
+
+Comprehensive overhaul to eliminate score variance between rescans. Same deal text scanned 5x produced 41→47→44→47→41 under v2. This session locked the v3 scoring engine with three layers of determinism protection and updated all test infrastructure.
+
+### Scoring Engine Changes (`lib/riskIndex.ts`)
+
+- **Version:** `RISK_INDEX_VERSION = "3.0 (Institutional Stable v3)"`, locked at `2026-03-23`
+- **v3 band thresholds:** Low 0-32, Moderate 33-53, Elevated 54-68, High 69+ (tighter by ~2 pts each)
+- **Stronger LTV+vacancy ramp:** penalties 10/7/3+round(dist*3) (was 8/5/2+round(dist*2))
+- **Driver share cap:** lowered to 35% (was 40%)
+- **New completeness penalty:** 0-4 pts based on assumption completeness (`computeAssumptionCompleteness`)
+- **New missing-debt-rate penalty:** 2 pts when debt_rate null + LTV > 65%
+
+### Risk Normalization Changes (`lib/dealScanContract.ts`)
+
+- **Dedup by risk_type only** (was trigger-text-based). Highest severity wins, triggers merged.
+- **Supply pressure grouping:** RentGrowthAggressive demoted one level when VacancyUnderstated present with supply keywords, preventing double-counting.
+
+### Overlay Fix (`lib/crossReferenceOverlay.ts`)
+
+- Removed `bumpedSeverity()` function and severity bump loop — macro penalty now only captured via `macroLinkedCount`/`macroDecayedWeight` in `computeRiskIndex()`.
+
+### Severity Override Additions (`lib/riskSeverityOverrides.ts`)
+
+- 4 new cases: ExpenseUnderstated (expense_growth thresholds), MarketLiquidityRisk (LTV thresholds), InsuranceRisk (always Medium), DataMissing (completeness pct thresholds)
+
+### Scan Pipeline Changes (`app/api/deals/scan/route.ts`)
+
+- **Post-normalization scoring-input hash:** canonical sorted risk/assumption JSON → SHA-256 hash → stored as `scoring_input_hash`
+- **Scoring-input cache:** if recent completed scan has same scoring-input hash, reuse exact score/band/breakdown
+- **Owner force rescan:** bypasses all 3 cache layers
+
+### Other Fixes
+
+- **Onboarding buttons** (`OnboardingFlow.tsx`): removed early return in catch block so navigation proceeds even if PATCH fails
+- **AI Insights fallback** (`scans/[scanId]/page.tsx`): shows fallback message for entitled users when feature flag disabled
+- **Migrations:** 059 (scoring_input_hash column + index), 060 (enable ai-insights flag)
+
+### Tests Updated (20 files, 721 insertions, 209 deletions)
+
+- `lib/riskIndex.test.ts` — rewrote with v3 band tests, completeness/debt-rate penalty tests
+- `lib/dealScanContract.test.ts` — updated for risk_type-based dedup + supply pressure grouping
+- `lib/bandConsistency.test.ts` — v3 thresholds
+- `lib/riskSeverityOverrides.test.ts` — added ExpenseUnderstated, MarketLiquidityRisk, InsuranceRisk, DataMissing, ConstructionTimingRisk
+- `lib/robustness.test.ts` — v3 tier calibration, extreme case ≥69 → High
+- `lib/__snapshots__/modelGovernance.test.ts.snap` — v3 version + driver_share_cap: 35
+- `lib/deterministicInvariant.test.ts` — new: 8 invariant tests
+- `scripts/stressRiskIndexV2.ts` — 10 scenarios + 7 assertions
+
+### Commit
+
+```
+96ba70c Risk Index v3.0: deterministic scoring overhaul with three-layer stability
+```
+
+Pushed to `origin/main`.

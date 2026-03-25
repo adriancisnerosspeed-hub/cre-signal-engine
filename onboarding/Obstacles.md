@@ -154,6 +154,12 @@ This file is AI-facing project memory. Read it before doing substantial work.
 - **Best fix:** Added `clearFeatureFlagCache()` to the tier override route. Added a yellow reminder banner in the TierSetterPanel that appears when PRO+ or ENTERPRISE is selected, explaining the dual-gate requirement.
 - **Pre-emption for future AI:** When a feature is gated by BOTH a plan entitlement AND a feature flag, make the dependency explicit in the admin UI. Don't assume users will discover the second gate on their own. Any admin route that changes state consumed by feature-flag-gated code paths should also clear the flag cache.
 
+### 4m. Force Rescan Button Not Discoverable In Debug Section ✓
+- **What happened:** The Force Rescan button was placed in the owner debug section near ScoreDebugPanel, but the user couldn't find it. The normal "Rescan (Fresh)" button returned "Score unchanged" because Layer 2 (text-hash) cache intercepted the request, and the user had no obvious way to bypass it.
+- **Root cause:** The button was tucked away in a collapsible debug panel rather than placed next to the primary action button where the user was already looking.
+- **Best fix:** Added an inline "Force Rescan" button right next to the main scan button in `DealDetailClient`, visible only to the owner (`isOwner` prop). Subtle styling (transparent background, gray border) distinguishes it from the primary action.
+- **Pre-emption for future AI:** Owner-only action buttons should be placed near the standard action they supplement, not buried in a separate debug section. Users look where they already interact. Debug panels are for inspection, not for primary actions.
+
 ### 4l. Invite Emails Not Delivering — Async Outbox Not Obvious ✓
 - **What happened:** User sent a workspace invite and saw "Invite sent to {email}", but the recipient never received the email. The invite was queued in `email_outbox` but the cron job wasn't processing it (either cron not running, `CRON_SECRET` not set, or Vercel Hobby plan limiting cron frequency to once/day).
 - **Root cause:** The invite system uses an async outbox pattern: clicking "Send invite" inserts into `email_outbox` with `status='QUEUED'`, and a separate cron job (`/api/cron/email/process`) processes the queue. The UI said "Invite sent" even though the email was only queued, not sent.
