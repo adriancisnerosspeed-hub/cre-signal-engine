@@ -29,6 +29,8 @@ export interface WorkspaceEntitlements {
   canLockMethodVersion: boolean;
   /** Supplemental AI Insights tab on deal scans (PRO+ and ENTERPRISE; feature-flag gated). */
   canUseAiInsights: boolean;
+  /** Monthly scan cap. FREE: null (lifetime cap instead). PRO: 10. PRO+: null (unlimited). ENTERPRISE: null (unlimited). */
+  maxScansPerMonth: number | null;
 }
 
 export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlements {
@@ -49,6 +51,7 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canUseGovernanceExport: false,
         canLockMethodVersion: false,
         canUseAiInsights: false,
+        maxScansPerMonth: null,
       };
     case "PRO":
       return {
@@ -66,6 +69,7 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canUseGovernanceExport: false,
         canLockMethodVersion: false,
         canUseAiInsights: false,
+        maxScansPerMonth: 10,
       };
     case "PRO+":
       return {
@@ -83,6 +87,7 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canUseGovernanceExport: true,
         canLockMethodVersion: true,
         canUseAiInsights: true,
+        maxScansPerMonth: null,
       };
     case "ENTERPRISE":
       return {
@@ -100,6 +105,7 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
         canUseGovernanceExport: true,
         canLockMethodVersion: true,
         canUseAiInsights: true,
+        maxScansPerMonth: null,
       };
   }
 }

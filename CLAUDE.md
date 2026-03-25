@@ -54,7 +54,7 @@ npm run test:watch   # Vitest watch mode
 
 ### Current State
 
-- **44 test files** covering **256 source files**, **455 of 459 tests passing**
+- **45 test files** covering **256 source files**, **467 of 471 tests passing**
 - `vitest.config.ts` configures `@/` path alias for module resolution
 - 4 pre-existing test failures remain: `PricingClient.test.tsx` (3 — missing jest-dom matchers) and `invite/accept/route.test.ts` (1 — incomplete mock)
 - Tests use Vitest 2.0 with `@testing-library/react` and `jsdom` for component tests
@@ -83,6 +83,7 @@ npm run test:watch   # Vitest watch mode
 - `lib/riskInjection.test.ts` — 30 tests (7 injection rules, boundary cases, 20-run determinism, full integration)
 - `lib/bandConsistency.test.ts` — 4 tests (v3 band boundary consistency)
 - `lib/robustness.test.ts` — 41 tests (stress scenarios, invariance, monotonicity, PDF output)
+- `lib/monthlyScanLimit.test.ts` — 10 tests (monthly scan cap enforcement, entitlement values, month key format)
 
 ### Remaining Critical Test Gaps
 
@@ -119,7 +120,7 @@ npm run test:watch   # Vitest watch mode
 | Stress harness | `scripts/stressRiskIndexV2.ts` |
 | Scan pipeline | `app/api/deals/scan/route.ts` |
 | Stripe webhook | `app/api/stripe/webhook/route.ts` |
-| Migrations | `supabase/migrations/` (next index: 061) |
+| Migrations | `supabase/migrations/` (next index: 062) |
 | Feature flags | `lib/featureFlags.ts` (60s TTL cache) |
 
 ## User Context

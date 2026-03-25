@@ -34,6 +34,20 @@ const rows: Row[] = [
     enterprise: CHECK,
   },
   {
+    feature: "Benchmark percentiles",
+    starter: CHECK,
+    analyst: CHECK,
+    fund: CHECK,
+    enterprise: CHECK,
+  },
+  {
+    feature: "Support bundle",
+    starter: CHECK,
+    analyst: CHECK,
+    fund: CHECK,
+    enterprise: CHECK,
+  },
+  {
     feature: "Risk trajectory",
     starter: DASH,
     analyst: CHECK,
@@ -41,7 +55,14 @@ const rows: Row[] = [
     enterprise: CHECK,
   },
   {
-    feature: "Benchmark percentiles",
+    feature: "Supplemental AI Insights",
+    starter: DASH,
+    analyst: CHECK,
+    fund: CHECK,
+    enterprise: CHECK,
+  },
+  {
+    feature: "Methodology version lock",
     starter: DASH,
     analyst: CHECK,
     fund: CHECK,
@@ -56,9 +77,9 @@ const rows: Row[] = [
   },
   {
     feature: "Team seats",
-    starter: "2",
-    analyst: "5",
-    fund: "10",
+    starter: "5",
+    analyst: "10",
+    fund: "Unlimited",
     enterprise: "Unlimited",
   },
   {
@@ -95,13 +116,7 @@ export default function PricingComparisonTable() {
   return (
     <section style={{ marginTop: 48, marginBottom: 32 }}>
       <h2
-        style={{
-          fontSize: 20,
-          fontWeight: 700,
-          color: "#e4e4e7",
-          marginBottom: 20,
-          textAlign: "center",
-        }}
+        className="text-xl font-bold text-gray-900 dark:text-zinc-200 mb-5 text-center"
       >
         Compare Plans
       </h2>
@@ -118,7 +133,7 @@ export default function PricingComparisonTable() {
             <tr>
               <th
                 style={{
-                  padding: "12px 16px",
+                  padding: "14px 20px",
                   textAlign: "left",
                   color: "#71717a",
                   fontWeight: 500,
@@ -129,7 +144,7 @@ export default function PricingComparisonTable() {
                 <th
                   key={col.key}
                   style={{
-                    padding: "12px 16px",
+                    padding: "14px 20px",
                     textAlign: "center",
                     color: col.highlight ? "#fafafa" : "#e4e4e7",
                     fontWeight: 700,
@@ -137,7 +152,7 @@ export default function PricingComparisonTable() {
                       ? "2px solid #3b82f6"
                       : "1px solid #3f3f46",
                     backgroundColor: col.highlight
-                      ? "rgba(59,130,246,0.08)"
+                      ? "rgba(59,130,246,0.10)"
                       : "transparent",
                     position: "relative",
                   }}
@@ -181,12 +196,12 @@ export default function PricingComparisonTable() {
                 key={row.feature}
                 style={{
                   backgroundColor:
-                    i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
+                    i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.04)",
                 }}
               >
                 <td
                   style={{
-                    padding: "11px 16px",
+                    padding: "14px 20px",
                     color: "#a1a1aa",
                     borderBottom: "1px solid #27272a",
                   }}
@@ -201,11 +216,11 @@ export default function PricingComparisonTable() {
                     <td
                       key={col.key}
                       style={{
-                        padding: "11px 16px",
+                        padding: "14px 20px",
                         textAlign: "center",
                         borderBottom: "1px solid #27272a",
                         backgroundColor: col.highlight
-                          ? "rgba(59,130,246,0.04)"
+                          ? "rgba(59,130,246,0.08)"
                           : "transparent",
                         color: isCheck
                           ? "#22c55e"

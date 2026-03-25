@@ -72,7 +72,7 @@ export default async function PricingPage() {
       <div className="flex flex-col gap-6">
         {/* Starter — $97/mo */}
         <section
-          className={`p-6 rounded-xl bg-gray-100 dark:bg-zinc-900 border ${displayPlan === "pro" ? "border-2 border-[#3b82f6]" : "border-gray-300 dark:border-zinc-600"}`}
+          className={`py-7 px-8 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-t-4 border-t-gray-400 dark:border-t-zinc-500 ${displayPlan === "pro" ? "border-2 border-[#3b82f6] border-t-4 border-t-gray-400 dark:border-t-zinc-500" : "border-gray-300 dark:border-zinc-600"}`}
         >
           <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
             Starter
@@ -83,25 +83,22 @@ export default async function PricingPage() {
           <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
             For individual underwriters and small teams getting started with risk governance.
           </p>
-          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc">
-            <li>
-              10 scans / month{" "}
-              <span className="text-[12px] text-gray-400 dark:text-zinc-500">
-                (Starter workspaces currently receive unlimited scans; pricing copy may update.)
-              </span>
-            </li>
+          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
+            <li>10 scans / month</li>
             <li>Full CRE Signal Risk Index™</li>
             <li>IC-ready PDF export</li>
             <li>Share links</li>
+            <li>Benchmark percentiles</li>
             <li>1 active governance policy</li>
-            <li>2 workspace members</li>
+            <li>Up to 5 workspace members</li>
+            <li>Support bundle</li>
           </ul>
           <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro" checkoutAvailable={checkoutAvailable} />
         </section>
 
         {/* Analyst — $297/mo */}
         <section
-          className="relative p-6 rounded-xl bg-gray-100 dark:bg-zinc-900 border-2 border-[#3b82f6]"
+          className="relative py-7 px-8 rounded-xl bg-gradient-to-br from-blue-50/80 to-white dark:from-blue-950/30 dark:to-zinc-900 border-2 border-[#3b82f6] border-t-4 border-t-blue-500 backdrop-blur-sm"
         >
           <div className="absolute -top-3 left-6 bg-[#3b82f6] text-white text-[11px] font-bold py-0.5 px-2.5 rounded uppercase tracking-wider">
             Most Popular
@@ -115,21 +112,23 @@ export default async function PricingPage() {
           <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
             For active underwriting teams who need trajectory, benchmarks, and governance controls.
           </p>
-          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc">
+          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
             <li>Unlimited scans</li>
             <li>Everything in Starter</li>
             <li>Risk score trajectory (over time)</li>
             <li>Benchmark percentiles</li>
+            <li>Supplemental AI Insights</li>
             <li>Up to 3 active governance policies</li>
-            <li>Up to 5 workspace members</li>
+            <li>Up to 10 workspace members</li>
             <li>Governance export packet</li>
+            <li>Methodology version lock</li>
           </ul>
           <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro_plus" checkoutAvailable={checkoutAvailable} />
         </section>
 
         {/* Fund — $797/mo */}
         <section
-          className={`p-6 rounded-xl bg-gray-100 dark:bg-zinc-900 border ${displayPlan === "enterprise" ? "border-2 border-[#3b82f6]" : "border-gray-300 dark:border-zinc-600"}`}
+          className={`py-7 px-8 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-t-4 border-t-purple-500 ${displayPlan === "enterprise" ? "border-2 border-[#3b82f6] border-t-4 border-t-purple-500" : "border-gray-300 dark:border-zinc-600"}`}
         >
           <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
             Fund
@@ -140,12 +139,12 @@ export default async function PricingPage() {
           <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
             For funds and institutional platforms managing multiple strategies.
           </p>
-          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc">
+          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
             <li>Everything in Analyst</li>
             <li>Custom cohort creation</li>
             <li>Snapshot build control</li>
             <li>Unlimited governance policies</li>
-            <li>Up to 10 workspace members</li>
+            <li>Unlimited workspace members</li>
             <li>Contract-level SLA</li>
             <li>Priority support</li>
           </ul>
@@ -154,7 +153,7 @@ export default async function PricingPage() {
 
         {/* Enterprise — Custom */}
         <section
-          className={`p-6 rounded-xl bg-gray-100 dark:bg-zinc-900 border ${displayPlan === "platform_admin" || displayPlan === "enterprise" ? "border-2 border-[#3b82f6]" : "border border-gray-300 dark:border-zinc-600"}`}
+          className={`py-7 px-8 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-t-4 border-t-zinc-600 dark:border-t-zinc-400 ${displayPlan === "platform_admin" || displayPlan === "enterprise" ? "border-2 border-[#3b82f6] border-t-4 border-t-zinc-600 dark:border-t-zinc-400" : "border-gray-300 dark:border-zinc-600"}`}
         >
           <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
             Enterprise
@@ -163,7 +162,7 @@ export default async function PricingPage() {
           <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
             For multi-strategy portfolios requiring API access, custom reporting, and enterprise SLA.
           </p>
-          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc">
+          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
             <li>Everything in Fund</li>
             <li>API access</li>
             <li>Custom reporting</li>
@@ -175,7 +174,7 @@ export default async function PricingPage() {
       </div>
 
       {/* Founding Member Banner */}
-      <section className="mt-10 py-5 px-6 bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/30 rounded-xl">
+      <section className="mt-10 py-5 px-6 bg-amber-500/10 dark:bg-amber-500/10 border-2 border-amber-500/40 rounded-xl">
         <div className="flex justify-between items-center flex-wrap gap-4">
           <div>
             <p className="text-[15px] font-bold text-amber-500 dark:text-amber-500 mb-1">
@@ -185,6 +184,8 @@ export default async function PricingPage() {
               First 20 users get the Analyst tier for{" "}
               <strong className="text-gray-900 dark:text-zinc-200">$147/month, locked for life.</strong>
             </p>
+            {/* TODO: Wire up dynamic count from DB (count founding subscriptions) */}
+            <p className="text-xs text-amber-500/70 mt-1 mb-0">Limited: 14 of 20 founding spots remaining</p>
           </div>
           <PricingClient
             displayPlan={displayPlan}

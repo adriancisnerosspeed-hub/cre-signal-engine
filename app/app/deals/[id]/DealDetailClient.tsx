@@ -12,12 +12,16 @@ export default function DealDetailClient({
   workspaceId,
   justUpdatedInputs = false,
   isOwner = false,
+  monthlyScansUsed,
+  monthlyScansLimit,
 }: {
   dealId: string;
   hasScan: boolean;
   workspaceId?: string;
   justUpdatedInputs?: boolean;
   isOwner?: boolean;
+  monthlyScansUsed?: number;
+  monthlyScansLimit?: number | null;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -55,9 +59,16 @@ export default function DealDetailClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       }, 120_000);
-      const data = (r.json ?? {}) as { code?: string; error?: string; message?: string; reused?: boolean; used?: number; limit?: number };
+      const data = (r.json ?? {}) as { code?: string; error?: string; message?: string; reused?: boolean; used?: number; limit?: number; scans_used?: number; scans_limit?: number };
       if (!r.ok) {
         setScanBanner(null);
+        if (r.status === 429 && data.code === "MONTHLY_SCAN_LIMIT") {
+          setError(null);
+          toast(`Monthly scan limit reached (${data.scans_used ?? 0}/${data.scans_limit ?? 10}). Upgrade to Analyst for unlimited scans.`, "error");
+          setPaywallOpen(true);
+          setLifetimeLimitPaywall(false);
+          return;
+        }
         if ((r.status === 403 || r.status === 429) && data.code === "PLAN_LIMIT_REACHED") {
           setError(null);
           toast("Upgrade required to run additional scans.", "error");
@@ -163,24 +174,39 @@ export default function DealDetailClient({
         subtitle={lifetimeLimitPaywall ? undefined : "Upgrade to Starter for higher scan limits, IC Memorandum Narrative, and more."}
         workspaceId={workspaceId}
       />
-      <button
-        type="button"
-        onClick={handleRunScan}
-        disabled={loading}
-        style={{
-          padding: "10px 20px",
-          backgroundColor: "var(--foreground)",
-          color: "var(--background)",
-          border: "none",
-          borderRadius: 6,
-          fontWeight: 600,
-          fontSize: 14,
-          cursor: loading ? "not-allowed" : "pointer",
-          opacity: loading ? 0.7 : 1,
-        }}
-      >
-        {loading ? "Running scan…" : hasScan ? "Rescan (Fresh)" : "Run Deal Risk Scan"}
-      </button>
+      {monthlyScansLimit != null && monthlyScansUsed != null && monthlyScansUsed >= monthlyScansLimit ? (
+        <div style={{ padding: "12px 16px", borderRadius: 8, backgroundColor: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.3)", fontSize: 14 }}>
+          <p style={{ margin: 0, color: "#fca5a5" }}>
+            You&apos;ve used all {monthlyScansLimit} scans this month.{" "}
+            <button
+              type="button"
+              onClick={() => { setPaywallOpen(true); setLifetimeLimitPaywall(false); }}
+              style={{ background: "none", border: "none", color: "#fcd34d", fontWeight: 600, cursor: "pointer", padding: 0, textDecoration: "underline" }}
+            >
+              Upgrade to Analyst for unlimited scans.
+            </button>
+          </p>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleRunScan}
+          disabled={loading}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "var(--foreground)",
+            color: "var(--background)",
+            border: "none",
+            borderRadius: 6,
+            fontWeight: 600,
+            fontSize: 14,
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? "Running scan…" : hasScan ? "Rescan (Fresh)" : "Run Deal Risk Scan"}
+        </button>
+      )}
       {isOwner && hasScan && (
         <button
           type="button"
@@ -201,6 +227,16 @@ export default function DealDetailClient({
         >
           {forceLoading ? "Force scanning…" : "Force Rescan"}
         </button>
+      )}
+      {monthlyScansLimit != null && monthlyScansUsed != null && monthlyScansUsed < monthlyScansLimit && (
+        <p style={{
+          marginTop: 8,
+          fontSize: 12,
+          color: monthlyScansUsed >= 8 ? "#f59e0b" : "#71717a",
+          fontWeight: monthlyScansUsed >= 8 ? 500 : 400,
+        }}>
+          {monthlyScansUsed} of {monthlyScansLimit} scans used this month
+        </p>
       )}
     </div>
   );

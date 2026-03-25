@@ -231,6 +231,32 @@ export async function POST(request: Request) {
     }
   }
 
+  // Monthly scan limit enforcement (PRO/Starter plan: 10/month)
+  if (!isPlatformAdmin) {
+    const { getWorkspacePlanAndEntitlements } = await import("@/lib/entitlements/workspace");
+    const { entitlements } = await getWorkspacePlanAndEntitlements(service, dealOrgId);
+
+    if (entitlements.maxScansPerMonth !== null) {
+      const { getMonthlyScansUsed } = await import("@/lib/usage");
+      const monthlyUsed = await getMonthlyScansUsed(service, dealOrgId);
+
+      if (monthlyUsed >= entitlements.maxScansPerMonth) {
+        return NextResponse.json(
+          {
+            error: "Monthly scan limit reached. Upgrade for unlimited scans.",
+            code: "MONTHLY_SCAN_LIMIT",
+            scans_used: monthlyUsed,
+            scans_limit: entitlements.maxScansPerMonth,
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": "86400" },
+          }
+        );
+      }
+    }
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
@@ -702,6 +728,16 @@ export async function POST(request: Request) {
       updated_at: completedAt,
     })
     .eq("id", dealId);
+
+  // Increment monthly scan usage (after successful scan finalization)
+  if (!isPlatformAdmin) {
+    const { incrementMonthlyScanUsage } = await import("@/lib/usage");
+    try {
+      await incrementMonthlyScanUsage(service, dealOrgId);
+    } catch (err) {
+      console.warn("[deal_scan] monthly_scan_usage increment failed (non-fatal):", err);
+    }
+  }
 
   const assumptionKeys = Object.keys(normalized.assumptions).length;
   console.info("[deal_scan] completed", {

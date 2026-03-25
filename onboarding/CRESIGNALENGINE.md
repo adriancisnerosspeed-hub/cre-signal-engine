@@ -32,6 +32,8 @@ Core idea:
 ### Analyze / Signal Engine
 
 - Route: `POST /api/analyze`
+- UI: `/app/signals` (authenticated, in app layout) and `/analyze` (standalone)
+- Navigation: "Signals" link in main app nav between Deals and Portfolio
 - Converts user-provided market/deal text into actionable CRE signals.
 - Signals are stored and later used in digest flows and deal-risk overlay logic.
 
@@ -156,8 +158,9 @@ Key server/business-logic hubs:
 - `058_hardening_changelog_rls` — Tightens `changelog_entries` public read policy to only published rows (`published_at IS NOT NULL AND published_at <= now()`); drops the old unrestricted `USING (true)` policy.
 - `059_add_scoring_input_hash` — Adds `scoring_input_hash TEXT` column to `deal_scans` with partial index on `(deal_id, scoring_input_hash)` where hash is not null and status is completed. Used for post-normalization scoring-input cache.
 - `060_enable_ai_insights_flag` — Enables the `ai-insights` feature flag in `feature_flags` table.
+- `061_monthly_scan_usage` — Creates `monthly_scan_usage` table (org_id, month_key, scan_count) with unique constraint on (org_id, month_key), RLS for service_role, and `upsert_monthly_scan_usage` RPC for atomic increment. Used to enforce Starter (PRO) 10 scans/month cap.
 
-Next migration file index: **061**.
+Next migration file index: **062**.
 
 ### Public marketing / lead capture (Phase 2)
 
@@ -192,7 +195,7 @@ Next migration file index: **061**.
 - **Password-protected memo shares:** `POST /api/deals/scans/[scanId]/share` accepts optional JSON `{ password }`; bcrypt hash stored in `memo_share_links.password_hash` (migration `056_memo_share_links_password`). `GET` on the same route returns `password_protected` (boolean). Viewers unlock via `POST /api/shared/memo/[token]/unlock` (sets httpOnly cookie `memo_share_unlock` using `lib/memoShareAuth.ts`; optional env **`MEMO_SHARE_COOKIE_SECRET`** — falls back to `SUPABASE_SERVICE_ROLE_KEY` if unset). `app/shared/memo/[token]/page.tsx` shows `SharedMemoPasswordForm` until unlocked; `GET /api/shared/memo/[token]` returns 401 `{ password_required: true }` unless cookie or `X-Share-Password` header matches (`lib/memoShareUnlock.ts`). `app/app/deals/[id]/ShareMemoModal.tsx` supports optional password when creating a link.
 - **Scan rate limit:** `lib/rateLimit.ts` — default **20** `deal_scans` rows per org per rolling hour (`ORG_SCAN_RATE_LIMIT_PER_HOUR`), counted before OpenAI on `POST /api/deals/scan` (skipped for `platform_admin`; does not apply to early `reused: true` responses). Returns **429** with `code: SCAN_RATE_LIMIT` and `Retry-After` header.
 - **Demo snapshot rate limit:** In-memory IP-based, 5 requests per 15 minutes per IP on `POST /api/leads/demo-snapshot`; prevents abuse of unauthenticated PDF generation + Resend email sends.
-- **Pricing drift note:** `app/pricing/page.tsx` Starter tier includes an inline note that Starter workspaces currently receive unlimited scans while marketing line may still say “10 scans / month” — enforcement remains `lib/entitlements/workspace.ts` (PRO = unlimited scans).
+- **Monthly scan limit:** Starter (PRO) workspaces are limited to 10 scans/month, enforced via `monthly_scan_usage` table (migration 061). PRO+ and ENTERPRISE have no monthly limit. Counter is displayed in UsageBanner (dashboard) and DealDetailClient (scan area). Scan route returns 429 with `MONTHLY_SCAN_LIMIT` code when at cap.
 
 ---
 
@@ -255,7 +258,8 @@ Canonical server-side source: `lib/entitlements/workspace.ts`
 
 ### Basic / Starter Users (`PRO`)
 
-- unlimited scans
+- unlimited lifetime scans
+- **10 scans per month** (enforced via `monthly_scan_usage` table + `maxScansPerMonth: 10`)
 - 3 portfolios
 - benchmark consumption enabled
 - policy features enabled
@@ -296,18 +300,16 @@ Canonical server-side source: `lib/entitlements/workspace.ts`
 
 ---
 
-## 6. Current Pricing-Copy Vs Entitlement Drift
+## 6. Pricing-Copy and Entitlement Alignment
 
-This matters. Future chats should not assume the pricing page equals enforced backend behavior.
+Pricing page copy was aligned with actual enforced entitlements (2026-03-25 session). Key corrections made:
 
-Current notable drift:
+- **Starter (PRO):** Now enforces 10 scans/month via `monthly_scan_usage` table. Pricing copy matches: "10 scans / month", "Up to 5 workspace members", "Benchmark percentiles", "Support bundle".
+- **Analyst (PRO+):** Pricing copy corrected to "Up to 10 workspace members". Added: "Supplemental AI Insights", "Methodology version lock".
+- **Fund (ENTERPRISE):** Pricing copy corrected to "Unlimited workspace members".
+- **Comparison table** updated with corrected team seats (5/10/Unlimited/Unlimited), fixed Benchmark percentiles row (✓ for all paid tiers), added rows for Support bundle, Supplemental AI Insights, Methodology version lock.
 
-- `app/pricing/page.tsx` says Starter has `10 scans / month`, but server-side entitlements currently give `PRO` unlimited scans.
-- `app/pricing/page.tsx` says Starter includes `2 workspace members`, while server-side entitlements currently give `PRO` max `5`.
-- `app/pricing/page.tsx` says Analyst includes `5 workspace members`, while server-side entitlements currently give `PRO+` max `10`.
-- `app/pricing/page.tsx` says Fund includes `Up to 10 workspace members`, while internal `ENTERPRISE` entitlements currently allow unlimited members.
-
-Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user explicitly asks to realign pricing and backend behavior.
+Treat `lib/entitlements/workspace.ts` as actual enforcement. Pricing copy should match it.
 
 ---
 
@@ -322,20 +324,23 @@ Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user expl
 
 ### Basic / Starter
 
-- full deal scanning beyond free cap
+- full deal scanning beyond free cap (10 scans/month)
 - IC-ready PDF export
 - share links
-- benchmark consumption
+- benchmark consumption (percentiles)
+- support bundle
 - one active governance policy
-- small-team collaboration
+- small-team collaboration (up to 5 members)
 
 ### Pro / Analyst
 
-- everything in Starter
+- everything in Starter + unlimited scans
 - risk trajectory
+- supplemental AI Insights
 - governance export packet
+- methodology version lock
 - richer portfolio and governance workflows
-- more policy capacity and team capacity
+- up to 3 governance policies, up to 10 members
 
 ### Fund / Enterprise Internal
 
@@ -415,10 +420,10 @@ Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user expl
 
 ## 10. Testing State
 
-- **44 test files**, 455 of 459 tests pass. 4 pre-existing failures remain (3 PricingClient jest-dom matchers, 1 invite/accept mock).
+- **45 test files**, 467 of 471 tests pass. 4 pre-existing failures remain (3 PricingClient jest-dom matchers, 1 invite/accept mock).
 - `vitest.config.ts` resolves `@/` path aliases so all library and API route tests can import modules correctly.
 - Test files live next to source: `lib/foo.ts` → `lib/foo.test.ts`.
-- Key tested modules: `riskIndex`, `deterministicInvariant`, `riskSeverityOverrides`, `bandConsistency`, `dealScanContract`, `robustness`, `modelGovernance`, `parseSignals`, `crossReferenceOverlay`/`macroRelevance`, `auth`/`apiAuth`, `rateLimit`, `usage`, `benchmark/*`, `policy/engine`, `entitlements`, `export/*`.
+- Key tested modules: `riskIndex`, `deterministicInvariant`, `riskSeverityOverrides`, `bandConsistency`, `dealScanContract`, `robustness`, `modelGovernance`, `parseSignals`, `crossReferenceOverlay`/`macroRelevance`, `auth`/`apiAuth`, `rateLimit`, `usage`, `monthlyScanLimit`, `benchmark/*`, `policy/engine`, `entitlements`, `export/*`.
 - v3 stress harness: `scripts/stressRiskIndexV2.ts` (10 scenarios + 7 assertions including completeness penalty, missing-debt-rate penalty, and trigger-text invariance).
 - Key untested areas: most API routes (92%), AI prompt templates, demo module, memo share auth, component rendering.
 - Full gap analysis and recommendations: `TEST_COVERAGE_ANALYSIS.md`.

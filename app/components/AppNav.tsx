@@ -94,6 +94,7 @@ export default function AppNav() {
       <Link href="/sample-report" className={pathname === "/sample-report" ? activeClassName : linkClassName}>Sample Report</Link>
       <Link href="/app" className={pathname === "/app" ? activeClassName : linkClassName}>Dashboard</Link>
       <Link href="/app/deals" className={pathname?.startsWith("/app/deals") ? activeClassName : linkClassName}>Deals</Link>
+      <Link href="/app/signals" className={pathname === "/app/signals" ? activeClassName : linkClassName}>Signals</Link>
       <Link href="/app/portfolio" className={pathname === "/app/portfolio" ? activeClassName : linkClassName}>Portfolio</Link>
       <Link href="/app/policy" className={pathname === "/app/policy" ? activeClassName : linkClassName}>Governance</Link>
       <Link href="/app/governance/dashboard" className={pathname?.startsWith("/app/governance") ? activeClassName : linkClassName}>Governance dashboard</Link>

@@ -8,6 +8,10 @@ describe("getWorkspaceEntitlements", () => {
       expect(e.maxLifetimeScans).toBe(3);
       expect(e.maxPortfolios).toBe(1);
     });
+    it("has no monthly scan limit (lifetime cap instead)", () => {
+      const e = getWorkspaceEntitlements("FREE");
+      expect(e.maxScansPerMonth).toBeNull();
+    });
     it("disallows benchmark, snapshot, cohort, policy, support bundle, invites", () => {
       const e = getWorkspaceEntitlements("FREE");
       expect(e.canUseBenchmark).toBe(false);
@@ -25,10 +29,11 @@ describe("getWorkspaceEntitlements", () => {
   });
 
   describe("PRO", () => {
-    it("has unlimited scans and 3 portfolios", () => {
+    it("has unlimited lifetime scans, 3 portfolios, and 10 scans/month", () => {
       const e = getWorkspaceEntitlements("PRO");
       expect(e.maxLifetimeScans).toBeNull();
       expect(e.maxPortfolios).toBe(3);
+      expect(e.maxScansPerMonth).toBe(10);
     });
     it("allows benchmark, policy, support bundle, invites; disallows snapshot, cohort", () => {
       const e = getWorkspaceEntitlements("PRO");
@@ -51,6 +56,10 @@ describe("getWorkspaceEntitlements", () => {
       const e = getWorkspaceEntitlements("PRO+");
       expect(e.maxMembers).toBe(10);
       expect(e.maxActivePoliciesPerOrg).toBe(3);
+    });
+    it("has no monthly scan limit (unlimited)", () => {
+      const e = getWorkspaceEntitlements("PRO+");
+      expect(e.maxScansPerMonth).toBeNull();
     });
     it("allows trajectory and governance export", () => {
       const e = getWorkspaceEntitlements("PRO+");
@@ -75,10 +84,11 @@ describe("getWorkspaceEntitlements", () => {
   });
 
   describe("ENTERPRISE", () => {
-    it("has unlimited scans and portfolios", () => {
+    it("has unlimited scans, portfolios, and no monthly limit", () => {
       const e = getWorkspaceEntitlements("ENTERPRISE");
       expect(e.maxLifetimeScans).toBeNull();
       expect(e.maxPortfolios).toBeNull();
+      expect(e.maxScansPerMonth).toBeNull();
     });
     it("allows all features", () => {
       const e = getWorkspaceEntitlements("ENTERPRISE");

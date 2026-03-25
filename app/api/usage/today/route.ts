@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getPlanForUser, getEntitlementsForUser } from "@/lib/entitlements";
-import { getUsageToday } from "@/lib/usage";
+import { getUsageToday, getMonthlyScansUsed } from "@/lib/usage";
+import { getCurrentOrgId } from "@/lib/org";
+import { getWorkspacePlanAndEntitlements } from "@/lib/entitlements/workspace";
 
 /** GET /api/usage/today — returns today's analyze usage and limit for the current user. Auth required. */
 export async function GET() {
@@ -26,6 +29,19 @@ export async function GET() {
   const dealScansUsed = usage.deal_scans;
   const dealScansPercent = dealScansLimit > 0 ? dealScansUsed / dealScansLimit : 0;
 
+  // Monthly scan usage for Starter (PRO) users
+  let monthlyScansUsed = 0;
+  let monthlyScansLimit: number | null = null;
+  const orgId = await getCurrentOrgId(supabase, user);
+  if (orgId) {
+    const service = createServiceRoleClient();
+    const { entitlements: wsEnt } = await getWorkspacePlanAndEntitlements(service, orgId);
+    if (wsEnt.maxScansPerMonth !== null) {
+      monthlyScansUsed = await getMonthlyScansUsed(service, orgId);
+      monthlyScansLimit = wsEnt.maxScansPerMonth;
+    }
+  }
+
   return Response.json({
     used: analyzeUsed,
     limit: analyzeLimit,
@@ -34,5 +50,7 @@ export async function GET() {
     deal_scans_used: dealScansUsed,
     deal_scans_limit: dealScansLimit,
     percent_deal_scans: dealScansPercent,
+    monthly_scans_used: monthlyScansUsed,
+    monthly_scans_limit: monthlyScansLimit,
   });
 }

@@ -564,3 +564,78 @@ New test: "NEVER falls back to AI severity when required assumptions are present
 ```
 
 Pushed to `origin/main`.
+
+---
+
+## Session 9: Pricing Alignment, Monthly Scan Limits, Signals Nav, Design Polish
+
+**Date:** 2026-03-25
+**Model:** Claude Opus 4.6
+**Scope:** Enforce 10 scans/month for Starter, align pricing copy with entitlements, add Signals nav, pricing page design polish
+
+---
+
+### Part 1: Monthly Scan Limit for Starter (PRO)
+
+- **Migration 061:** Created `monthly_scan_usage` table with (org_id, month_key) unique constraint, RLS for service_role, and `upsert_monthly_scan_usage` atomic RPC
+- **Entitlements:** Added `maxScansPerMonth: number | null` to `WorkspaceEntitlements` — FREE=null, PRO=10, PRO+=null, ENTERPRISE=null
+- **Usage helpers:** Added `getMonthlyScansUsed()` and `incrementMonthlyScanUsage()` to `lib/usage.ts`
+- **Error code:** Added `MONTHLY_SCAN_LIMIT` to `ENTITLEMENT_ERROR_CODES`
+- **Scan route enforcement:** Pre-check before OpenAI call returns 429 when at limit; post-scan increment after finalization (non-fatal). Platform admin bypasses both.
+- **UI scan counter:**
+  - Deal detail: Shows "X of 10 scans used this month" below scan button (amber at 8+). At limit, replaces scan button with upgrade CTA.
+  - Dashboard UsageBanner: Monthly scan info with warning at 8+, blocking at 10.
+  - Usage API: Extended `/api/usage/today` with `monthly_scans_used` and `monthly_scans_limit`
+
+### Part 2: Pricing Page Feature Alignment
+
+Fixed ALL pricing copy to match actual `lib/entitlements/workspace.ts`:
+- **Starter:** "Up to 5 workspace members" (was 2), removed unlimited scans disclaimer, added "Benchmark percentiles" and "Support bundle"
+- **Analyst:** "Up to 10 workspace members" (was 5), added "Supplemental AI Insights" and "Methodology version lock"
+- **Fund:** "Unlimited workspace members" (was 10)
+- **Comparison table:** Fixed Team seats (5/10/Unlimited/Unlimited), fixed Benchmark percentiles (✓ for Starter — single unified feature), added 3 new rows (Support bundle, AI Insights, Methodology version lock)
+
+### Part 3: Signals Navigation
+
+- Created `/app/signals` page under app layout (imports existing AnalyzePage client component)
+- Added "Signals" link in AppNav between Deals and Portfolio
+
+### Part 4: Pricing Page Design Polish
+
+- Colored top borders per tier: gray (Starter), blue (Analyst), purple (Fund), zinc (Enterprise)
+- Glassmorphism gradient on Analyst card (`bg-gradient-to-br from-blue-50/80 to-white dark:from-blue-950/30 dark:to-zinc-900 backdrop-blur-sm`)
+- Increased card padding (`py-7 px-8`), feature list spacing (`space-y-1.5 leading-relaxed`)
+- Comparison table: increased cell padding (14px 20px), stronger alternating rows, brighter Analyst column highlight
+- Founding Member: upgraded to `border-2`, added "14 of 20 founding spots remaining" text
+
+### Tests
+
+- Updated `lib/entitlements/workspace.test.ts`: added `maxScansPerMonth` assertions for all 4 tiers
+- Created `lib/monthlyScanLimit.test.ts`: 8 tests covering limit enforcement logic, month_key format, counter reset, trial users
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `supabase/migrations/061_monthly_scan_usage.sql` | Monthly scan tracking table + RPC |
+| `lib/monthlyScanLimit.test.ts` | Monthly scan limit tests |
+| `app/app/signals/page.tsx` | Signals page in app layout |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `lib/entitlements/workspace.ts` | Add `maxScansPerMonth` to interface + all plan cases |
+| `lib/entitlements/errors.ts` | Add `MONTHLY_SCAN_LIMIT` error code |
+| `lib/usage.ts` | Add monthly scan helpers |
+| `app/api/deals/scan/route.ts` | Monthly limit pre-check + post-scan increment |
+| `app/api/usage/today/route.ts` | Add monthly scan data to response |
+| `app/app/UsageBanner.tsx` | Monthly scan counter display |
+| `app/app/deals/[id]/page.tsx` | Pass monthly scan data to DealDetailClient |
+| `app/app/deals/[id]/DealDetailClient.tsx` | MONTHLY_SCAN_LIMIT handler + scan counter + upgrade CTA |
+| `lib/entitlements/workspace.test.ts` | Add maxScansPerMonth assertions |
+| `app/pricing/page.tsx` | Fix feature copy + design polish |
+| `app/pricing/PricingComparisonTable.tsx` | Fix rows + add rows + styling |
+| `app/components/AppNav.tsx` | Add Signals link |
+| `onboarding/CRESIGNALENGINE.md` | Updated docs |
+| `onboarding/Claude.md` | This session log |

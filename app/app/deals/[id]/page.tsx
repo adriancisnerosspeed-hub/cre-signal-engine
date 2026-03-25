@@ -130,6 +130,15 @@ export default async function DealPage({
   const canUseTrajectory = workspaceEntitlements.canUseTrajectory;
   const showAiInsightsPanel = workspaceEntitlements.canUseAiInsights && aiInsightsFlag;
 
+  // Monthly scan counter for Starter (PRO) users
+  let monthlyScansUsed: number | undefined;
+  let monthlyScansLimit: number | null | undefined;
+  if (workspaceEntitlements.maxScansPerMonth !== null) {
+    const { getMonthlyScansUsed } = await import("@/lib/usage");
+    monthlyScansUsed = await getMonthlyScansUsed(service, orgId);
+    monthlyScansLimit = workspaceEntitlements.maxScansPerMonth;
+  }
+
   let narrativeContent: string | null = null;
   if (d.latest_scan_id) {
     const { data: narrativeRow } = await supabase
@@ -319,6 +328,8 @@ export default async function DealPage({
             workspaceId={orgId}
             justUpdatedInputs={justUpdatedInputs}
             isOwner={ownerMode}
+            monthlyScansUsed={monthlyScansUsed}
+            monthlyScansLimit={monthlyScansLimit}
           />
         </div>
       </div>

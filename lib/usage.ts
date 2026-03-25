@@ -69,6 +69,42 @@ export async function incrementDealScanUsage(
   if (error) throw error;
 }
 
+// --- Monthly scan tracking (Starter/PRO plan: 10/month cap) ---
+
+function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Get current month's scan count for an org. Use service role client. */
+export async function getMonthlyScansUsed(
+  supabase: SupabaseClient,
+  orgId: string
+): Promise<number> {
+  const monthKey = currentMonthKey();
+  const { data } = await supabase
+    .from("monthly_scan_usage")
+    .select("scan_count")
+    .eq("org_id", orgId)
+    .eq("month_key", monthKey)
+    .maybeSingle();
+  return (data as { scan_count?: number } | null)?.scan_count ?? 0;
+}
+
+/** Atomically increment monthly scan usage for an org. Returns new count. Use service role client. */
+export async function incrementMonthlyScanUsage(
+  supabase: SupabaseClient,
+  orgId: string
+): Promise<number> {
+  const monthKey = currentMonthKey();
+  const { data, error } = await supabase.rpc("upsert_monthly_scan_usage", {
+    p_org_id: orgId,
+    p_month_key: monthKey,
+  });
+  if (error) throw error;
+  return (data as number) ?? 0;
+}
+
 /** Get lifetime full scans used (Free plan cap). Requires client with read access to profiles. */
 export async function getTotalFullScansUsed(
   supabase: SupabaseClient,
