@@ -54,7 +54,7 @@ npm run test:watch   # Vitest watch mode
 
 ### Current State
 
-- **43 test files** covering **256 source files**, **402 of 406 tests passing**
+- **44 test files** covering **256 source files**, **455 of 459 tests passing**
 - `vitest.config.ts` configures `@/` path alias for module resolution
 - 4 pre-existing test failures remain: `PricingClient.test.tsx` (3 — missing jest-dom matchers) and `invite/accept/route.test.ts` (1 — incomplete mock)
 - Tests use Vitest 2.0 with `@testing-library/react` and `jsdom` for component tests
@@ -79,7 +79,8 @@ npm run test:watch   # Vitest watch mode
 - `lib/usage.test.ts` — 15 tests (daily usage tracking, RPC calls)
 - `lib/deterministicInvariant.test.ts` — 8 tests (v3 scoring invariants: order, trigger-text, monotonicity)
 - `lib/riskIndex.test.ts` — 8 tests (v3 determinism, bands, completeness/debt-rate penalties)
-- `lib/riskSeverityOverrides.test.ts` — 10 tests (all deterministic override rules)
+- `lib/riskSeverityOverrides.test.ts` — 18 tests (all deterministic override rules + DataMissing removal + reference building determinism)
+- `lib/riskInjection.test.ts` — 30 tests (7 injection rules, boundary cases, 20-run determinism, full integration)
 - `lib/bandConsistency.test.ts` — 4 tests (v3 band boundary consistency)
 - `lib/robustness.test.ts` — 41 tests (stress scenarios, invariance, monotonicity, PDF output)
 
