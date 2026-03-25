@@ -40,17 +40,28 @@ export function applySeverityOverride(
         if (ltv >= 75) return "Medium";
         if (ltv >= 65 && debtRate != null && debtRate > 6.5) return "Medium";
         if (ltv >= 60 && debtRate != null && debtRate >= 6.0) return "Low";
+        return "Low"; // LTV present but below all thresholds → Low floor
       }
       break;
 
     case "RefiRisk":
+      if (ltv != null && holdPeriodYears != null && debtRate != null) {
+        if (ltv >= 75 && holdPeriodYears <= 3) return "High";
+        if (ltv >= 70 && holdPeriodYears <= 5 && debtRate >= 6.5) return "Medium";
+        if (ltv < 70 && debtRate >= 6.5 && holdPeriodYears <= 5) return "Medium";
+        return "Low"; // all three values present but below all thresholds → Low floor
+      }
+      // Partial data: LTV + hold without debt_rate
       if (ltv != null && holdPeriodYears != null) {
         if (ltv >= 75 && holdPeriodYears <= 3) return "High";
-        if (ltv >= 70 && holdPeriodYears <= 5 && debtRate != null && debtRate >= 6.5) return "Medium";
-        if (ltv >= 70 && holdPeriodYears <= 5 && (debtRate == null || debtRate < 6.5)) return "Low";
+        if (ltv >= 70 && holdPeriodYears <= 5) return "Low";
+        return "Low";
       }
-      // Fallback: LTV < 70 but debt_rate alone signals refi pressure
-      if (debtRate != null && debtRate >= 6.5 && holdPeriodYears != null && holdPeriodYears <= 5) return "Medium";
+      // Partial data: debt_rate + hold without LTV
+      if (debtRate != null && holdPeriodYears != null) {
+        if (debtRate >= 6.5 && holdPeriodYears <= 5) return "Medium";
+        return "Low";
+      }
       break;
 
     case "VacancyUnderstated":
@@ -59,6 +70,7 @@ export function applySeverityOverride(
         if (vacancy >= 10) return "Medium";
         if (vacancy >= 5 && context?.hasConstructionKeywords) return "Medium"; // construction bumps up
         if (vacancy >= 5) return "Low";
+        return "Low"; // vacancy present but < 5 → Low floor
       }
       break;
 
@@ -66,7 +78,7 @@ export function applySeverityOverride(
       if (rentGrowth != null) {
         if (rentGrowth >= 8.0) return "High";
         if (rentGrowth >= 5.0) return "Medium";
-        if (rentGrowth >= 3.0) return "Low";
+        return "Low"; // rent_growth present → Low floor (< 5% is not aggressive)
       }
       break;
 
@@ -76,7 +88,7 @@ export function applySeverityOverride(
         if (spread <= -0.5) return "High";
         if (spread <= 0) return "Medium";
         if (spread <= 0.5) return "Low";
-        // spread > 0.5 → risk should be removed (handled by shouldRemoveExitCapCompression)
+        return "Low"; // spread > 0.5 → should be removed, but if still present force Low (never AI)
       }
       break;
 
@@ -86,7 +98,7 @@ export function applySeverityOverride(
       if (expenseGrowth != null) {
         if (expenseGrowth < 2.0) return "Medium";
         if (expenseGrowth < 3.0) return "Low";
-        // >= 3.0 → risk should be removed (handled by shouldRemoveExpenseUnderstated)
+        return "Low"; // >= 3.0 → should be removed, but if still present force Low (never AI)
       }
       break;
 

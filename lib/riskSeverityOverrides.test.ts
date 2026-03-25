@@ -35,11 +35,11 @@ describe("applySeverityOverride", () => {
       ltv: { value: 62, unit: "%", confidence: "High" },
       debt_rate: { value: 6.0, unit: "%", confidence: "High" },
     })).toBe("Low");
-    // Fallback: LTV 55 → AI severity
+    // LTV 55 below all thresholds → Low floor (never AI fallback when LTV present)
     expect(applySeverityOverride("DebtCostRisk", "High", {
       ltv: { value: 55, unit: "%", confidence: "High" },
       debt_rate: { value: 7.0, unit: "%", confidence: "High" },
-    })).toBe("High");
+    })).toBe("Low");
     // LTV >= 65 but debt_rate <= 6.5 → AI severity (no Medium match)
     expect(applySeverityOverride("DebtCostRisk", "Low", {
       ltv: { value: 68, unit: "%", confidence: "High" },
@@ -92,12 +92,12 @@ describe("applySeverityOverride", () => {
       hold_period_years: { value: 3, unit: "years", confidence: "High" },
       debt_rate: { value: 7.0, unit: "%", confidence: "High" },
     })).toBe("Medium");
-    // No fallback: debt_rate < 6.5 → AI severity
+    // All three present, below all thresholds → Low floor (never AI fallback)
     expect(applySeverityOverride("RefiRisk", "High", {
       ltv: { value: 68, unit: "%", confidence: "High" },
       hold_period_years: { value: 5, unit: "years", confidence: "High" },
       debt_rate: { value: 6.0, unit: "%", confidence: "High" },
-    })).toBe("High");
+    })).toBe("Low");
   });
 
   /* ================================================================
@@ -116,10 +116,10 @@ describe("applySeverityOverride", () => {
     expect(applySeverityOverride("VacancyUnderstated", "High", {
       vacancy: { value: 7, unit: "%", confidence: "High" },
     })).toBe("Low");
-    // Below 5: AI severity
+    // Below 5: Low floor (never AI fallback when vacancy present)
     expect(applySeverityOverride("VacancyUnderstated", "High", {
       vacancy: { value: 3, unit: "%", confidence: "High" },
-    })).toBe("High");
+    })).toBe("Low");
     // No data: AI severity
     expect(applySeverityOverride("VacancyUnderstated", "Medium", {})).toBe("Medium");
   });
@@ -158,7 +158,7 @@ describe("applySeverityOverride", () => {
     expect(applySeverityOverride("RentGrowthAggressive", "Low", h)).toBe("High");    // >= 8.0
     expect(applySeverityOverride("RentGrowthAggressive", "High", m)).toBe("Medium");  // >= 5.0
     expect(applySeverityOverride("RentGrowthAggressive", "High", l)).toBe("Low");     // >= 3.0
-    expect(applySeverityOverride("RentGrowthAggressive", "High", below)).toBe("High"); // < 3.0 → aiSeverity
+    expect(applySeverityOverride("RentGrowthAggressive", "High", below)).toBe("Low"); // < 3.0 → Low floor (never AI fallback)
   });
 
   it("RentGrowthAggressive: uses AI severity when no rent_growth", () => {
@@ -185,11 +185,11 @@ describe("applySeverityOverride", () => {
       exit_cap: { value: 6.1, unit: "%", confidence: "High" },
       cap_rate_in: { value: 5.6, unit: "%", confidence: "High" },
     })).toBe("Low");
-    // Spread > 0.5 → aiSeverity (removal handled separately)
+    // Spread > 0.5 → Low floor (should be removed, but if present never AI fallback)
     expect(applySeverityOverride("ExitCapCompression", "High", {
       exit_cap: { value: 6.5, unit: "%", confidence: "High" },
       cap_rate_in: { value: 5.5, unit: "%", confidence: "High" },
-    })).toBe("High");
+    })).toBe("Low");
   });
 
   /* ================================================================
@@ -202,10 +202,10 @@ describe("applySeverityOverride", () => {
     expect(applySeverityOverride("ExpenseUnderstated", "High", {
       expense_growth: { value: 2.8, unit: "%", confidence: "Medium" },
     })).toBe("Low");     // >= 2.0 AND < 3.0
-    // >= 3.0 → aiSeverity (removal handled separately)
+    // >= 3.0 → Low floor (should be removed, but if present never AI fallback)
     expect(applySeverityOverride("ExpenseUnderstated", "High", {
       expense_growth: { value: 3.5, unit: "%", confidence: "Low" },
-    })).toBe("High");
+    })).toBe("Low");
   });
 
   it("ExpenseUnderstated: missing expense_growth with NOI present → Medium", () => {
@@ -275,6 +275,41 @@ describe("applySeverityOverride", () => {
       ltv: { value: 70, unit: "%", confidence: "High" },
       vacancy: { value: 10, unit: "%", confidence: "High" },
     })).toBe("High");
+  });
+
+  /* ================================================================
+   * No AI fallback when assumptions present (stress test)
+   * ================================================================ */
+  it("NEVER falls back to AI severity when required assumptions are present", () => {
+    const assumptions: DealScanAssumptions = {
+      purchase_price: { value: 12_000_000, unit: "USD", confidence: "High" },
+      noi_year1: { value: 660_000, unit: "USD", confidence: "High" },
+      cap_rate_in: { value: 5.6, unit: "%", confidence: "High" },
+      exit_cap: { value: 6.1, unit: "%", confidence: "High" },
+      vacancy: { value: 7, unit: "%", confidence: "High" },
+      ltv: { value: 68, unit: "%", confidence: "High" },
+      debt_rate: { value: 6.85, unit: "%", confidence: "High" },
+      rent_growth: { value: 3.5, unit: "%", confidence: "High" },
+      hold_period_years: { value: 5, unit: "years", confidence: "High" },
+      expense_growth: { value: 2.8, unit: "%", confidence: "High" },
+    };
+    const context = { hasConstructionKeywords: true };
+    const severities = ["Low", "Medium", "High"];
+    const riskTypes = [
+      "DebtCostRisk", "RefiRisk", "VacancyUnderstated",
+      "RentGrowthAggressive", "ExitCapCompression", "ExpenseUnderstated",
+      "ConstructionTimingRisk", "InsuranceRisk", "MarketLiquidityRisk",
+    ];
+    // For each risk type, run 20 times with randomized AI severity
+    // and verify the output is ALWAYS the same
+    for (const riskType of riskTypes) {
+      const results = new Set<string>();
+      for (let i = 0; i < 20; i++) {
+        const aiSev = severities[Math.floor(Math.random() * 3)];
+        results.add(applySeverityOverride(riskType, aiSev, assumptions, context));
+      }
+      expect(results.size).toBe(1); // must produce exactly one unique result
+    }
   });
 
   /* ================================================================
