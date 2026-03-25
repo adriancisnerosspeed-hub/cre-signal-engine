@@ -2,71 +2,94 @@
 
 ## Overview
 
-- **Free**: 10 analyzes/day, manual digest (up to 6 signals), no scheduled digest.
-- **Pro**: 200 analyzes/day, manual + scheduled digest, up to 12 signals per email.
-- **Owner** (OWNER_EMAIL): Bypasses limits; same as Pro for features.
+Plan is stored in `organizations.plan` (`FREE` | `PRO` | `PRO+` | `ENTERPRISE`). Stripe webhook updates `organizations.plan` when a subscription is created/updated/deleted.
 
-Plan is stored in `profiles.role` (`free` | `pro` | `owner`). Stripe webhook updates `profiles.role` when a subscription is created/updated/deleted.
+### Plan Tiers
 
-## Environment variables (Vercel / .env.local)
+| User-Facing | Internal Slug | Key Limits |
+|-------------|---------------|------------|
+| Free | `FREE` | 3 lifetime scans, 1 member |
+| Starter | `PRO` | 10 scans/month, 5 members |
+| Analyst | `PRO+` | Unlimited scans, 10 members, trajectory, AI insights |
+| Fund / Enterprise | `ENTERPRISE` | Unlimited everything |
+
+### 7-Day Starter Trial
+
+New organizations automatically receive a 7-day trial of Starter (PRO) features:
+- `organizations.trial_ends_at` = signup time + 7 days
+- `organizations.trial_plan` = `'PRO'`
+- The `plan` column stays `'FREE'` — trial is an overlay resolved by `lib/entitlements/workspace.ts`
+- When `trial_ends_at > now()` AND `trial_plan` is set AND `plan = 'FREE'`, PRO entitlements apply
+- Trial automatically expires (no cron needed)
+- Stripe subscription activation clears trial fields (`trial_ends_at = NULL, trial_plan = NULL`)
+
+### Annual Billing
+
+Annual plans offer 20% savings (except Founding Member — same price).
+
+| Plan | Monthly | Annual (per month) | Annual Total |
+|------|---------|-------------------|--------------|
+| Starter | $97/mo | $78/mo | $936/yr |
+| Analyst | $297/mo | $238/mo | $2,856/yr |
+| Fund | $797/mo | $638/mo | $7,656/yr |
+| Founding | $147/mo | $147/mo | $1,764/yr |
+
+## Environment Variables (Vercel / .env.local)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `STRIPE_SECRET_KEY` | Yes | Stripe secret key (server-only). |
 | `STRIPE_WEBHOOK_SECRET` | Yes | Webhook signing secret for `POST /api/stripe/webhook`. |
-| `STRIPE_PRICE_ID_STARTER` | Yes | Stripe Price ID for Starter tier monthly (e.g. `price_xxx`). Maps to plan `PRO`. |
-| `STRIPE_PRICE_ID_ANALYST` | Optional | Stripe Price ID for Analyst tier monthly. When set, webhook maps this price to plan `PRO+`. |
-| `STRIPE_PRICE_ID_FUND` | Optional | Stripe Price ID for Fund tier monthly. When set, webhook maps this price to plan `ENTERPRISE`. |
+| `STRIPE_PRICE_ID_STARTER` | Yes | Stripe Price ID for Starter monthly. Maps to plan `PRO`. |
+| `STRIPE_PRICE_ID_ANALYST` | Yes | Stripe Price ID for Analyst monthly. Maps to plan `PRO+`. |
+| `STRIPE_PRICE_ID_FUND` | Yes | Stripe Price ID for Fund monthly. Maps to plan `ENTERPRISE`. |
+| `STRIPE_PRICE_ID_FOUNDING` | Yes | Stripe Price ID for Founding Member monthly. Maps to plan `PRO+`. |
+| `STRIPE_STARTER_ANNUAL_PRICE_ID` | Optional | Stripe Price ID for Starter annual. Maps to plan `PRO`. |
+| `STRIPE_ANALYST_ANNUAL_PRICE_ID` | Optional | Stripe Price ID for Analyst annual. Maps to plan `PRO+`. |
+| `STRIPE_FUND_ANNUAL_PRICE_ID` | Optional | Stripe Price ID for Fund annual. Maps to plan `ENTERPRISE`. |
+| `STRIPE_FOUNDING_ANNUAL_PRICE_ID` | Optional | Stripe Price ID for Founding Member annual. Maps to plan `PRO+`. |
 | `NEXT_PUBLIC_APP_URL` | Recommended | Root domain for checkout/portal return URLs (e.g. `https://yourdomain.com`). No trailing slash. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Used by webhook and analyze (usage_daily writes). |
-| `OWNER_EMAIL` | Optional | Email that gets owner role (bypass). |
 
-## Public routes and Stripe verification
+## Public Routes and Stripe Verification
 
 - **Do not** enable Vercel Password Protection, Deployment Protection, or Vercel Authentication on the production deployment. Stripe (and bots) need to reach `/` with no cookies and get the full landing page with no redirects.
 - Public routes (no auth): `/`, `/pricing`, `/login`, `/terms`, `/privacy`, `/auth/callback`. API: `/api/stripe/webhook`.
 - See `lib/publicRoutes.ts` for the allowlist. Middleware must not redirect these paths.
 
-## Stripe Dashboard setup
+## Stripe Dashboard Setup
 
 1. **Products & prices**
-   - Create a Product (e.g. "CRE Signal Engine Pro").
-   - Add a recurring Price (monthly), copy the Price ID → `STRIPE_PRICE_ID_STARTER`.
+   - Create Products for each tier (Starter, Analyst, Fund, Founding Member).
+   - Add monthly and/or annual recurring Prices per product.
+   - Copy Price IDs to the corresponding env vars.
 
 2. **Customers**
-   - Customers are created on first checkout via `POST /api/stripe/checkout`; no manual creation needed.
+   - Customers are created on first checkout via `POST /api/billing/create-checkout-session`; no manual creation needed.
 
 3. **Webhooks**
-   - Developers → Webhooks → Add endpoint.
+   - Developers -> Webhooks -> Add endpoint.
    - URL: `https://your-app.vercel.app/api/stripe/webhook`.
    - Events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`.
-   - Copy the signing secret → `STRIPE_WEBHOOK_SECRET`.
+   - Copy the signing secret -> `STRIPE_WEBHOOK_SECRET`.
 
 4. **Billing portal**
-   - Settings → Billing → Customer portal: configure as needed (e.g. allow cancel).
+   - Settings -> Billing -> Customer portal: configure as needed (e.g. allow cancel, plan switching).
 
 ## Supabase
 
-1. Run migration **004_billing_stripe_usage.sql** (creates `stripe_customers`, `subscriptions`, `usage_daily`; RLS as in the file).
-2. `profiles.role` is the source of truth for plan; webhook sets it to `pro` or `free`.
+- `organizations.plan` is the source of truth for entitlements; webhook sets it.
+- `organizations.trial_ends_at` and `organizations.trial_plan` enable the 7-day trial overlay.
+- Price-to-plan mapping: `lib/stripeWebhookPlan.ts` (handles both monthly and annual price IDs).
 
-## API routes
+## API Routes
 
-- **POST /api/stripe/checkout** (auth required): Creates or reuses Stripe customer, returns Checkout session URL for Pro.
+- **POST /api/billing/create-checkout-session** (auth required): Creates Stripe checkout session. Accepts `{ plan, workspace_id, interval }` where interval is `"monthly"` or `"annual"`.
 - **POST /api/stripe/portal** (auth required): Returns Billing portal session URL.
-- **POST /api/stripe/webhook** (no auth; verify Stripe signature): Updates `subscriptions` and `profiles.role`.
+- **POST /api/stripe/webhook** (no auth; verify Stripe signature): Updates `organizations.plan` and clears trial fields on subscription activation.
 
 ## Enforcement
 
-- **Analyze**: Before running, checks `usage_daily` for today; if `analyze_calls >= entitlements.analyze_calls_per_day` returns 429 with `upgrade_url`.
-- **Digest manual send**: Allowed for Free (cap 6 signals). Uses `entitlements.email_digest_max_signals`.
-- **Digest scheduled (cron)**: Only users with `profiles.role` in (`pro`, `owner`) are processed; others are skipped and logged.
-
-## Manual test checklist
-
-1. **Free daily limit**: As free user, call analyze 11 times in a day → 11th returns 429 with upgrade CTA.
-2. **Checkout**: Click Upgrade to Pro → completes Stripe Checkout → webhook sets `profiles.role` to `pro`.
-3. **Pro analyze**: As Pro, exceed 10 analyzes in a day → requests succeed up to 200.
-4. **Scheduled digest**: Set digest time; run cron; Free user skipped (log), Pro user receives email.
-5. **Billing portal**: As Pro, click Manage billing → Stripe portal opens; can cancel.
-6. **Cancel → free**: After canceling, when subscription ends (or webhook `customer.subscription.deleted`), `profiles.role` is set back to `free`.
+- **Scan cap:** `monthly_scan_usage` table with `upsert_monthly_scan_usage` RPC for atomic counting. PRO = 10/month. Enforced in scan route before OpenAI call.
+- **Lifetime cap:** FREE = 3 scans, enforced by `create_deal_scan_with_usage_check` RPC (trial-aware since migration 062).
+- **Trial:** Entitlements layer resolves trial overlay. RPC also trial-aware to prevent FREE cap blocking trial users.

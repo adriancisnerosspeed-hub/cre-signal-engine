@@ -228,6 +228,8 @@ async function updateOrgFromSubscription(
       stripe_subscription_id: sub.id,
       stripe_price_id: priceId,
       updated_at: new Date().toISOString(),
+      trial_ends_at: null,
+      trial_plan: null,
     };
     if (before && (before as { billing_status?: string }).billing_status !== billingStatus) {
       await supabase.from("billing_audit_log").insert({
@@ -272,6 +274,8 @@ async function updateOrgFromSubscription(
     stripe_subscription_id: sub.id,
     stripe_price_id: priceId,
     updated_at: new Date().toISOString(),
+    trial_ends_at: null,
+    trial_plan: null,
   };
   if (billingStatus === "active" || billingStatus === "trialing") {
     updates.plan_activated_at = new Date().toISOString();

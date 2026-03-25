@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { plan?: string; workspace_id?: string };
+  let body: { plan?: string; workspace_id?: string; interval?: string };
   try {
     body = await request.json().catch(() => ({}));
   } catch {
@@ -27,6 +27,7 @@ export async function POST(request: Request) {
         : body.plan === "FOUNDING"
           ? "FOUNDING"
           : "PRO";
+  const interval = body.interval === "annual" ? "annual" : "monthly";
   let workspaceId = typeof body.workspace_id === "string" ? body.workspace_id.trim() : null;
   if (!workspaceId) {
     workspaceId = await getCurrentOrgId(supabase, user);
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }
 
-  const priceId =
+  const monthlyPriceId =
     plan === "ENTERPRISE"
       ? process.env.STRIPE_PRICE_ID_FUND
       : plan === "PRO+"
@@ -53,6 +54,16 @@ export async function POST(request: Request) {
         : plan === "FOUNDING"
           ? process.env.STRIPE_PRICE_ID_FOUNDING
           : process.env.STRIPE_PRICE_ID_STARTER;
+  const annualPriceId =
+    plan === "ENTERPRISE"
+      ? process.env.STRIPE_FUND_ANNUAL_PRICE_ID
+      : plan === "PRO+"
+        ? process.env.STRIPE_ANALYST_ANNUAL_PRICE_ID
+        : plan === "FOUNDING"
+          ? process.env.STRIPE_FOUNDING_ANNUAL_PRICE_ID
+          : process.env.STRIPE_STARTER_ANNUAL_PRICE_ID;
+  // Use annual price if requested and available, otherwise fall back to monthly
+  const priceId = interval === "annual" && annualPriceId ? annualPriceId : monthlyPriceId;
   if (!priceId) {
     return NextResponse.json({ error: "Stripe not configured for this plan" }, { status: 500 });
   }

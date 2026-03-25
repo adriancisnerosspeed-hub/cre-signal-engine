@@ -9,6 +9,9 @@ import { getActiveTestimonials } from "@/lib/marketing/testimonials";
 import { getSiteUrl } from "@/lib/site";
 import PricingClient from "./PricingClient";
 import PricingComparisonTable from "./PricingComparisonTable";
+import PricingPriceLabel from "./PricingPriceLabel";
+import BillingIntervalToggle from "./BillingIntervalToggle";
+import { BillingIntervalProvider } from "./BillingIntervalContext";
 
 export const metadata: Metadata = {
   title: "Pricing & Plans",
@@ -35,16 +38,26 @@ export default async function PricingPage() {
   const orgId = user ? await getCurrentOrgId(supabase, user) : null;
 
   let workspacePlan: string | null = null;
+  let isTrialing = false;
+  let trialExpired = false;
   if (orgId) {
     const { data: org } = await supabase
       .from("organizations")
-      .select("plan")
+      .select("plan, trial_ends_at, trial_plan")
       .eq("id", orgId)
       .maybeSingle();
-    workspacePlan = (org as { plan?: string } | null)?.plan ?? null;
+    const orgRow = org as { plan?: string; trial_ends_at?: string | null; trial_plan?: string | null } | null;
+    workspacePlan = orgRow?.plan ?? null;
+    if (orgRow?.trial_ends_at && orgRow?.trial_plan && workspacePlan === "FREE") {
+      const remaining = Math.ceil((new Date(orgRow.trial_ends_at).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+      isTrialing = remaining > 0;
+      trialExpired = remaining <= 0;
+    }
   }
 
-  const displayPlan = getDisplayPlan(profilePlan, workspacePlan);
+  // Trialing users see effective plan for display purposes
+  const effectiveWorkspacePlan = isTrialing ? "PRO" : workspacePlan;
+  const displayPlan = getDisplayPlan(profilePlan, effectiveWorkspacePlan);
 
   const checkoutAvailable = [
     process.env.STRIPE_PRICE_ID_STARTER,
@@ -53,184 +66,215 @@ export default async function PricingPage() {
     process.env.STRIPE_PRICE_ID_FOUNDING,
   ].every((v) => typeof v === "string" && v.trim() !== "");
 
+  // Show annual toggle if at least one annual price ID is configured
+  const hasAnnualPricing = [
+    process.env.STRIPE_STARTER_ANNUAL_PRICE_ID,
+    process.env.STRIPE_ANALYST_ANNUAL_PRICE_ID,
+    process.env.STRIPE_FUND_ANNUAL_PRICE_ID,
+    process.env.STRIPE_FOUNDING_ANNUAL_PRICE_ID,
+  ].some((v) => typeof v === "string" && v.trim() !== "");
+
   return (
-    <main className="max-w-[780px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
-      <h1 className="text-[28px] font-bold text-gray-900 dark:text-white mb-2">
-        CRE Signal Engine — Plans
-      </h1>
-      <p className="text-gray-500 dark:text-gray-400 mb-8">
-        Built for underwriting teams deploying real capital.
-      </p>
+    <BillingIntervalProvider>
+      <main className="max-w-[780px] mx-auto p-6 bg-white dark:bg-black text-gray-900 dark:text-white">
+        <h1 className="text-[28px] font-bold text-gray-900 dark:text-white mb-2">
+          CRE Signal Engine — Plans
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 mb-8">
+          Built for underwriting teams deploying real capital.
+        </p>
 
-      <section className="mb-10" aria-label="Customer testimonials">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-200 mb-3">
-          What operators say
-        </h2>
-        <TestimonialCarousel testimonials={testimonials} compact />
-      </section>
-
-      <div className="flex flex-col gap-6">
-        {/* Starter — $97/mo */}
-        <section
-          className={`py-7 px-8 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-t-4 border-t-gray-400 dark:border-t-zinc-500 ${displayPlan === "pro" ? "border-2 border-[#3b82f6] border-t-4 border-t-gray-400 dark:border-t-zinc-500" : "border-gray-300 dark:border-zinc-600"}`}
-        >
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
-            Starter
+        <section className="mb-10" aria-label="Customer testimonials">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-200 mb-3">
+            What operators say
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">
-            $97 / workspace / month
-          </p>
-          <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
-            For individual underwriters and small teams getting started with risk governance.
-          </p>
-          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
-            <li>10 scans / month</li>
-            <li>Full CRE Signal Risk Index™</li>
-            <li>IC-ready PDF export</li>
-            <li>Share links</li>
-            <li>Benchmark percentiles</li>
-            <li>1 active governance policy</li>
-            <li>Up to 5 workspace members</li>
-            <li>Support bundle</li>
-          </ul>
-          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro" checkoutAvailable={checkoutAvailable} />
+          <TestimonialCarousel testimonials={testimonials} compact />
         </section>
 
-        {/* Analyst — $297/mo */}
-        <section
-          className="relative py-7 px-8 rounded-xl bg-gradient-to-br from-blue-50/80 to-white dark:from-blue-950/30 dark:to-zinc-900 border-2 border-[#3b82f6] border-t-4 border-t-blue-500 backdrop-blur-sm"
-        >
-          <div className="absolute -top-3 left-6 bg-[#3b82f6] text-white text-[11px] font-bold py-0.5 px-2.5 rounded uppercase tracking-wider">
-            Most Popular
+        {hasAnnualPricing && (
+          <div className="flex justify-center mb-6">
+            <BillingIntervalToggle />
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
-            Analyst
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">
-            $297 / workspace / month
-          </p>
-          <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
-            For active underwriting teams who need trajectory, benchmarks, and governance controls.
-          </p>
-          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
-            <li>Unlimited scans</li>
-            <li>Everything in Starter</li>
-            <li>Risk score trajectory (over time)</li>
-            <li>Benchmark percentiles</li>
-            <li>Supplemental AI Insights</li>
-            <li>Up to 3 active governance policies</li>
-            <li>Up to 10 workspace members</li>
-            <li>Governance export packet</li>
-            <li>Methodology version lock</li>
-          </ul>
-          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro_plus" checkoutAvailable={checkoutAvailable} />
-        </section>
+        )}
 
-        {/* Fund — $797/mo */}
-        <section
-          className={`py-7 px-8 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-t-4 border-t-purple-500 ${displayPlan === "enterprise" ? "border-2 border-[#3b82f6] border-t-4 border-t-purple-500" : "border-gray-300 dark:border-zinc-600"}`}
-        >
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
-            Fund
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">
-            $797 / workspace / month
-          </p>
-          <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
-            For funds and institutional platforms managing multiple strategies.
-          </p>
-          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
-            <li>Everything in Analyst</li>
-            <li>Custom cohort creation</li>
-            <li>Snapshot build control</li>
-            <li>Unlimited governance policies</li>
-            <li>Unlimited workspace members</li>
-            <li>Contract-level SLA</li>
-            <li>Priority support</li>
-          </ul>
-          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise" checkoutAvailable={checkoutAvailable} />
-        </section>
-
-        {/* Enterprise — Custom */}
-        <section
-          className={`py-7 px-8 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-t-4 border-t-zinc-600 dark:border-t-zinc-400 ${displayPlan === "platform_admin" || displayPlan === "enterprise" ? "border-2 border-[#3b82f6] border-t-4 border-t-zinc-600 dark:border-t-zinc-400" : "border-gray-300 dark:border-zinc-600"}`}
-        >
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
-            Enterprise
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">Custom pricing</p>
-          <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
-            For multi-strategy portfolios requiring API access, custom reporting, and enterprise SLA.
-          </p>
-          <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
-            <li>Everything in Fund</li>
-            <li>API access</li>
-            <li>Custom reporting</li>
-            <li>Unlimited workspace members</li>
-            <li>Enterprise SLA</li>
-          </ul>
-          <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise_tier" checkoutAvailable={checkoutAvailable} />
-        </section>
-      </div>
-
-      {/* Founding Member Banner */}
-      <section className="mt-10 py-5 px-6 bg-amber-500/10 dark:bg-amber-500/10 border-2 border-amber-500/40 rounded-xl">
-        <div className="flex justify-between items-center flex-wrap gap-4">
-          <div>
-            <p className="text-[15px] font-bold text-amber-500 dark:text-amber-500 mb-1">
-              Founding Member Offer
+        <div className="flex flex-col gap-6">
+          {/* Starter — $97/mo */}
+          <section
+            className={`py-7 px-8 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-t-4 border-t-gray-400 dark:border-t-zinc-500 ${displayPlan === "pro" ? "border-2 border-[#3b82f6] border-t-4 border-t-gray-400 dark:border-t-zinc-500" : "border-gray-300 dark:border-zinc-600"}`}
+          >
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
+              Starter
+              {isTrialing && (
+                <span className="ml-2 text-[11px] font-bold uppercase tracking-wide bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">
+                  Currently trialing
+                </span>
+              )}
+              {trialExpired && (
+                <span className="ml-2 text-[11px] font-bold uppercase tracking-wide bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">
+                  Trial ended
+                </span>
+              )}
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">
+              <PricingPriceLabel plan="starter" />
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 m-0">
-              First 20 users get the Analyst tier for{" "}
-              <strong className="text-gray-900 dark:text-zinc-200">$147/month, locked for life.</strong>
+            <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
+              For individual underwriters and small teams getting started with risk governance.
             </p>
-            {/* TODO: Wire up dynamic count from DB (count founding subscriptions) */}
-            <p className="text-xs text-amber-500/70 mt-1 mb-0">Limited: 14 of 20 founding spots remaining</p>
-          </div>
-          <PricingClient
-            displayPlan={displayPlan}
-            workspaceId={orgId ?? undefined}
-            slot="founding"
-            checkoutAvailable={checkoutAvailable}
-          />
+            <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
+              <li>10 scans / month</li>
+              <li>Full CRE Signal Risk Index™</li>
+              <li>IC-ready PDF export</li>
+              <li>Share links</li>
+              <li>Benchmark percentiles</li>
+              <li>1 active governance policy</li>
+              <li>Up to 5 workspace members</li>
+              <li>Support bundle</li>
+            </ul>
+            <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro" checkoutAvailable={checkoutAvailable} isTrialing={isTrialing} trialExpired={trialExpired} />
+          </section>
+
+          {/* Analyst — $297/mo */}
+          <section
+            className="relative py-7 px-8 rounded-xl bg-gradient-to-br from-blue-50/80 to-white dark:from-blue-950/30 dark:to-zinc-900 border-2 border-[#3b82f6] border-t-4 border-t-blue-500 backdrop-blur-sm"
+          >
+            <div className="absolute -top-3 left-6 bg-[#3b82f6] text-white text-[11px] font-bold py-0.5 px-2.5 rounded uppercase tracking-wider">
+              Most Popular
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
+              Analyst
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">
+              <PricingPriceLabel plan="analyst" />
+            </p>
+            <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
+              For active underwriting teams who need trajectory, benchmarks, and governance controls.
+            </p>
+            <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
+              <li>Unlimited scans</li>
+              <li>Everything in Starter</li>
+              <li>Risk score trajectory (over time)</li>
+              <li>Benchmark percentiles</li>
+              <li>Supplemental AI Insights</li>
+              <li>Up to 3 active governance policies</li>
+              <li>Up to 10 workspace members</li>
+              <li>Governance export packet</li>
+              <li>Methodology version lock</li>
+            </ul>
+            <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="pro_plus" checkoutAvailable={checkoutAvailable} isTrialing={isTrialing} />
+          </section>
+
+          {/* Fund — $797/mo */}
+          <section
+            className={`py-7 px-8 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-t-4 border-t-purple-500 ${displayPlan === "enterprise" ? "border-2 border-[#3b82f6] border-t-4 border-t-purple-500" : "border-gray-300 dark:border-zinc-600"}`}
+          >
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
+              Fund
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">
+              <PricingPriceLabel plan="fund" />
+            </p>
+            <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
+              For funds and institutional platforms managing multiple strategies.
+            </p>
+            <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
+              <li>Everything in Analyst</li>
+              <li>Custom cohort creation</li>
+              <li>Snapshot build control</li>
+              <li>Unlimited governance policies</li>
+              <li>Unlimited workspace members</li>
+              <li>Contract-level SLA</li>
+              <li>Priority support</li>
+            </ul>
+            <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise" checkoutAvailable={checkoutAvailable} />
+          </section>
+
+          {/* Enterprise — Custom */}
+          <section
+            className={`py-7 px-8 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-t-4 border-t-zinc-600 dark:border-t-zinc-400 ${displayPlan === "platform_admin" || displayPlan === "enterprise" ? "border-2 border-[#3b82f6] border-t-4 border-t-zinc-600 dark:border-t-zinc-400" : "border-gray-300 dark:border-zinc-600"}`}
+          >
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-200 mb-1">
+              Enterprise
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">Custom pricing</p>
+            <p className="text-gray-500 dark:text-gray-400 text-[13px] mb-3">
+              For multi-strategy portfolios requiring API access, custom reporting, and enterprise SLA.
+            </p>
+            <ul className="mb-4 pl-5 text-sm text-gray-500 dark:text-gray-400 list-disc space-y-1.5 leading-relaxed">
+              <li>Everything in Fund</li>
+              <li>API access</li>
+              <li>Custom reporting</li>
+              <li>Unlimited workspace members</li>
+              <li>Enterprise SLA</li>
+            </ul>
+            <PricingClient displayPlan={displayPlan} workspaceId={orgId ?? undefined} slot="enterprise_tier" checkoutAvailable={checkoutAvailable} />
+          </section>
         </div>
-      </section>
 
-      {/* Comparison Table */}
-      <PricingComparisonTable />
+        {/* Founding Member Banner */}
+        <section className="mt-10 py-5 px-6 bg-amber-500/10 dark:bg-amber-500/10 border-2 border-amber-500/40 rounded-xl">
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <div>
+              <p className="text-[15px] font-bold text-amber-500 dark:text-amber-500 mb-1">
+                Founding Member Offer
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 m-0">
+                First 20 users get the Analyst tier for{" "}
+                <strong className="text-gray-900 dark:text-zinc-200">
+                  <PricingPriceLabel plan="founding" />
+                </strong>
+              </p>
+              {/* TODO: Wire up dynamic count from DB (count founding subscriptions) */}
+              <p className="text-xs text-amber-500/70 mt-1 mb-0">Limited: 14 of 20 founding spots remaining</p>
+            </div>
+            <PricingClient
+              displayPlan={displayPlan}
+              workspaceId={orgId ?? undefined}
+              slot="founding"
+              checkoutAvailable={checkoutAvailable}
+            />
+          </div>
+        </section>
 
-      {/* Free evaluation note */}
-      <section className="mt-4 py-4 px-5 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-600">
-        <p className="text-[13px] text-gray-500 dark:text-zinc-400 m-0">
-          <strong className="text-gray-600 dark:text-gray-400">Free evaluation:</strong> Sign up free for 3
-          lifetime scans — no card required.{" "}
-          {!user && (
-            <Link href="/login" className="text-[#3b82f6]">
-              Start free →
-            </Link>
-          )}
-          {user && displayPlan === "free" && (
-            <span className="text-gray-500 dark:text-zinc-400">You are on the free plan.</span>
-          )}
+        {/* Comparison Table */}
+        <PricingComparisonTable />
+
+        {/* Free evaluation note */}
+        <section className="mt-4 py-4 px-5 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-600">
+          <p className="text-[13px] text-gray-500 dark:text-zinc-400 m-0">
+            <strong className="text-gray-600 dark:text-gray-400">Free evaluation:</strong> Sign up free for 3
+            lifetime scans — no card required.{" "}
+            {!user && (
+              <Link href="/login" className="text-[#3b82f6]">
+                Start free →
+              </Link>
+            )}
+            {user && displayPlan === "free" && !trialExpired && (
+              <span className="text-gray-500 dark:text-zinc-400">You are on the free plan.</span>
+            )}
+            {user && trialExpired && (
+              <span className="text-gray-500 dark:text-zinc-400">Your trial has ended. Upgrade to continue.</span>
+            )}
+          </p>
+        </section>
+
+        <section className="mt-10 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-200 mb-3">
+            Why $297 / Month Is Operational Insurance
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 text-[15px] leading-relaxed">
+            A single underwriting miss can cost six or seven figures. CRE Signal Engine enforces
+            structural consistency, benchmark comparability, and portfolio-level guardrails. For
+            institutional operators, governance discipline is not optional.
+          </p>
+        </section>
+
+        <p className="mt-8">
+          <Link href="/" className="text-[#3b82f6] text-sm">
+            Back to home
+          </Link>
         </p>
-      </section>
-
-      <section className="mt-10 mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-200 mb-3">
-          Why $297 / Month Is Operational Insurance
-        </h2>
-        <p className="text-gray-500 dark:text-gray-400 text-[15px] leading-relaxed">
-          A single underwriting miss can cost six or seven figures. CRE Signal Engine enforces
-          structural consistency, benchmark comparability, and portfolio-level guardrails. For
-          institutional operators, governance discipline is not optional.
-        </p>
-      </section>
-
-      <p className="mt-8">
-        <Link href="/" className="text-[#3b82f6] text-sm">
-          Back to home
-        </Link>
-      </p>
-    </main>
+      </main>
+    </BillingIntervalProvider>
   );
 }

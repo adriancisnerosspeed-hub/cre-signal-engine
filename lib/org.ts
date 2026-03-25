@@ -192,6 +192,8 @@ export async function ensureDefaultOrganization(
     .insert({
       name: orgName.slice(0, 255),
       created_by: user.id,
+      trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      trial_plan: "PRO",
     })
     .select("id")
     .single();

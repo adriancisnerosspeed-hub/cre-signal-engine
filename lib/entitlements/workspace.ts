@@ -33,6 +33,74 @@ export interface WorkspaceEntitlements {
   maxScansPerMonth: number | null;
 }
 
+export interface TrialInfo {
+  isTrialing: boolean;
+  trialEndsAt: string | null;
+  trialDaysRemaining: number | null;
+  trialExpired: boolean;
+}
+
+const NO_TRIAL: TrialInfo = {
+  isTrialing: false,
+  trialEndsAt: null,
+  trialDaysRemaining: null,
+  trialExpired: false,
+};
+
+/**
+ * Resolve effective plan from org row, applying trial overlay when applicable.
+ * Trial only applies when plan is FREE and trial_ends_at / trial_plan are set.
+ */
+export function resolveEffectivePlan(org: {
+  plan?: string | null;
+  trial_ends_at?: string | null;
+  trial_plan?: string | null;
+}): { effectivePlan: WorkspacePlan; trial: TrialInfo } {
+  const rawPlan = org.plan;
+  const basePlan: WorkspacePlan =
+    rawPlan === "PRO" || rawPlan === "PRO+" || rawPlan === "ENTERPRISE" ? rawPlan : "FREE";
+
+  // Trial only applies to FREE orgs
+  if (basePlan !== "FREE" || !org.trial_ends_at || !org.trial_plan) {
+    // Check if there was a trial that's now irrelevant (paid org with leftover fields)
+    return { effectivePlan: basePlan, trial: NO_TRIAL };
+  }
+
+  const trialEnd = new Date(org.trial_ends_at);
+  const now = Date.now();
+  const msRemaining = trialEnd.getTime() - now;
+  const daysRemaining = Math.ceil(msRemaining / (24 * 60 * 60 * 1000));
+
+  const trialPlan: WorkspacePlan =
+    org.trial_plan === "PRO" || org.trial_plan === "PRO+" || org.trial_plan === "ENTERPRISE"
+      ? org.trial_plan
+      : "FREE";
+
+  if (daysRemaining > 0) {
+    // Active trial
+    return {
+      effectivePlan: trialPlan,
+      trial: {
+        isTrialing: true,
+        trialEndsAt: org.trial_ends_at,
+        trialDaysRemaining: daysRemaining,
+        trialExpired: false,
+      },
+    };
+  }
+
+  // Expired trial
+  return {
+    effectivePlan: "FREE",
+    trial: {
+      isTrialing: false,
+      trialEndsAt: org.trial_ends_at,
+      trialDaysRemaining: daysRemaining,
+      trialExpired: true,
+    },
+  };
+}
+
 export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlements {
   switch (plan) {
     case "FREE":
@@ -113,22 +181,22 @@ export function getWorkspaceEntitlements(plan: WorkspacePlan): WorkspaceEntitlem
 /**
  * Server-only. Load org plan and return entitlements. Use service role client so plan is always readable.
  * Defaults plan to 'FREE' if column missing or null (e.g. pre-migration).
+ * Trial overlay: if org is FREE with active trial, returns trial plan entitlements.
  */
 export async function getWorkspacePlanAndEntitlements(
   supabase: SupabaseClient,
   orgId: string
-): Promise<{ plan: WorkspacePlan; entitlements: WorkspaceEntitlements }> {
+): Promise<{ plan: WorkspacePlan; entitlements: WorkspaceEntitlements; trial: TrialInfo }> {
   const { data: row } = await supabase
     .from("organizations")
-    .select("plan")
+    .select("plan, trial_ends_at, trial_plan")
     .eq("id", orgId)
     .maybeSingle();
 
-  const raw = (row as { plan?: string | null } | null)?.plan;
-  const plan: WorkspacePlan =
-    raw === "PRO" || raw === "PRO+" || raw === "ENTERPRISE" ? raw : "FREE";
-  const entitlements = getWorkspaceEntitlements(plan);
-  return { plan, entitlements };
+  const orgRow = row as { plan?: string | null; trial_ends_at?: string | null; trial_plan?: string | null } | null;
+  const { effectivePlan, trial } = resolveEffectivePlan(orgRow ?? {});
+  const entitlements = getWorkspaceEntitlements(effectivePlan);
+  return { plan: effectivePlan, entitlements, trial };
 }
 
 /**
@@ -145,15 +213,16 @@ export async function getWorkspacePlanAndEntitlementsForUser(
   supabase: SupabaseClient,
   orgId: string,
   userId: string
-): Promise<{ plan: WorkspacePlan; entitlements: WorkspaceEntitlements; ownerBypass: boolean }> {
+): Promise<{ plan: WorkspacePlan; entitlements: WorkspaceEntitlements; ownerBypass: boolean; trial: TrialInfo }> {
   const userPlan = await getPlanForUser(supabase, userId);
   if (userPlan === "platform_admin") {
     return {
       plan: "ENTERPRISE",
       entitlements: getWorkspaceEntitlements("ENTERPRISE"),
       ownerBypass: true,
+      trial: NO_TRIAL,
     };
   }
-  const { plan, entitlements } = await getWorkspacePlanAndEntitlements(supabase, orgId);
-  return { plan, entitlements, ownerBypass: false };
+  const { plan, entitlements, trial } = await getWorkspacePlanAndEntitlements(supabase, orgId);
+  return { plan, entitlements, ownerBypass: false, trial };
 }

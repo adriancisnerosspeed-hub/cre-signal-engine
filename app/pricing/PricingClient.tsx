@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { PricingDisplayPlan } from "@/app/pricing/types";
 import { fetchJsonWithTimeout } from "@/lib/fetchJsonWithTimeout";
+import { useBillingInterval } from "./BillingIntervalContext";
 
 const unavailableButtonStyle = {
   padding: "10px 20px",
@@ -21,15 +22,20 @@ export default function PricingClient({
   workspaceId,
   slot,
   checkoutAvailable = true,
+  isTrialing,
+  trialExpired,
 }: {
   displayPlan: PricingDisplayPlan;
   workspaceId?: string;
   slot: "pro" | "pro_plus" | "enterprise" | "enterprise_tier" | "founding";
   /** When false (e.g. Stripe price env vars missing), show disabled "Unavailable" instead of checkout. */
   checkoutAvailable?: boolean;
+  isTrialing?: boolean;
+  trialExpired?: boolean;
 }) {
   const [loading, setLoading] = useState<"checkout" | "portal" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { interval } = useBillingInterval();
 
   const errorBlock = error ? (
     <p style={{ marginTop: 8, fontSize: 13, color: "#ef4444" }}>{error}</p>
@@ -43,7 +49,7 @@ export default function PricingClient({
         ? "/api/billing/create-checkout-session"
         : "/api/stripe/checkout";
       const body = workspaceId
-        ? JSON.stringify({ workspace_id: workspaceId, ...(plan && { plan }) })
+        ? JSON.stringify({ workspace_id: workspaceId, ...(plan && { plan }), interval })
         : undefined;
       const r = await fetchJsonWithTimeout(url, {
         method: "POST",
@@ -131,7 +137,7 @@ export default function PricingClient({
             cursor: loading ? "not-allowed" : "pointer",
           }}
         >
-          {loading === "checkout" ? "Redirecting…" : "Start Analyst Plan"}
+          {loading === "checkout" ? "Redirecting…" : isTrialing ? "Upgrade to Analyst" : "Start Analyst Plan"}
         </button>
         {errorBlock}
       </>
@@ -253,6 +259,33 @@ export default function PricingClient({
   }
 
   if (slot === "pro") {
+    // Trialing user: show "Subscribe to keep access" instead of "Manage billing"
+    if (isTrialing && displayPlan === "pro") {
+      if (!checkoutAvailable) {
+        return <button type="button" disabled style={unavailableButtonStyle}>Unavailable</button>;
+      }
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => handleUpgrade("PRO")}
+            disabled={!!loading}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#3b82f6",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontWeight: 600,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          >
+            {loading === "checkout" ? "Redirecting…" : "Subscribe to keep access"}
+          </button>
+          {errorBlock}
+        </>
+      );
+    }
     if (displayPlan === "pro") {
       return (
         <>

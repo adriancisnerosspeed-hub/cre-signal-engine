@@ -98,6 +98,8 @@ Core idea:
 
 - Stripe Checkout + Billing Portal + webhook.
 - Organization plan is the main source of truth for workspace entitlements.
+- **7-day Starter trial:** New orgs get `trial_ends_at` + `trial_plan = 'PRO'`. Entitlements layer resolves trial overlay when plan is FREE and trial is active. Trial expires automatically (no cron). Stripe subscription activation clears trial fields.
+- **Annual billing:** Pricing page has Monthly/Annual toggle (when annual price IDs are configured). Annual plans are 20% off (except Founding Member — same price). Checkout accepts `interval` param to select annual vs monthly price ID. Webhook maps both monthly and annual price IDs to the same plan slugs via `lib/stripeWebhookPlan.ts`.
 
 ### Email / Digest
 
@@ -196,6 +198,8 @@ Next migration file index: **062**.
 - **Scan rate limit:** `lib/rateLimit.ts` — default **20** `deal_scans` rows per org per rolling hour (`ORG_SCAN_RATE_LIMIT_PER_HOUR`), counted before OpenAI on `POST /api/deals/scan` (skipped for `platform_admin`; does not apply to early `reused: true` responses). Returns **429** with `code: SCAN_RATE_LIMIT` and `Retry-After` header.
 - **Demo snapshot rate limit:** In-memory IP-based, 5 requests per 15 minutes per IP on `POST /api/leads/demo-snapshot`; prevents abuse of unauthenticated PDF generation + Resend email sends.
 - **Monthly scan limit:** Starter (PRO) workspaces are limited to 10 scans/month, enforced via `monthly_scan_usage` table (migration 061). PRO+ and ENTERPRISE have no monthly limit. Counter is displayed in UsageBanner (dashboard) and DealDetailClient (scan area). Scan route returns 429 with `MONTHLY_SCAN_LIMIT` code when at cap.
+- **7-day Starter trial:** Migration 062 adds `trial_ends_at` and `trial_plan` columns to organizations. New orgs (via `ensureDefaultOrganization` in `lib/org.ts`) get 7-day PRO trial automatically. Entitlements layer (`lib/entitlements/workspace.ts`) resolves `TrialInfo` with `isTrialing`, `trialEndsAt`, `trialDaysRemaining`, `trialExpired`. Trial banner renders above app content (`app/components/TrialBanner.tsx`): dismissable blue (days 7-3, reappears next day), non-dismissable amber (days 2-1), non-dismissable red (day 0 + expired). Pricing page shows "Currently trialing" / "Trial ended" badges. Settings BillingCard shows trial status. The `create_deal_scan_with_usage_check` RPC was updated in migration 062 to respect trial state (trial users are not blocked by the FREE 3-scan cap).
+- **Annual billing toggle:** Pricing page (`app/pricing/page.tsx`) wraps content in `BillingIntervalProvider` and renders `BillingIntervalToggle` when any annual price ID env var is set. `PricingPriceLabel` component reads interval from context and shows monthly or annual pricing. `PricingClient` sends `interval` in checkout POST. `create-checkout-session` route selects annual price ID when requested (falls back to monthly if annual not configured). `lib/stripeWebhookPlan.ts` maps annual price IDs to the same plan slugs as monthly. `lib/billingInterval.ts` provides `getBillingInterval()` helper for settings display.
 
 ---
 
@@ -310,6 +314,8 @@ Pricing page copy was aligned with actual enforced entitlements (2026-03-25 sess
 - **Comparison table** updated with corrected team seats (5/10/Unlimited/Unlimited), fixed Benchmark percentiles row (✓ for all paid tiers), added rows for Support bundle, Supplemental AI Insights, Methodology version lock.
 
 Treat `lib/entitlements/workspace.ts` as actual enforcement. Pricing copy should match it.
+
+**Trial-specific pricing awareness:** When a user is trialing, the pricing page shows "Currently trialing" badge on Starter card with "Subscribe to keep access" CTA. After trial expires, "Trial ended" badge appears. Analyst CTA shows "Upgrade to Analyst" during trial. Annual billing toggle renders when any `STRIPE_*_ANNUAL_PRICE_ID` env var is set.
 
 ---
 

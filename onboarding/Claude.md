@@ -639,3 +639,64 @@ Fixed ALL pricing copy to match actual `lib/entitlements/workspace.ts`:
 | `app/components/AppNav.tsx` | Add Signals link |
 | `onboarding/CRESIGNALENGINE.md` | Updated docs |
 | `onboarding/Claude.md` | This session log |
+
+---
+
+## Session 10: 7-Day Starter Trial + Annual Billing
+
+**Date:** 2026-03-25
+**Model:** Claude Opus 4.6
+**Scope:** 7-day Starter trial for new orgs, annual billing toggle on pricing page
+
+---
+
+### Part 1: 7-Day Starter Trial
+
+- **Migration 062** (`supabase/migrations/062_trial_support.sql`): Added `trial_ends_at TIMESTAMPTZ` and `trial_plan TEXT` to organizations with check constraint. Updated `create_deal_scan_with_usage_check` RPC to respect active trial (trial users not blocked by FREE 3-scan cap).
+- **Entitlements** (`lib/entitlements/workspace.ts`): Added `TrialInfo` interface and `resolveEffectivePlan()` helper. Modified `getWorkspacePlanAndEntitlements` and `getWorkspacePlanAndEntitlementsForUser` to return `trial: TrialInfo`. Non-breaking change — existing callers using `{ plan, entitlements }` destructuring still work.
+- **Org creation** (`lib/org.ts`): New orgs get `trial_ends_at = NOW() + 7 days` and `trial_plan = 'PRO'`. Only new orgs (Case A in `ensureDefaultOrganization`).
+- **Stripe webhook** (`app/api/stripe/webhook/route.ts`): Both the known-price and unknown-price update paths now set `trial_ends_at: null, trial_plan: null` — paying customers are never in trial state.
+- **Trial banner** (`app/components/TrialBanner.tsx`): Top banner above app content. Days 7-3: blue info, dismissable (reappears next day via date-keyed localStorage). Days 2-0: amber/red, non-dismissable. Expired: red, non-dismissable.
+- **App layout** (`app/app/layout.tsx`): Fetches trial state via `getWorkspacePlanAndEntitlements`, renders `TrialBanner` above `{children}`.
+- **Pricing page** (`app/pricing/page.tsx`, `PricingClient.tsx`): Fetches trial state from org. Shows "Currently trialing" badge on Starter card during trial, "Trial ended" after expiry. Trialing Starter CTA: "Subscribe to keep access". Trialing Analyst CTA: "Upgrade to Analyst".
+- **Settings** (`app/settings/page.tsx`, `BillingCard.tsx`): Shows "Starter (Trial — X days remaining)" and "Subscribe Now" button during trial.
+
+### Part 2: Annual Billing
+
+- **Env vars**: `STRIPE_STARTER_ANNUAL_PRICE_ID`, `STRIPE_ANALYST_ANNUAL_PRICE_ID`, `STRIPE_FUND_ANNUAL_PRICE_ID`, `STRIPE_FOUNDING_ANNUAL_PRICE_ID` (all optional).
+- **Webhook mapping** (`lib/stripeWebhookPlan.ts`): Annual price IDs map to same plan slugs as monthly.
+- **Pricing toggle**: `BillingIntervalContext.tsx` (React context), `BillingIntervalToggle.tsx` (pill selector with "Save 20%"), `PricingPriceLabel.tsx` (interval-aware price labels). Toggle only renders when at least one annual price ID is configured.
+- **Checkout** (`app/api/billing/create-checkout-session/route.ts`): Accepts `interval` param, selects annual price ID when available.
+- **Price constants** (`lib/pricingConfig.ts`): Monthly/annual prices. Founding Member: same price for both intervals.
+- **Billing interval helper** (`lib/billingInterval.ts`): `getBillingInterval()` for settings display.
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `supabase/migrations/062_trial_support.sql` | Trial columns + trial-aware RPC |
+| `lib/pricingConfig.ts` | Price constants |
+| `lib/billingInterval.ts` | Billing interval helper |
+| `app/pricing/BillingIntervalContext.tsx` | React context for interval state |
+| `app/pricing/BillingIntervalToggle.tsx` | Monthly/Annual pill selector |
+| `app/pricing/PricingPriceLabel.tsx` | Interval-aware price label |
+| `app/components/TrialBanner.tsx` | Trial banner component |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `lib/entitlements/workspace.ts` | TrialInfo interface, resolveEffectivePlan, modified return types |
+| `lib/org.ts` | Set trial fields on new org creation |
+| `lib/stripeWebhookPlan.ts` | Annual price ID mappings |
+| `app/api/stripe/webhook/route.ts` | Clear trial on subscription activation |
+| `app/api/billing/create-checkout-session/route.ts` | Accept interval, select annual/monthly price |
+| `app/pricing/page.tsx` | Trial detection, interval provider, toggle, price labels |
+| `app/pricing/PricingClient.tsx` | Trial props, interval from context |
+| `app/app/layout.tsx` | Fetch trial state, render TrialBanner |
+| `app/settings/page.tsx` | Extract trial info, pass to BillingCard |
+| `app/settings/BillingCard.tsx` | Trial status + Subscribe Now CTA |
+| `docs/BILLING.md` | Full rewrite with trial + annual docs |
+| `CLAUDE.md` | Migration index 062 → 063 |
+| `onboarding/CRESIGNALENGINE.md` | Trial + annual billing docs |
+| `onboarding/Claude.md` | This session log |

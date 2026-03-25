@@ -47,6 +47,8 @@ export default function BillingCard({
   dealScansToday,
   dealScansLimit,
   digestScheduledEnabled,
+  isTrialing,
+  trialDaysRemaining,
 }: {
   plan: string;
   analyzeCallsToday: number;
@@ -54,6 +56,8 @@ export default function BillingCard({
   dealScansToday: number;
   dealScansLimit: number;
   digestScheduledEnabled: boolean;
+  isTrialing?: boolean;
+  trialDaysRemaining?: number | null;
 }) {
   const [loading, setLoading] = useState<"checkout" | "portal" | null>(null);
 
@@ -93,7 +97,10 @@ export default function BillingCard({
 
   const dealScansPercent = dealScansLimit > 0 ? Math.round((dealScansToday / dealScansLimit) * 100) : 0;
 
-  const planLabel = planDisplayName(plan);
+  const basePlanLabel = planDisplayName(plan);
+  const planLabel = isTrialing && trialDaysRemaining != null
+    ? `${basePlanLabel} (Trial — ${trialDaysRemaining} day${trialDaysRemaining === 1 ? "" : "s"} remaining)`
+    : basePlanLabel;
 
   return (
     <div className="p-4 rounded-xl mb-5 bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700">
@@ -130,7 +137,7 @@ export default function BillingCard({
         Scheduled Risk Brief: {digestScheduledEnabled ? "Enabled" : "Starter and above"}
       </p>
       <div className="flex gap-3 flex-wrap">
-        {isPaidPlan(plan) ? (
+        {isPaidPlan(plan) && !isTrialing ? (
           <button
             type="button"
             onClick={handleManageBilling}
@@ -147,7 +154,7 @@ export default function BillingCard({
               disabled={!!loading}
               className="py-2 px-4 bg-[#3b82f6] text-white border-0 rounded-md font-semibold text-sm disabled:cursor-not-allowed"
             >
-              {loading === "checkout" ? "Redirecting…" : "Start Institutional Plan"}
+              {loading === "checkout" ? "Redirecting…" : isTrialing ? "Subscribe Now" : "Start Institutional Plan"}
             </button>
             <Link
               href="/pricing"

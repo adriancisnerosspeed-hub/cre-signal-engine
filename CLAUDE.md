@@ -120,7 +120,7 @@ npm run test:watch   # Vitest watch mode
 | Stress harness | `scripts/stressRiskIndexV2.ts` |
 | Scan pipeline | `app/api/deals/scan/route.ts` |
 | Stripe webhook | `app/api/stripe/webhook/route.ts` |
-| Migrations | `supabase/migrations/` (next index: 062) |
+| Migrations | `supabase/migrations/` (next index: 063) |
 | Feature flags | `lib/featureFlags.ts` (60s TTL cache) |
 
 ## User Context

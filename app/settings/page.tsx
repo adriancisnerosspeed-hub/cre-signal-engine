@@ -27,13 +27,14 @@ export default async function SettingsPage() {
   const currentOrg = await getCurrentOrg(supabase, user);
   const orgId = await getCurrentOrgId(supabase, user);
 
-  const [entitlements, usage, workspacePlanResult] = await Promise.all([
+  const [entitlements, usage, workspaceResult] = await Promise.all([
     getEntitlementsForUser(supabase, user.id),
     getUsageToday(supabase, user.id),
-    orgId ? getWorkspacePlanAndEntitlementsForUser(createServiceRoleClient(), orgId, user.id).then((r) => r.plan).catch(() => null) : Promise.resolve(null),
+    orgId ? getWorkspacePlanAndEntitlementsForUser(createServiceRoleClient(), orgId, user.id).catch(() => null) : Promise.resolve(null),
   ]);
 
-  const planForDisplay = workspacePlanResult ?? entitlements.plan;
+  const planForDisplay = workspaceResult?.plan ?? entitlements.plan;
+  const trialInfo = workspaceResult?.trial ?? null;
 
   const { data: row } = await supabase
     .from("user_preferences")
@@ -122,6 +123,8 @@ export default async function SettingsPage() {
         dealScansToday={usage.deal_scans}
         dealScansLimit={entitlements.deal_scans_per_day}
         digestScheduledEnabled={entitlements.digest_scheduled}
+        isTrialing={trialInfo?.isTrialing}
+        trialDaysRemaining={trialInfo?.trialDaysRemaining}
       />
 
       {process.env.NODE_ENV === "development" && (
