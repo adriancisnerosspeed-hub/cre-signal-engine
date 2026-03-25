@@ -11,11 +11,13 @@ export default function DealDetailClient({
   hasScan,
   workspaceId,
   justUpdatedInputs = false,
+  isOwner = false,
 }: {
   dealId: string;
   hasScan: boolean;
   workspaceId?: string;
   justUpdatedInputs?: boolean;
+  isOwner?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -23,6 +25,7 @@ export default function DealDetailClient({
   const [scanBanner, setScanBanner] = useState<null | "started" | "completed">(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [lifetimeLimitPaywall, setLifetimeLimitPaywall] = useState(false);
+  const [forceLoading, setForceLoading] = useState(false);
   const clearBannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -108,6 +111,39 @@ export default function DealDetailClient({
     }
   }
 
+  async function handleForceRescan() {
+    setError(null);
+    setForceLoading(true);
+    setScanBanner("started");
+    try {
+      const r = await fetchJsonWithTimeout("/api/deals/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deal_id: dealId, force: 1 }),
+      }, 120_000);
+      const data = (r.json ?? {}) as { error?: string; reused?: boolean; risk_index_score?: number; risk_index_band?: string; scan_id?: string };
+      if (!r.ok) {
+        setScanBanner(null);
+        toast(data.error ?? `Error ${r.status}`, "error");
+        return;
+      }
+      if (data.reused) {
+        setScanBanner(null);
+        toast(`Score: ${data.risk_index_score} (${data.risk_index_band}) — cache hit`, "info");
+      } else {
+        setScanBanner("completed");
+        toast(`Force rescan complete — new score computed`, "success");
+        clearBannerTimeoutRef.current = setTimeout(() => setScanBanner(null), 3000);
+      }
+      router.refresh();
+    } catch (err) {
+      setScanBanner(null);
+      toast(err instanceof Error ? err.message : "Force rescan failed", "error");
+    } finally {
+      setForceLoading(false);
+    }
+  }
+
   return (
     <div>
       {error && (
@@ -145,6 +181,27 @@ export default function DealDetailClient({
       >
         {loading ? "Running scan…" : hasScan ? "Rescan (Fresh)" : "Run Deal Risk Scan"}
       </button>
+      {isOwner && hasScan && (
+        <button
+          type="button"
+          onClick={handleForceRescan}
+          disabled={forceLoading || loading}
+          style={{
+            marginLeft: 10,
+            padding: "10px 16px",
+            backgroundColor: "transparent",
+            color: "#94a3b8",
+            border: "1px solid #334155",
+            borderRadius: 6,
+            fontWeight: 500,
+            fontSize: 13,
+            cursor: forceLoading ? "not-allowed" : "pointer",
+            opacity: forceLoading ? 0.7 : 1,
+          }}
+        >
+          {forceLoading ? "Force scanning…" : "Force Rescan"}
+        </button>
+      )}
     </div>
   );
 }

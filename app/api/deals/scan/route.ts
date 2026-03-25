@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { ensureProfile } from "@/lib/auth";
+import { ensureProfile, isOwner } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
 import { ENTITLEMENT_ERROR_CODES } from "@/lib/entitlements/errors";
 import { getPlanForUser } from "@/lib/entitlements";
@@ -61,6 +61,10 @@ export async function POST(request: Request) {
   }
 
   const forceRescan = body.force === 1;
+  const ownerForce = forceRescan && isOwner(user.email ?? "");
+  if (ownerForce) {
+    console.info("[deal_scan] force_rescan", { user: user.email });
+  }
   const overrideMethodLock = body.override_method_lock === true;
   const overrideReason = typeof body.override_reason === "string" ? body.override_reason.trim() || null : null;
   const portfolioViewId = typeof body.portfolio_view_id === "string" ? body.portfolio_view_id.trim() || null : null;
@@ -173,8 +177,8 @@ export async function POST(request: Request) {
 
   // Authoritative text-hash cache: if same raw text was ever scored for this deal,
   // reuse that score. Prevents AI extraction non-determinism from causing score drift.
-  // Applies even when force=1.
-  if (rawText) {
+  // Applies even when force=1, UNLESS owner force rescan (bypasses all caches).
+  if (rawText && !ownerForce) {
     const textHash = inputTextHash(normalizedText);
     const { data: priorScored } = await service
       .from("deal_scans")
@@ -295,8 +299,29 @@ export async function POST(request: Request) {
   }
 
   const { assumptions: assumptionsForScoring, unitInferred } = normalizeAssumptionsForScoringWithFlags(normalized.assumptions);
+
+  // === RISK INJECTION LAYER ===
+  // Inject deterministic risks that the numbers mathematically warrant
+  // but the AI may have non-deterministically omitted.
+  const { injectDeterministicRisks } = await import("@/lib/riskInjection");
+  const injectionResult = injectDeterministicRisks(
+    assumptionsForScoring,
+    normalized.risks,
+    normalizedText
+  );
+  const risksAfterInjection = injectionResult.risks;
+  const injectedRiskTypes = injectionResult.injectedTypes;
+
+  if (injectedRiskTypes.size > 0) {
+    console.info("[deal_scan] risk_injection", {
+      deal_id: dealId,
+      injected: [...injectedRiskTypes],
+      count: injectedRiskTypes.size,
+    });
+  }
+
   const { applySeverityOverride } = await import("@/lib/riskSeverityOverrides");
-  const stabilizedRisks = normalized.risks.map((r) => ({
+  const stabilizedRisks = risksAfterInjection.map((r) => ({
     ...r,
     severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring),
   }));
@@ -499,19 +524,24 @@ export async function POST(request: Request) {
   console.info("[deal_scan] scoring_inputs", { scan_id: scan.id, deal_id: dealId, scoring_input_hash: scoringInputHash });
 
   // Scoring-input cache: if a previous scan on the same deal produced identical normalized inputs, reuse exact score.
-  const SCORING_CACHE_TTL_HOURS = parseInt(process.env.SCAN_CACHE_TTL_HOURS || "168", 10);
-  const scoringCacheWindow = new Date(Date.now() - SCORING_CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
-  const { data: cachedScore } = await service
-    .from("deal_scans")
-    .select("risk_index_score, risk_index_band, risk_index_breakdown, macro_linked_count")
-    .eq("deal_id", dealId)
-    .eq("scoring_input_hash", scoringInputHash)
-    .eq("status", "completed")
-    .not("risk_index_score", "is", null)
-    .gte("created_at", scoringCacheWindow)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Owner force rescan bypasses this cache to allow full recomputation.
+  let cachedScore: { risk_index_score: number | null; risk_index_band: string | null; risk_index_breakdown: Record<string, unknown> | null; macro_linked_count: number | null } | null = null;
+  if (!ownerForce) {
+    const SCORING_CACHE_TTL_HOURS = parseInt(process.env.SCAN_CACHE_TTL_HOURS || "168", 10);
+    const scoringCacheWindow = new Date(Date.now() - SCORING_CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
+    const { data } = await service
+      .from("deal_scans")
+      .select("risk_index_score, risk_index_band, risk_index_breakdown, macro_linked_count")
+      .eq("deal_id", dealId)
+      .eq("scoring_input_hash", scoringInputHash)
+      .eq("status", "completed")
+      .not("risk_index_score", "is", null)
+      .gte("created_at", scoringCacheWindow)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    cachedScore = data;
+  }
 
   const riskFingerprint = stabilizedRisks
     .map((r) => `${r.risk_type}:${r.severity_current}`)
@@ -591,7 +621,11 @@ export async function POST(request: Request) {
     // Enforce scan invariants: score 0–100, band in allowed set
     score = Math.max(0, Math.min(100, riskIndex.score));
     band = ["Low", "Moderate", "Elevated", "High"].includes(riskIndex.band) ? riskIndex.band : "Moderate";
-    breakdown = { ...bd, risk_fingerprint: riskFingerprint };
+    breakdown = {
+      ...bd,
+      risk_fingerprint: riskFingerprint,
+      ...(injectedRiskTypes.size > 0 && { injected_risk_types: [...injectedRiskTypes] }),
+    };
     console.info("[SCAN CACHE] Miss → new score:", { deal_id: dealId, score, band });
   }
 
@@ -663,7 +697,9 @@ export async function POST(request: Request) {
     model,
     temperature: 0,
     seed: 42,
-    risk_count: normalized.risks.length,
+    risk_count: risksAfterInjection.length,
+    risk_count_ai: normalized.risks.length,
+    risk_count_injected: injectedRiskTypes.size,
     assumption_keys: assumptionKeys,
     score,
     tier: band,

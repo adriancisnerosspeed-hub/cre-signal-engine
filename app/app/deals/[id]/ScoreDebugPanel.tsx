@@ -32,6 +32,7 @@ type Breakdown = {
   delta_band?: string;
   deterioration_flag?: boolean;
   driver_confidence_multipliers?: { driver: string; multiplier: number }[];
+  injected_risk_types?: string[];
 };
 
 type Assumption = { value?: number | null; unit?: string | null; confidence?: string };
@@ -362,6 +363,13 @@ function SingleScanBreakdown({ scan }: { scan: ScanVersion }) {
             </div>
           )}
 
+          {bd.injected_risk_types && bd.injected_risk_types.length > 0 && (
+            <div className="mb-4 px-3 py-2 rounded bg-cyan-500/10 border border-cyan-500/20">
+              <span className="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">Injected Risks</span>
+              <p className="text-sm text-cyan-300 mt-1 m-0">{bd.injected_risk_types.join(", ")}</p>
+            </div>
+          )}
+
           {bd.contributions && bd.contributions.length > 0 && (
             <div className="mb-4">
               <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
@@ -545,6 +553,9 @@ function ComparisonView({
                   <span className={d.change === "unchanged" ? "text-gray-600" : "text-gray-200"}>
                     {d.risk_type}
                   </span>
+                  {newer?.breakdown?.injected_risk_types?.includes(d.risk_type) && (
+                    <span className="text-[9px] font-medium text-cyan-400 border border-cyan-400/30 rounded px-1">injected</span>
+                  )}
                 </div>
                 <div className="text-xs text-gray-400">
                   {d.change === "added" && <>{d.toSev} / {d.toConf ?? "?"} · <span className="text-red-400">{d.pointImpact}</span></>}

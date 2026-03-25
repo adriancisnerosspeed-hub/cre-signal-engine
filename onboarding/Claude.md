@@ -237,3 +237,54 @@ The debug panel will make it clear that score changes between rescans of identic
 | `app/app/deals/[id]/ScoreDebugPanel.tsx` | New: client component for comparing scan versions deterministically |
 | `app/app/deals/[id]/page.tsx` | Import ScoreDebugPanel, gate behind `isOwner()`, render above overview tab |
 | `onboarding/Claude.md` | This session log |
+
+---
+
+## Session 4: Deterministic Risk Injection Layer + Owner Force Rescan
+
+**Date:** 2026-03-24
+**Model:** Claude Opus 4.6
+**Scope:** Create deterministic risk injection layer, owner-only force rescan with full cache bypass
+
+---
+
+### Deterministic Risk Injection Layer
+
+- **Problem:** AI extraction (gpt-5.4-mini) non-deterministically omits risks that numeric assumptions mathematically warrant. Two scans of identical text produced scores of 52 and 56 because risks like DebtCostRisk appeared in one run but not another. Severity overrides fix severity after a risk exists but can't fix missing risks.
+- **Solution:** New `lib/riskInjection.ts` — pure deterministic function that inspects normalized assumptions and deal text, injects any missing risks the numbers warrant. 7 rules:
+  1. **DebtCostRisk** — debt_rate >= 6.0% (High if >= 7.0%, else Medium)
+  2. **RefiRisk** — debt_rate >= 6.5% AND hold >= 5yr (Medium)
+  3. **VacancyUnderstated** — vacancy >= 5% AND construction keywords in text (Low)
+  4. **ExitCapCompression** — exit_cap - cap_rate_in <= 0.5 (Low if positive spread, Medium if negative)
+  5. **ConstructionTimingRisk** — construction keywords in text (Medium)
+  6. **RentGrowthAggressive** — rent_growth >= 3.0% (Low if < 4.0%, Medium if >= 4.0%)
+  7. **ExpenseUnderstated** — expense_growth stated but < 3.0% (Low)
+- **Key properties:** Does NOT replace AI-extracted risks. All injected risks get confidence "High" (math-derived). Injected risk_types tracked in `injectedTypes` Set and stored in breakdown as `injected_risk_types` for Score Debug panel.
+- **Pipeline position:** After percent normalization, before severity overrides. Pipeline: AI extract → parse/normalize → dedup → percent normalize → **inject** → severity overrides → scoring-input hash → score.
+- **Tests:** 30 tests in `lib/riskInjection.test.ts` including 20-run determinism check and full integration with reference building assumptions.
+
+### Owner-Only Force Rescan
+
+- **Problem:** Existing `force=1` only bypasses Layer 1 TTL cache. Layer 2 (text-hash) and Layer 3 (scoring-input-hash) still return cached scores, making it impossible to test injection effects on existing deals.
+- **Solution:** `ownerForce = forceRescan && isOwner(user.email)` bypasses all 3 cache layers. Non-owner `force=1` preserves current behavior (only Layer 1 bypass).
+- **UI:** "Rescan (force)" button on deal detail page (owner-only, subtle styling). Force Rescan tool in TestToolsPanel with deal ID input.
+
+### Score Debug Panel Updates
+
+- Added `injected_risk_types?: string[]` to Breakdown type
+- "Injected Risks" section in single-scan view (cyan styling)
+- "(injected)" badge on risk rows in comparison view
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `lib/riskInjection.ts` | New: deterministic risk injection module (7 rules) |
+| `lib/riskInjection.test.ts` | New: 30 tests |
+| `app/api/deals/scan/route.ts` | Injection integration + owner force rescan (all-cache bypass) |
+| `app/app/deals/[id]/ScoreDebugPanel.tsx` | `injected_risk_types` in Breakdown type + UI badges |
+| `app/app/deals/[id]/ForceRescanButton.tsx` | New: owner-only force rescan button component |
+| `app/app/deals/[id]/page.tsx` | Import ForceRescanButton, render in owner section |
+| `app/owner/dev/TestToolsPanel.tsx` | Force rescan tool with deal ID input |
+| `onboarding/CRESIGNALENGINE.md` | Updated section 8 with injection step + score stability notes |
+| `onboarding/Claude.md` | This session log |

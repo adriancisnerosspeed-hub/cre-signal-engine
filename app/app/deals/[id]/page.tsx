@@ -23,6 +23,7 @@ import PercentileBlock from "./PercentileBlock";
 import ScenarioComparisonBlock from "./ScenarioComparisonBlock";
 import RiskTrajectoryChart from "./RiskTrajectoryChart";
 import ScoreDebugPanel from "./ScoreDebugPanel";
+import ForceRescanButton from "./ForceRescanButton";
 
 type Deal = {
   id: string;
@@ -317,6 +318,7 @@ export default async function DealPage({
             hasScan={!!scan}
             workspaceId={orgId}
             justUpdatedInputs={justUpdatedInputs}
+            isOwner={ownerMode}
           />
         </div>
       </div>
@@ -362,7 +364,12 @@ export default async function DealPage({
           </nav>
 
           {ownerMode && (
-            <ScoreDebugPanel dealId={d.id} />
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <ForceRescanButton dealId={d.id} />
+              </div>
+              <ScoreDebugPanel dealId={d.id} />
+            </div>
           )}
 
           {activeTab === "overview" && (

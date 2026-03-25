@@ -362,6 +362,8 @@ Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user expl
 3. Scan route checks input-text-hash cache (7-day TTL by default, configurable via `SCAN_CACHE_TTL_HOURS` env var, default `168`). If a cached scan with identical input hash exists, it is reused immediately.
 4. If no cache hit, OpenAI extracts assumptions and risks using `gpt-5.4-mini` with `temperature: 0`, `top_p: 1`, `seed: 42`, `frequency_penalty: 0.1`, `presence_penalty: 0`, and `response_format: { type: "json_object" }` for structured, reproducible output.
 5. Risks are normalized and deduplicated by `risk_type` (highest severity wins, triggers merged). Supply pressure grouping demotes RentGrowthAggressive when VacancyUnderstated is present with supply keywords.
+5b. Assumptions are percent-normalized (`lib/assumptionNormalization.ts`).
+5c. **Deterministic risk injection** (`lib/riskInjection.ts`): injects missing risks that the numeric assumptions mathematically warrant but the AI may have non-deterministically omitted. 7 rules cover DebtCostRisk, RefiRisk, VacancyUnderstated, ExitCapCompression, ConstructionTimingRisk, RentGrowthAggressive, and ExpenseUnderstated. Injected risks are marked in the breakdown (`injected_risk_types`) for the Score Debug panel. Does NOT replace risks already extracted by the AI.
 6. Deterministic severity overrides replace AI-assigned severity with assumption-driven severity for all risk types with numeric proxies (`lib/riskSeverityOverrides.ts`).
 7. Overlay logic connects relevant macro signals. Macro penalty is captured via `macroLinkedCount`/`macroDecayedWeight` in `computeRiskIndex()` — no severity bump on individual risks.
 8. Post-normalization scoring-input hash is computed from canonical sorted risk/assumption data. If a recent completed scan with the same hash exists, its score/band/breakdown is reused verbatim (second-level cache).
@@ -371,9 +373,10 @@ Treat `lib/entitlements/workspace.ts` as actual enforcement unless the user expl
 
 **Score stability notes (v3):**
 - The scoring function (`lib/riskIndex.ts`) is fully deterministic — identical inputs always produce identical scores.
-- **Three layers of determinism protection:** (1) input-text-hash cache (7-day TTL), (2) risk_type-based dedup + deterministic severity overrides eliminate AI variance, (3) scoring-input-hash cache guarantees identical normalized inputs reuse exact prior scores.
-- Score variability between rescans is now limited to genuinely different risk extractions that survive dedup and override.
-- Pure determinism tests exist in `lib/riskIndex.test.ts` and `lib/deterministicInvariant.test.ts` (20-call identical score, risk order invariance, severity monotonicity, trigger-text invariance).
+- **Four layers of determinism protection:** (1) input-text-hash cache (7-day TTL), (2) risk_type-based dedup + deterministic severity overrides eliminate AI variance, (3) **deterministic risk injection** ensures math-warranted risks are always present regardless of AI extraction variance, (4) scoring-input-hash cache guarantees identical normalized inputs reuse exact prior scores.
+- Score variability between rescans is now limited to genuinely different risk extractions that survive dedup, injection, and override.
+- Pure determinism tests exist in `lib/riskIndex.test.ts`, `lib/deterministicInvariant.test.ts`, and `lib/riskInjection.test.ts` (30 tests including 20-run determinism check).
+- **Owner force rescan:** `force=1` with owner session bypasses all cache layers (text-hash, scoring-input-hash), allowing fresh AI extraction + injection + scoring. Non-owner `force=1` only bypasses Layer 1 TTL cache.
 
 ### Macro Signal Display (Deal Detail)
 

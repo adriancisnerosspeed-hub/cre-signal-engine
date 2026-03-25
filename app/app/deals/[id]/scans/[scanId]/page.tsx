@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { ensureProfile } from "@/lib/auth";
+import { ensureProfile, isOwner } from "@/lib/auth";
 import { getCurrentOrgId } from "@/lib/org";
 import { getWorkspacePlanAndEntitlementsForUser } from "@/lib/entitlements/workspace";
 import { isFeatureEnabled } from "@/lib/featureFlags";
@@ -9,6 +9,8 @@ import Link from "next/link";
 import { getRiskTrend } from "@/lib/riskIndex";
 import { loadRisksAndLinks, diffRisks, type DealRiskRow } from "@/lib/dealScanData";
 import { AiInsightsPanel } from "@/app/app/deals/[id]/AiInsightsPanel";
+import ForceRescanButton from "@/app/app/deals/[id]/ForceRescanButton";
+import ScanDevTools from "./ScanDevTools";
 
 type Deal = {
   id: string;
@@ -27,12 +29,27 @@ type ScanRow = {
   prompt_version: string | null;
   risk_index_score: number | null;
   risk_index_band: string | null;
+  risk_index_version: string | null;
+  input_text_hash: string | null;
+  scoring_input_hash: string | null;
   risk_index_breakdown: {
     structural_weight?: number;
     market_weight?: number;
     confidence_factor?: number;
     previous_score?: number;
     delta_comparable?: boolean;
+    stabilizer_benefit?: number;
+    penalty_total?: number;
+    contributions?: { driver: string; points: number }[];
+    contribution_pct?: { driver: string; pct: number }[];
+    top_drivers?: string[];
+    tier_drivers?: string[];
+    edge_flags?: string[];
+    validation_errors?: string[];
+    review_flag?: boolean;
+    injected_risk_types?: string[];
+    risk_fingerprint?: string;
+    driver_confidence_multipliers?: { driver: string; multiplier: number }[];
   } | null;
 };
 
@@ -73,11 +90,12 @@ export default async function ScanDetailPage({
 
   if (dealError || !deal) notFound();
   const d = deal as Deal;
+  const ownerMode = isOwner(user.email ?? undefined);
 
   const { data: scanRow, error: scanError } = await supabase
     .from("deal_scans")
     .select(
-      "id, deal_id, extraction, status, created_at, model, prompt_version, risk_index_score, risk_index_band, risk_index_breakdown"
+      "id, deal_id, extraction, status, created_at, model, prompt_version, risk_index_score, risk_index_band, risk_index_breakdown, risk_index_version, input_text_hash, scoring_input_hash"
     )
     .eq("id", scanId)
     .single();
@@ -188,6 +206,31 @@ export default async function ScanDetailPage({
           </span>
         )}
       </div>
+
+      {ownerMode && (
+        <ScanDevTools
+          dealId={dealId}
+          scanId={scanId}
+          scan={{
+            id: scan.id,
+            score: scan.risk_index_score,
+            band: scan.risk_index_band,
+            version: scan.risk_index_version,
+            model: scan.model,
+            promptVersion: scan.prompt_version,
+            inputTextHash: scan.input_text_hash,
+            scoringInputHash: scan.scoring_input_hash,
+            breakdown: scan.risk_index_breakdown,
+            extraction: scan.extraction,
+          }}
+          risks={risks.map((r) => ({
+            risk_type: r.risk_type,
+            severity_original: r.severity_original,
+            severity_current: r.severity_current,
+            confidence: r.confidence,
+          }))}
+        />
+      )}
 
       {scan.risk_index_score != null && (
         <section className="mb-8">

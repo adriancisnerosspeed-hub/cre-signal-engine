@@ -8,9 +8,11 @@ import { toast } from "@/lib/toast";
 
 export function TestToolsPanel() {
   const [scanId, setScanId] = useState("");
+  const [forceRescanDealId, setForceRescanDealId] = useState("");
   const [dryRunJson, setDryRunJson] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [outboxBusy, setOutboxBusy] = useState(false);
+  const [rescanBusy, setRescanBusy] = useState(false);
 
   async function sendTestEmail() {
     try {
@@ -56,6 +58,36 @@ export function TestToolsPanel() {
       toast("Dry run complete", "info");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Failed", "error");
+    }
+  }
+
+  async function forceRescan() {
+    const id = forceRescanDealId.trim();
+    if (!id) {
+      toast("Enter a deal ID", "error");
+      return;
+    }
+    setRescanBusy(true);
+    try {
+      const res = await fetch("/api/deals/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deal_id: id, force: 1 }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Rescan failed");
+      setDryRunJson(JSON.stringify(json, null, 2));
+      const score = json.risk_index_score;
+      const band = json.risk_index_band;
+      if (json.reused) {
+        toast(`Cached: ${score} (${band})`, "info");
+      } else {
+        toast(`Scan complete: ${score ?? json.scan_id?.slice(0, 8)} (${band ?? "—"})`, "success");
+      }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Failed", "error");
+    } finally {
+      setRescanBusy(false);
     }
   }
 
@@ -107,6 +139,24 @@ export function TestToolsPanel() {
           <Button type="button" variant="outline" onClick={() => void runDryScan()}>
             Run risk index dry-run
           </Button>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground">Force rescan (bypass all caches)</label>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Input
+              value={forceRescanDealId}
+              onChange={(e) => setForceRescanDealId(e.target.value)}
+              placeholder="Deal UUID"
+              className="font-mono text-xs sm:max-w-md"
+            />
+            <Button type="button" variant="secondary" disabled={rescanBusy} onClick={() => void forceRescan()}>
+              {rescanBusy ? "Scanning…" : "Force Rescan"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Bypasses all cache layers (text-hash, scoring-input-hash) and forces fresh AI extraction + scoring. Owner-only.
+          </p>
         </div>
 
         <div className="space-y-2">
