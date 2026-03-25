@@ -320,11 +320,24 @@ export async function POST(request: Request) {
     });
   }
 
-  const { applySeverityOverride } = await import("@/lib/riskSeverityOverrides");
-  const stabilizedRisks = risksAfterInjection.map((r) => ({
+  const { applySeverityOverride, shouldRemoveDataMissing, shouldRemoveExitCapCompression, shouldRemoveExpenseUnderstated } = await import("@/lib/riskSeverityOverrides");
+  const { hasConstructionKeyword } = await import("@/lib/riskInjection");
+  const overrideContext = { hasConstructionKeywords: hasConstructionKeyword(normalizedText) };
+  let stabilizedRisks = risksAfterInjection.map((r) => ({
     ...r,
-    severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring),
+    severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring, overrideContext),
   }));
+
+  // Remove risks that deterministic rules say should not exist
+  if (shouldRemoveDataMissing(assumptionsForScoring)) {
+    stabilizedRisks = stabilizedRisks.filter((r) => r.risk_type !== "DataMissing");
+  }
+  if (shouldRemoveExitCapCompression(assumptionsForScoring)) {
+    stabilizedRisks = stabilizedRisks.filter((r) => r.risk_type !== "ExitCapCompression");
+  }
+  if (shouldRemoveExpenseUnderstated(assumptionsForScoring)) {
+    stabilizedRisks = stabilizedRisks.filter((r) => r.risk_type !== "ExpenseUnderstated");
+  }
 
   // Canonical scoring-input hash: deterministic fingerprint of normalized inputs.
   // Used for post-normalization cache so identical normalized inputs always produce identical scores.

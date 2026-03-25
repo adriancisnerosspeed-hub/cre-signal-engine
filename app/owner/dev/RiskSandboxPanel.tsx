@@ -16,6 +16,16 @@ function thumbValue(v: number | readonly number[]): number {
 
 const BASE_RISKS: DealScanRisk[] = [
   {
+    risk_type: "DebtCostRisk",
+    severity: "High",
+    what_changed_or_trigger: "Sandbox",
+    why_it_matters: "Test",
+    who_this_affects: "Test",
+    recommended_action: "Monitor",
+    confidence: "High",
+    evidence_snippets: [],
+  },
+  {
     risk_type: "RefiRisk",
     severity: "High",
     what_changed_or_trigger: "Sandbox",
@@ -53,6 +63,7 @@ export function RiskSandboxPanel() {
   const [capIn, setCapIn] = useState(5.5);
   const [exitCap, setExitCap] = useState(5.25);
   const [hold, setHold] = useState(5);
+  const [debtRate, setDebtRate] = useState(6.5);
 
   const result = useMemo(() => {
     const assumptions: DealScanAssumptions = {
@@ -61,11 +72,12 @@ export function RiskSandboxPanel() {
       cap_rate_in: { value: capIn, unit: "%", confidence: "High" },
       exit_cap: { value: exitCap, unit: "%", confidence: "High" },
       hold_period_years: { value: hold, unit: "years", confidence: "High" },
+      debt_rate: { value: debtRate, unit: "%", confidence: "High" },
     };
     const { assumptions: assumptionsForScoring } = normalizeAssumptionsForScoringWithFlags(assumptions);
     const stabilizedRisks = BASE_RISKS.map((r) => ({
       ...r,
-      severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring),
+      severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring, { hasConstructionKeywords: false }),
     }));
     return computeRiskIndex({
       risks: stabilizedRisks.map((r) => ({
@@ -76,7 +88,7 @@ export function RiskSandboxPanel() {
       assumptions: assumptionsForScoring,
       macroLinkedCount: 0,
     });
-  }, [ltv, vacancy, capIn, exitCap, hold]);
+  }, [ltv, vacancy, capIn, exitCap, hold, debtRate]);
 
   async function downloadPdf() {
     try {
@@ -152,7 +164,14 @@ export function RiskSandboxPanel() {
             </div>
             <Slider min={3} max={12} step={0.05} value={[exitCap]} onValueChange={(v) => setExitCap(thumbValue(v))} />
           </div>
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Debt rate</span>
+              <span>{debtRate.toFixed(2)}%</span>
+            </div>
+            <Slider min={3} max={10} step={0.05} value={[debtRate]} onValueChange={(v) => setDebtRate(thumbValue(v))} />
+          </div>
+          <div className="space-y-2">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Hold (years)</span>
               <span>{hold}</span>

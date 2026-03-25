@@ -29,6 +29,6 @@ exports[`modelGovernance > getRiskModelMetadata returns stable snapshot; changin
     },
   },
   "structural_weight": 10,
-  "version": "3.0 (Institutional Stable v3)",
+  "version": "3.1 (Institutional Stable v3.1)",
 }
 `;

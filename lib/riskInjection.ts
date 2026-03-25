@@ -45,7 +45,7 @@ const CONSTRUCTION_KEYWORDS = [
   "rehab",
 ];
 
-function hasConstructionKeyword(text: string): boolean {
+export function hasConstructionKeyword(text: string): boolean {
   const lower = text.toLowerCase();
   return CONSTRUCTION_KEYWORDS.some((kw) => lower.includes(kw));
 }

@@ -78,11 +78,24 @@ export async function runDemoScan(
 
   const { assumptions: assumptionsForScoring, unitInferred } =
     normalizeAssumptionsForScoringWithFlags(normalized.assumptions);
-  const { applySeverityOverride } = await import("@/lib/riskSeverityOverrides");
-  const stabilizedRisks = normalized.risks.map((r) => ({
+  const { applySeverityOverride, shouldRemoveDataMissing, shouldRemoveExitCapCompression, shouldRemoveExpenseUnderstated } = await import("@/lib/riskSeverityOverrides");
+  const { hasConstructionKeyword } = await import("@/lib/riskInjection");
+  const overrideContext = { hasConstructionKeywords: hasConstructionKeyword(rawText) };
+  let stabilizedRisks = normalized.risks.map((r) => ({
     ...r,
-    severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring),
+    severity_current: applySeverityOverride(r.risk_type, r.severity, assumptionsForScoring, overrideContext),
   }));
+
+  // Remove risks that deterministic rules say should not exist
+  if (shouldRemoveDataMissing(assumptionsForScoring)) {
+    stabilizedRisks = stabilizedRisks.filter((r) => r.risk_type !== "DataMissing");
+  }
+  if (shouldRemoveExitCapCompression(assumptionsForScoring)) {
+    stabilizedRisks = stabilizedRisks.filter((r) => r.risk_type !== "ExitCapCompression");
+  }
+  if (shouldRemoveExpenseUnderstated(assumptionsForScoring)) {
+    stabilizedRisks = stabilizedRisks.filter((r) => r.risk_type !== "ExpenseUnderstated");
+  }
 
   const completedAt = new Date().toISOString();
   const scanRow = {

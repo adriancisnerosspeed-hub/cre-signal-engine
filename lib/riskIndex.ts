@@ -121,9 +121,11 @@ export const RAMP_VACANCY_HIGH = 35;
 export const RISK_INDEX_V2_LOCKED_AT = "2025-01-01";
 /** v3.0 lock date (ISO). */
 export const RISK_INDEX_V3_LOCKED_AT = "2026-03-23";
+/** v3.1 lock date (ISO). */
+export const RISK_INDEX_V3_1_LOCKED_AT = "2026-03-25";
 
 /** Scoring logic version; stored on each scan for defensibility (e.g. older scans used older logic). */
-export const RISK_INDEX_VERSION = "3.0 (Institutional Stable v3)";
+export const RISK_INDEX_VERSION = "3.1 (Institutional Stable v3.1)";
 
 /**
  * MODEL GOVERNANCE:
@@ -335,7 +337,7 @@ function computePenalties(
     const points = (() => {
       switch (r.risk_type) {
         case "DataMissing": {
-          const pts = Math.min(sevPoints * conf, 3);
+          const pts = Math.min(sevPoints * conf, 9);
           missingOnlyPenalty += pts;
           return pts;
         }
