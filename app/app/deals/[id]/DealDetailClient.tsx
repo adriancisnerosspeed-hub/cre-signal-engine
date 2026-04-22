@@ -158,13 +158,13 @@ export default function DealDetailClient({
   return (
     <div>
       {error && (
-        <p style={{ marginBottom: 8, fontSize: 14, color: "#ef4444" }}>{error}</p>
+        <p className="mb-2 text-sm text-destructive">{error}</p>
       )}
       {scanBanner === "started" && (
-        <p style={{ marginBottom: 8, fontSize: 14, color: "#a78bfa" }}>Fresh scan started…</p>
+        <p className="mb-2 text-sm" style={{ color: "var(--accent-blue)" }}>Fresh scan started…</p>
       )}
       {scanBanner === "completed" && (
-        <p style={{ marginBottom: 8, fontSize: 14, color: "#22c55e" }}>Scan completed</p>
+        <p className="mb-2 text-sm" style={{ color: "var(--band-low)" }}>Scan completed</p>
       )}
       <PaywallModal
         open={paywallOpen}

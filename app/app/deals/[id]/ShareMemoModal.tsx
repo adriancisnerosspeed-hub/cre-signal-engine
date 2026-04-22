@@ -186,7 +186,7 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
             </div>
 
             {error && (
-              <p style={{ color: "#ef4444", fontSize: 13, marginBottom: 12 }}>{error}</p>
+              <p className="text-destructive text-[13px] mb-3">{error}</p>
             )}
             {loading ? (
               <p className="text-muted-foreground text-sm">Loading…</p>
@@ -195,7 +195,7 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
                 <p className="text-muted-foreground text-[13px] mb-3">
                   Anyone with this link can view the IC memo narrative and risk score. Financial inputs are not shown.
                   {link.password_protected && (
-                    <span className="block mt-2 font-semibold" style={{ color: "#eab308" }}>
+                    <span className="block mt-2 font-semibold" style={{ color: "var(--band-moderate)" }}>
                       Password protected — recipients must enter the password you set.
                     </span>
                   )}
@@ -211,17 +211,8 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
                   <button
                     type="button"
                     onClick={handleCopy}
-                    style={{
-                      padding: "8px 14px",
-                      backgroundColor: "#3b82f6",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 6,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                    }}
+                    className="py-2 px-3.5 text-white border-0 rounded-md text-[13px] font-semibold cursor-pointer whitespace-nowrap hover:opacity-90 transition-opacity"
+                    style={{ backgroundColor: "var(--accent-blue)" }}
                   >
                     {copied ? "Copied!" : "Copy"}
                   </button>
@@ -234,14 +225,7 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
                     type="button"
                     onClick={handleRevoke}
                     disabled={revoking}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "#ef4444",
-                      fontSize: 13,
-                      cursor: revoking ? "not-allowed" : "pointer",
-                      opacity: revoking ? 0.6 : 1,
-                    }}
+                    className="bg-transparent border-0 text-destructive text-[13px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 hover:opacity-80 transition-opacity"
                   >
                     {revoking ? "Revoking…" : "Revoke link"}
                   </button>
@@ -277,17 +261,8 @@ export default function ShareMemoModal({ scanId }: { scanId: string }) {
                   type="button"
                   onClick={handleCreate}
                   disabled={loading || (usePassword && sharePassword.trim().length === 0)}
-                  style={{
-                    padding: "10px 20px",
-                    backgroundColor: "#3b82f6",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 6,
-                    fontWeight: 600,
-                    fontSize: 14,
-                    cursor: loading || (usePassword && sharePassword.trim().length === 0) ? "not-allowed" : "pointer",
-                    opacity: loading || (usePassword && sharePassword.trim().length === 0) ? 0.6 : 1,
-                  }}
+                  className="py-2.5 px-5 text-white border-0 rounded-md font-semibold text-sm cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: "var(--accent-blue)" }}
                 >
                   Create share link
                 </button>

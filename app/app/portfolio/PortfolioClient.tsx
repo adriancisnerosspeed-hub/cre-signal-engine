@@ -17,9 +17,9 @@ import type {
 } from "@/lib/portfolioSummary";
 
 const BADGE_STYLE: Record<Badge, { bg: string; text: string }> = {
-  unscanned: { bg: "rgba(113,113,122,0.3)", text: "#a1a1aa" },
-  stale: { bg: "rgba(245,158,11,0.2)", text: "#fbbf24" },
-  needs_review: { bg: "rgba(239,68,68,0.2)", text: "#f87171" },
+  unscanned: { bg: "rgb(113 113 122 / 0.15)", text: "var(--muted-foreground)" },
+  stale: { bg: "rgb(245 158 11 / 0.15)", text: "var(--band-moderate)" },
+  needs_review: { bg: "rgb(220 38 38 / 0.15)", text: "var(--band-high)" },
 };
 
 type SortField = "score" | "last_scanned" | "name" | "market" | "delta";
@@ -439,7 +439,8 @@ export function PortfolioClient({
           <p className="text-foreground m-0">Starter plan required.</p>
           <Link
             href="/pricing"
-            className="inline-block mt-2 px-4 py-2 bg-[#3b82f6] text-white rounded-md text-sm font-semibold no-underline"
+            className="inline-block mt-2 px-4 py-2 text-white rounded-md text-sm font-semibold no-underline hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: "var(--accent-blue)" }}
           >
             Upgrade to Starter
           </Link>
@@ -545,9 +546,9 @@ export function PortfolioClient({
               type="button"
               onClick={() => setHighImpactFilter((v) => !v)}
               style={{
-                border: highImpactFilter ? "1px solid rgba(239,68,68,0.5)" : undefined,
-                background: highImpactFilter ? "rgba(239,68,68,0.2)" : undefined,
-                color: highImpactFilter ? "#f87171" : undefined,
+                border: highImpactFilter ? "1px solid color-mix(in oklab, var(--band-high) 50%, transparent)" : undefined,
+                background: highImpactFilter ? "color-mix(in oklab, var(--band-high) 18%, transparent)" : undefined,
+                color: highImpactFilter ? "var(--band-high)" : undefined,
               }}
               className={`px-3 py-1.5 rounded-md cursor-pointer text-xs font-semibold ${
                 highImpactFilter ? "" : "border border-border bg-background text-muted-foreground"
@@ -702,16 +703,16 @@ export function PortfolioClient({
                       fontWeight: 600,
                       background:
                         summary.policy_status.overall_status === "PASS"
-                          ? "rgba(34,197,94,0.2)"
+                          ? "color-mix(in oklab, var(--band-low) 18%, transparent)"
                           : summary.policy_status.overall_status === "BLOCK"
-                            ? "rgba(239,68,68,0.25)"
-                            : "rgba(245,158,11,0.2)",
+                            ? "color-mix(in oklab, var(--band-high) 22%, transparent)"
+                            : "color-mix(in oklab, var(--band-moderate) 18%, transparent)",
                       color:
                         summary.policy_status.overall_status === "PASS"
-                          ? "#22c55e"
+                          ? "var(--band-low)"
                           : summary.policy_status.overall_status === "BLOCK"
-                            ? "#f87171"
-                            : "#fbbf24",
+                            ? "var(--band-high)"
+                            : "var(--band-moderate)",
                     }}
                   >
                     {summary.policy_status.overall_status}
@@ -791,8 +792,8 @@ export function PortfolioClient({
                   borderRadius: 4,
                   fontSize: 11,
                   fontWeight: 600,
-                  background: "rgba(245,158,11,0.2)",
-                  color: "#fbbf24",
+                  background: "color-mix(in oklab, var(--band-moderate) 18%, transparent)",
+                  color: "var(--band-moderate)",
                 }}
               >
                 Attention
@@ -901,7 +902,7 @@ export function PortfolioClient({
               {summary.alerts.slice(0, 10).map((a, i) => (
                 <li key={i}>
                   {a.dealName ? (
-                    <Link href={`/app/deals/${a.dealId}`} className="text-[#3b82f6] no-underline">
+                    <Link href={`/app/deals/${a.dealId}`} className="no-underline" style={{ color: "var(--accent-blue)" }}>
                       {a.dealName}
                     </Link>
                   ) : null}
@@ -938,7 +939,7 @@ export function PortfolioClient({
                       return (
                         <tr key={d.id} className="border-b border-border">
                           <td className="px-3 py-2">
-                            <Link href={`/app/deals/${d.id}`} className="text-[#3b82f6] no-underline">
+                            <Link href={`/app/deals/${d.id}`} className="no-underline" style={{ color: "var(--accent-blue)" }}>
                               {d.name}
                             </Link>
                           </td>
@@ -994,7 +995,7 @@ export function PortfolioClient({
                           <Link
                             href={`/app/deals/${d.id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="text-[#3b82f6] no-underline"
+                            className="no-underline" style={{ color: "var(--accent-blue)" }}
                           >
                             {d.name}
                           </Link>
@@ -1008,8 +1009,8 @@ export function PortfolioClient({
                                   borderRadius: 4,
                                   fontSize: 11,
                                   fontWeight: 600,
-                                  background: "rgba(239,68,68,0.25)",
-                                  color: "#f87171",
+                                  background: "color-mix(in oklab, var(--band-high) 22%, transparent)",
+                                  color: "var(--band-high)",
                                 }}
                               >
                                 High impact
@@ -1122,7 +1123,7 @@ export function PortfolioClient({
                   {summary.topDealsByScore.map((d) => (
                     <tr key={d.id} className="border-b border-border">
                       <td className="px-3 py-2">
-                        <Link href={`/app/deals/${d.id}`} className="text-[#3b82f6] no-underline">
+                        <Link href={`/app/deals/${d.id}`} className="no-underline" style={{ color: "var(--accent-blue)" }}>
                           {d.name}
                         </Link>
                       </td>

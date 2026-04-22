@@ -26,37 +26,20 @@ export default function DemoDealDeleteButton({ dealId }: { dealId: string }) {
 
   if (confirming) {
     return (
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <span style={{ color: "#e4e4e7", fontSize: 13 }}>Delete this demo deal?</span>
+      <div className="flex gap-2 items-center">
+        <span className="text-[13px] text-foreground">Delete this demo deal?</span>
         <button
           type="button"
           onClick={handleDelete}
           disabled={loading}
-          style={{
-            padding: "4px 12px",
-            backgroundColor: "#ef4444",
-            color: "#fff",
-            border: "none",
-            borderRadius: 4,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
+          className="px-3 py-1 bg-destructive text-white border-0 rounded text-[13px] font-semibold disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
         >
           {loading ? "Deleting…" : "Yes, delete"}
         </button>
         <button
           type="button"
           onClick={() => setConfirming(false)}
-          style={{
-            padding: "4px 12px",
-            backgroundColor: "transparent",
-            color: "#a1a1aa",
-            border: "1px solid rgba(255,255,255,0.2)",
-            borderRadius: 4,
-            fontSize: 13,
-            cursor: "pointer",
-          }}
+          className="px-3 py-1 bg-transparent text-muted-foreground border border-border rounded text-[13px] cursor-pointer hover:bg-muted/50 transition-colors"
         >
           Cancel
         </button>
@@ -68,16 +51,7 @@ export default function DemoDealDeleteButton({ dealId }: { dealId: string }) {
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      style={{
-        padding: "4px 12px",
-        backgroundColor: "transparent",
-        color: "#a1a1aa",
-        border: "1px solid rgba(255,255,255,0.2)",
-        borderRadius: 4,
-        fontSize: 13,
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-      }}
+      className="px-3 py-1 bg-transparent text-muted-foreground border border-border rounded text-[13px] cursor-pointer whitespace-nowrap hover:bg-muted/50 transition-colors"
     >
       Delete demo deal
     </button>

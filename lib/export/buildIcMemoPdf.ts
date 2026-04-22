@@ -4,16 +4,10 @@
  */
 
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
+import { getBandRgbTriplet, type RiskBand } from "@/lib/brandColors";
 
 const DISCLAIMER =
   "CRE Signal Risk Index(TM) is an underwriting support tool. Final investment decisions should incorporate sponsor diligence and third-party validation.";
-
-const BAND_COLORS: Record<string, [number, number, number]> = {
-  Low:      [0.133, 0.773, 0.369], // #22c55e
-  Moderate: [0.918, 0.702, 0.031], // #eab308
-  Elevated: [0.976, 0.451, 0.086], // #f97316
-  High:     [0.937, 0.267, 0.267], // #ef4444
-};
 
 const PAGE_W = 612;
 const PAGE_H = 792;
@@ -213,10 +207,9 @@ export async function buildIcMemoPdf(params: {
   drawText("CRE Signal Risk Index(TM)", MARGIN, 10, fontBold, rgb(0.2, 0.2, 0.2));
   y -= 32;
 
-  const bandColor =
-    riskIndexBand && BAND_COLORS[riskIndexBand]
-      ? rgb(...BAND_COLORS[riskIndexBand])
-      : rgb(0.45, 0.45, 0.45);
+  const bandColor = riskIndexBand
+    ? rgb(...getBandRgbTriplet(riskIndexBand as RiskBand))
+    : rgb(0.45, 0.45, 0.45);
 
   // Score on top line, band directly below; both left-aligned at MARGIN, no overlap.
   if (riskIndexScore != null) {

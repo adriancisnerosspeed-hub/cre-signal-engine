@@ -119,13 +119,13 @@ export default function NewDealPage() {
             className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm resize-y"
           />
           {excerptWarning && (
-            <p style={{ marginTop: 6, fontSize: 13, color: "#f59e0b" }}>
+            <p className="mt-1.5 text-[13px]" style={{ color: "var(--band-moderate)" }}>
               Your underwriting excerpt looks too short. Add more detail for accurate assumption extraction and higher confidence scores.
             </p>
           )}
         </div>
         {error && (
-          <p style={{ color: "#ef4444", fontSize: 14 }}>{error}</p>
+          <p className="text-destructive text-sm">{error}</p>
         )}
         <div className="flex gap-3">
           <button

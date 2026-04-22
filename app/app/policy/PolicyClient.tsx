@@ -431,8 +431,16 @@ export function PolicyClient({ initialPolicies }: Props) {
                   <span
                     className="px-3 py-1 rounded text-[13px] font-semibold"
                     style={{
-                      background: evaluationResult.overall_status === "PASS" ? "rgba(34,197,94,0.2)" : evaluationResult.overall_status === "BLOCK" ? "rgba(239,68,68,0.25)" : "rgba(245,158,11,0.2)",
-                      color: evaluationResult.overall_status === "PASS" ? "#22c55e" : evaluationResult.overall_status === "BLOCK" ? "#f87171" : "#fbbf24",
+                      background: evaluationResult.overall_status === "PASS"
+                        ? "color-mix(in oklab, var(--band-low) 18%, transparent)"
+                        : evaluationResult.overall_status === "BLOCK"
+                          ? "color-mix(in oklab, var(--band-high) 22%, transparent)"
+                          : "color-mix(in oklab, var(--band-moderate) 18%, transparent)",
+                      color: evaluationResult.overall_status === "PASS"
+                        ? "var(--band-low)"
+                        : evaluationResult.overall_status === "BLOCK"
+                          ? "var(--band-high)"
+                          : "var(--band-moderate)",
                     }}
                   >
                     {evaluationResult.overall_status}

@@ -168,19 +168,19 @@ export default async function AppPage() {
       ) : (
         <div className="flex flex-col gap-3.5">
           {signals.map((signal: Signal) => {
-            const actionStyles =
+            const actionVars =
               signal.action === "Act"
-                ? { bg: "#3d2e1f", color: "#e5c078" }
+                ? { bg: "var(--badge-act-bg)", color: "var(--badge-act-fg)" }
                 : signal.action === "Monitor"
-                  ? { bg: "#2d2d32", color: "#b8b8be" }
-                  : { bg: "#1e3329", color: "#7cb89a" };
+                  ? { bg: "var(--badge-monitor-bg)", color: "var(--badge-monitor-fg)" }
+                  : { bg: "var(--badge-default-bg)", color: "var(--badge-default-fg)" };
             const conf = (signal.confidence || "").toLowerCase();
-            const confidenceStyles =
+            const confidenceVars =
               conf === "high"
-                ? { bg: "#1e3329", color: "#7cb89a" }
+                ? { bg: "var(--badge-conf-high-bg)", color: "var(--badge-conf-high-fg)" }
                 : conf === "medium"
-                  ? { bg: "#3d2e1f", color: "#e5c078" }
-                  : { bg: "#2d2d32", color: "#8b8b92" };
+                  ? { bg: "var(--badge-conf-med-bg)", color: "var(--badge-conf-med-fg)" }
+                  : { bg: "var(--badge-conf-low-bg)", color: "var(--badge-conf-low-fg)" };
             return (
               <div
                 key={signal.id}
@@ -193,13 +193,13 @@ export default async function AppPage() {
                     </span>
                     <span
                       className="inline-block py-1 px-2 rounded text-[11px] font-semibold"
-                      style={{ backgroundColor: actionStyles.bg, color: actionStyles.color }}
+                      style={{ backgroundColor: actionVars.bg, color: actionVars.color }}
                     >
                       {signal.action}
                     </span>
                     <span
                       className="inline-block py-1 px-2 rounded text-[11px] font-medium"
-                      style={{ backgroundColor: confidenceStyles.bg, color: confidenceStyles.color }}
+                      style={{ backgroundColor: confidenceVars.bg, color: confidenceVars.color }}
                     >
                       {signal.confidence}
                     </span>

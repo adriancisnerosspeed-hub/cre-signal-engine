@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getBandCssVar } from "@/lib/brandColors";
 
 export type TrajectoryScan = {
   id: string;
@@ -14,14 +15,6 @@ export type TrajectoryScan = {
   } | null;
 };
 
-const BAND_COLORS: Record<string, string> = {
-  Low: "#22c55e",
-  Moderate: "#eab308",
-  Elevated: "#f97316",
-  High: "#ef4444",
-};
-const FALLBACK_COLOR = "#71717a";
-
 const CHART_PADDING = { top: 12, right: 12, bottom: 28, left: 32 };
 const VIEW_WIDTH = 400;
 const VIEW_HEIGHT = 160;
@@ -29,8 +22,7 @@ const POINT_R = 4;
 const MARKER_SIZE = 6;
 
 function getBandColor(band: string | null): string {
-  if (!band) return FALLBACK_COLOR;
-  return BAND_COLORS[band] ?? FALLBACK_COLOR;
+  return getBandCssVar(band);
 }
 
 export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[] }) {
@@ -127,7 +119,7 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
               y={yTop}
               width={plotWidth}
               height={yBottom - yTop}
-              fill={getBandColor(band as string)}
+              style={{ fill: getBandColor(band as string) }}
               opacity={0.15}
             />
           );
@@ -145,7 +137,7 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
                 y1={p.y}
                 x2={next.x}
                 y2={next.y}
-                stroke={color}
+                style={{ stroke: color }}
                 strokeWidth={2}
                 strokeLinecap="round"
               />
@@ -159,7 +151,7 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
             y1={points[0].y}
             x2={points[0].x + 20}
             y2={points[0].y}
-            stroke={getBandColor(points[0].scan.risk_index_band)}
+            style={{ stroke: getBandColor(points[0].scan.risk_index_band) }}
             strokeWidth={2}
             strokeLinecap="round"
           />
@@ -183,8 +175,7 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
               cx={p.x}
               cy={p.y}
               r={POINT_R}
-              fill={getBandColor(p.scan.risk_index_band)}
-              stroke="rgba(0,0,0,0.2)"
+              style={{ fill: getBandColor(p.scan.risk_index_band), stroke: "rgba(0,0,0,0.2)" }}
               strokeWidth={1}
             />
             {hasTierOverride(p.scan) && (
@@ -194,8 +185,7 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
                 <title>Tier override</title>
                 <path
                   d={`M 0 ${MARKER_SIZE} L ${-MARKER_SIZE} ${-MARKER_SIZE} L ${MARKER_SIZE} ${-MARKER_SIZE} Z`}
-                  fill="#eab308"
-                  stroke="rgba(0,0,0,0.3)"
+                  style={{ fill: "var(--band-moderate)", stroke: "rgba(0,0,0,0.3)" }}
                   strokeWidth={1}
                 />
               </g>
@@ -207,8 +197,7 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
                 <title>Version drift</title>
                 <path
                   d={`M 0 ${-MARKER_SIZE} L ${MARKER_SIZE} 0 L 0 ${MARKER_SIZE} L ${-MARKER_SIZE} 0 Z`}
-                  fill="rgb(200, 140, 0)"
-                  stroke="rgba(0,0,0,0.3)"
+                  style={{ fill: "var(--band-elevated)", stroke: "rgba(0,0,0,0.3)" }}
                   strokeWidth={1}
                 />
               </g>
@@ -283,12 +272,12 @@ export default function RiskTrajectoryChart({ scans }: { scans: TrajectoryScan[]
         >
           {sorted.some(hasTierOverride) && (
             <span>
-              <span style={{ color: "#eab308" }}>&#9650;</span> Tier override
+              <span style={{ color: "var(--band-moderate)" }}>&#9650;</span> Tier override
             </span>
           )}
           {sorted.some(hasVersionDrift) && (
             <span>
-              <span style={{ color: "rgb(200, 140, 0)" }}>&#9670;</span> Version drift
+              <span style={{ color: "var(--band-elevated)" }}>&#9670;</span> Version drift
             </span>
           )}
         </div>

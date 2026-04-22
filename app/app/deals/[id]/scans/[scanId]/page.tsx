@@ -308,7 +308,7 @@ export default async function ScanDetailPage({
           <div className="px-5 py-4 border border-border rounded-lg bg-card text-sm">
             {diff.added.length > 0 && (
               <div className="mb-3">
-                <strong style={{ color: "#22c55e" }}>Added risks ({diff.added.length}):</strong>
+                <strong style={{ color: "var(--band-low)" }}>Added risks ({diff.added.length}):</strong>
                 <ul className="mt-1 pl-5 text-foreground">
                   {diff.added.map((r) => (
                     <li key={r.id}>{r.risk_type} — {r.severity_current}</li>
@@ -318,7 +318,7 @@ export default async function ScanDetailPage({
             )}
             {diff.removed.length > 0 && (
               <div className="mb-3">
-                <strong style={{ color: "#f87171" }}>Removed risks ({diff.removed.length}):</strong>
+                <strong style={{ color: "var(--band-high)" }}>Removed risks ({diff.removed.length}):</strong>
                 <ul className="mt-1 pl-5 text-foreground">
                   {diff.removed.map((r) => (
                     <li key={r.id}>{r.risk_type} — {r.severity_current}</li>
@@ -328,7 +328,7 @@ export default async function ScanDetailPage({
             )}
             {diff.severityChanges.length > 0 && (
               <div>
-                <strong style={{ color: "#fbbf24" }}>Severity changes ({diff.severityChanges.length}):</strong>
+                <strong style={{ color: "var(--band-moderate)" }}>Severity changes ({diff.severityChanges.length}):</strong>
                 <ul className="mt-1 pl-5 text-foreground">
                   {diff.severityChanges.map(({ risk, previousSeverity }) => (
                     <li key={risk.id}>

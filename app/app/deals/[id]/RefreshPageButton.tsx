@@ -8,16 +8,8 @@ export default function RefreshPageButton() {
     <button
       type="button"
       onClick={() => router.refresh()}
-      style={{
-        padding: "6px 12px",
-        fontSize: 13,
-        fontWeight: 600,
-        color: "#18181b",
-        backgroundColor: "#eab308",
-        border: "none",
-        borderRadius: 6,
-        cursor: "pointer",
-      }}
+      className="py-1.5 px-3 text-[13px] font-semibold border-0 rounded-md cursor-pointer hover:opacity-90 transition-opacity"
+      style={{ color: "#18181b", backgroundColor: "var(--band-moderate)" }}
     >
       Refresh
     </button>

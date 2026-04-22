@@ -77,7 +77,8 @@ export default function ScenarioComparisonBlock({
         <button
           type="button"
           onClick={() => setPaywallOpen(true)}
-          className="mt-2 py-2 px-4 text-sm bg-[#3b82f6] text-white border-0 rounded-md cursor-pointer"
+          className="mt-2 py-2 px-4 text-sm text-white border-0 rounded-md cursor-pointer hover:opacity-90 transition-opacity"
+          style={{ backgroundColor: "var(--accent-blue)" }}
         >
           Upgrade to Starter
         </button>

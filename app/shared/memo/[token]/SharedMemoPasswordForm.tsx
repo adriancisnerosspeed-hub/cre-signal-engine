@@ -32,12 +32,12 @@ export default function SharedMemoPasswordForm({ token }: { token: string }) {
   }
 
   return (
-    <main className="max-w-[480px] mx-auto py-16 px-6 bg-white dark:bg-black text-gray-900 dark:text-white min-h-[60vh]">
-      <Link href="/" className="text-[13px] text-gray-500 dark:text-zinc-500 font-semibold no-underline">
+    <main className="max-w-[480px] mx-auto py-16 px-6 bg-background text-foreground min-h-[60vh]">
+      <Link href="/" className="text-[13px] text-muted-foreground font-semibold no-underline">
         CRE Signal Engine
       </Link>
-      <h1 className="text-[22px] font-bold text-gray-900 dark:text-white mt-6 mb-2">Password required</h1>
-      <p className="text-sm text-gray-500 dark:text-zinc-400 mb-8 leading-relaxed">
+      <h1 className="text-[22px] font-bold text-foreground mt-6 mb-2">Password required</h1>
+      <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
         This shared memo is protected. Enter the password you were given to view the IC memo.
       </p>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -45,16 +45,17 @@ export default function SharedMemoPasswordForm({ token }: { token: string }) {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-white/15 bg-zinc-50 dark:bg-zinc-900 text-gray-900 dark:text-white text-sm"
+          className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted/50 text-foreground text-sm"
           placeholder="Password"
           autoComplete="off"
           required
         />
-        {error && <p className="text-sm text-red-500 m-0">{error}</p>}
+        {error && <p className="text-sm text-destructive m-0">{error}</p>}
         <button
           type="submit"
           disabled={loading}
-          className="py-2.5 px-4 rounded-lg bg-[#3b82f6] text-white text-sm font-semibold border-0 cursor-pointer disabled:opacity-60"
+          className="py-2.5 px-4 rounded-lg text-white text-sm font-semibold border-0 cursor-pointer disabled:opacity-60 hover:opacity-90 transition-opacity"
+          style={{ backgroundColor: "var(--accent-blue)" }}
         >
           {loading ? "Unlocking…" : "View memo"}
         </button>

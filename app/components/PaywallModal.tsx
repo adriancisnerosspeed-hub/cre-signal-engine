@@ -35,7 +35,8 @@ function UpgradeButton({ workspaceId }: { workspaceId?: string }) {
       type="button"
       onClick={handleUpgrade}
       disabled={loading}
-      className="px-5 py-2.5 bg-blue-500 text-white border-none rounded-lg font-semibold text-sm cursor-pointer disabled:cursor-not-allowed hover:bg-blue-600 transition-colors"
+      className="px-5 py-2.5 text-white border-none rounded-lg font-semibold text-sm cursor-pointer disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+      style={{ backgroundColor: "var(--accent-blue)" }}
     >
       {loading ? "Redirecting…" : "Upgrade to Starter"}
     </button>

@@ -6,13 +6,7 @@ import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-const BAND_COLORS: Record<string, string> = {
-  Low: "#22c55e",
-  Moderate: "#eab308",
-  Elevated: "#f97316",
-  High: "#ef4444",
-};
+import { getBandCssVar } from "@/lib/brandColors";
 
 type DemoInfo = {
   dealId: string;
@@ -70,7 +64,7 @@ export default function OnboardingFlow({
     await markComplete();
   }
 
-  const bandColor = demo?.riskBand ? (BAND_COLORS[demo.riskBand] ?? "#71717a") : "#71717a";
+  const bandColor = getBandCssVar(demo?.riskBand ?? null);
 
   return (
     <div

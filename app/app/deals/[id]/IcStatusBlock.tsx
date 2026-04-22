@@ -107,14 +107,15 @@ export default function IcStatusBlock({
             />
           </div>
           {error && (
-            <p className="text-[13px] text-red-400 m-0">{error}</p>
+            <p className="text-[13px] text-destructive m-0">{error}</p>
           )}
           {hasChanges && (
             <button
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="self-start py-2 px-4 rounded-md border-0 bg-[#3b82f6] text-white text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+              className="self-start py-2 px-4 rounded-md border-0 text-white text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70 hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "var(--accent-blue)" }}
             >
               {saving ? "Saving…" : "Save"}
             </button>

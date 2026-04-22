@@ -73,7 +73,7 @@ export default function MethodologyDownloadLink({
           border: "none",
           padding: 0,
           font: "inherit",
-          color: "#3b82f6",
+          color: "var(--accent-blue)",
           cursor: loading ? "wait" : "pointer",
           textDecoration: "none",
           fontSize: 13,

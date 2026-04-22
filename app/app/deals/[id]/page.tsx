@@ -279,7 +279,7 @@ export default async function DealPage({
         >
           {!d.latest_scan_id ? (
             <>
-              <span style={{ color: "#eab308", fontSize: 14 }}>
+              <span className="text-sm" style={{ color: "var(--band-moderate)" }}>
                 Scan pending… The demo scan may still be running. Check back in a moment or refresh.
               </span>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -289,7 +289,7 @@ export default async function DealPage({
             </>
           ) : (
             <>
-              <span style={{ color: "#eab308", fontSize: 14 }}>
+              <span className="text-sm" style={{ color: "var(--band-moderate)" }}>
                 This is a sample deal — replace with your own assumptions to get started.
               </span>
               <DemoDealDeleteButton dealId={d.id} />
@@ -398,7 +398,7 @@ export default async function DealPage({
                 <div className="py-4 px-5 border border-gray-200 dark:border-white/[0.08] rounded-lg bg-gray-50 dark:bg-white/[0.02]">
                   <p className="text-gray-500 dark:text-gray-400 text-sm m-0">
                     Available beginning at Analyst plan.{" "}
-                    <Link href="/pricing" className="text-[#3b82f6]">View plans</Link>
+                    <Link href="/pricing" className="font-semibold" style={{ color: "var(--accent-blue)" }}>View plans</Link>
                   </p>
                 </div>
               )}

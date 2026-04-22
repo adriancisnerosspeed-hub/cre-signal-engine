@@ -43,6 +43,32 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Risk bands — institutional palette, WCAG AA on white */
+  --band-low:      #059669;
+  --band-moderate: #d97706;
+  --band-elevated: #ea580c;
+  --band-high:     #dc2626;
+
+  /* Signal action badges (tint-on-bg, light mode) */
+  --badge-act-bg:      rgb(245 158 11 / 0.12);
+  --badge-act-fg:      #b45309;
+  --badge-monitor-bg:  rgb(113 113 122 / 0.12);
+  --badge-monitor-fg:  #3f3f46;
+  --badge-default-bg:  rgb(16 185 129 / 0.12);
+  --badge-default-fg:  #047857;
+
+  /* Signal confidence badges (light mode) */
+  --badge-conf-high-bg:   rgb(16 185 129 / 0.12);
+  --badge-conf-high-fg:   #047857;
+  --badge-conf-med-bg:    rgb(245 158 11 / 0.12);
+  --badge-conf-med-fg:    #b45309;
+  --badge-conf-low-bg:    rgb(113 113 122 / 0.12);
+  --badge-conf-low-fg:    #52525b;
+
+  /* Accent blue (links, primary CTAs) */
+  --accent-blue:       #2563eb;
+  --accent-blue-hover: #1d4ed8;
 }
 
 .dark,
@@ -57,6 +83,32 @@
   --background: var(--bg-primary);
   --foreground: var(--text-primary);
   --muted-foreground: var(--text-muted);
+
+  /* Risk bands — lifted for contrast on dark backgrounds */
+  --band-low:      #34d399;
+  --band-moderate: #fbbf24;
+  --band-elevated: #fb923c;
+  --band-high:     #f87171;
+
+  /* Signal action badges (dark) */
+  --badge-act-bg:      rgb(245 158 11 / 0.15);
+  --badge-act-fg:      #fcd34d;
+  --badge-monitor-bg:  rgb(161 161 170 / 0.15);
+  --badge-monitor-fg:  #d4d4d8;
+  --badge-default-bg:  rgb(16 185 129 / 0.15);
+  --badge-default-fg:  #6ee7b7;
+
+  /* Signal confidence badges (dark) */
+  --badge-conf-high-bg:   rgb(16 185 129 / 0.15);
+  --badge-conf-high-fg:   #6ee7b7;
+  --badge-conf-med-bg:    rgb(245 158 11 / 0.15);
+  --badge-conf-med-fg:    #fcd34d;
+  --badge-conf-low-bg:    rgb(161 161 170 / 0.15);
+  --badge-conf-low-fg:    #a1a1aa;
+
+  /* Accent blue (dark — slightly lighter for AA on dark bg) */
+  --accent-blue:       #3b82f6;
+  --accent-blue-hover: #60a5fa;
 }
 
 /* Auto dark mode based on system preference */
@@ -70,6 +122,28 @@
     --text-secondary: #a1a1aa;
     --text-muted: #71717a;
     --muted-foreground: var(--text-muted);
+
+    --band-low:      #34d399;
+    --band-moderate: #fbbf24;
+    --band-elevated: #fb923c;
+    --band-high:     #f87171;
+
+    --badge-act-bg:      rgb(245 158 11 / 0.15);
+    --badge-act-fg:      #fcd34d;
+    --badge-monitor-bg:  rgb(161 161 170 / 0.15);
+    --badge-monitor-fg:  #d4d4d8;
+    --badge-default-bg:  rgb(16 185 129 / 0.15);
+    --badge-default-fg:  #6ee7b7;
+
+    --badge-conf-high-bg:   rgb(16 185 129 / 0.15);
+    --badge-conf-high-fg:   #6ee7b7;
+    --badge-conf-med-bg:    rgb(245 158 11 / 0.15);
+    --badge-conf-med-fg:    #fcd34d;
+    --badge-conf-low-bg:    rgb(161 161 170 / 0.15);
+    --badge-conf-low-fg:    #a1a1aa;
+
+    --accent-blue:       #3b82f6;
+    --accent-blue-hover: #60a5fa;
   }
 }
 
@@ -139,7 +213,7 @@
   --landing-muted: var(--text-muted);
   --landing-border: var(--border);
   --landing-card: var(--bg-card);
-  --landing-accent: #3b82f6;
+  --landing-accent: var(--accent-blue);
   background: var(--landing-bg);
   color: var(--landing-fg);
   min-height: calc(100vh - 52px);
@@ -152,7 +226,7 @@
   --landing-muted: #52525b;
   --landing-border: #e4e4e7;
   --landing-card: #ffffff;
-  --landing-accent: #2563eb;
+  --landing-accent: var(--accent-blue);
   background: linear-gradient(180deg, #fafafa 0%, #f4f4f5 50%, #fafafa 100%);
   color: var(--landing-fg);
 }
@@ -163,7 +237,7 @@
   --landing-muted: #a1a1aa;
   --landing-border: #27272a;
   --landing-card: #18181b;
-  --landing-accent: #3b82f6;
+  --landing-accent: var(--accent-blue);
   background: linear-gradient(180deg, #09090b 0%, #0c0c12 45%, #09090b 100%);
   color: var(--landing-fg);
 }
@@ -275,13 +349,13 @@
 }
 
 .landing-signal-tag.act {
-  background: #3d2e1f;
-  color: #e5c078;
+  background: var(--badge-act-bg);
+  color: var(--badge-act-fg);
 }
 
 .landing-signal-tag.conf {
-  background: #1e3329;
-  color: #7cb89a;
+  background: var(--badge-conf-high-bg);
+  color: var(--badge-conf-high-fg);
 }
 
 .landing-signal-mock-block {
