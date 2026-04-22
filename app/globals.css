@@ -200,10 +200,14 @@
   border-color: var(--border);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-@media (prefers-color-scheme: dark), .dark, [data-theme="dark"] {
+@media (prefers-color-scheme: dark) {
   .signal-card:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   }
+}
+.dark .signal-card:hover,
+[data-theme="dark"] .signal-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 /* Landing page: theme-aware */
